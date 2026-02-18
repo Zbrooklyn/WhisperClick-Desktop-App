@@ -472,6 +472,16 @@
   }
 
   async function startRecording() {
+    dom.recordBtn.disabled = true;
+    const result = await callApi('start_recording');
+    dom.recordBtn.disabled = false;
+    if (!result || !result.success) {
+      const errMsg = (result && result.error) ? result.error : 'Unable to start recording';
+      setState(State.IDLE);
+      showToast(errMsg, 'warning');
+      return;
+    }
+
     setState(State.RECORDING);
     app.recordingStart = Date.now();
     dom.recordTimer.textContent = '00:00';
@@ -484,8 +494,6 @@
 
     // Audio level polling
     startLevelPolling();
-
-    await callApi('start_recording');
   }
 
   async function stopRecording() {
@@ -538,7 +546,7 @@
     app.processingCancelled = true;
     dom.processingIndicator.classList.add('hidden');
     setState(State.IDLE);
-    showToast('Processing cancelled', 'info', 2000);
+    showToast('Dismissed. Transcription continues in background.', 'info', 2500);
   }
 
   /* ---------- Audio Level Polling (Bars) ---------- */
@@ -634,6 +642,24 @@
         }
       });
     });
+  }
+
+  /* ---------- Load Toolbar Options ---------- */
+  async function loadModelOptions() {
+    const models = await callApi('get_models');
+    if (!models || models.length === 0) {
+      app.dropdowns.model.populate([{ value: 'base', label: 'base' }], 'base');
+      return;
+    }
+
+    const items = models.map(model => ({ value: model.name, label: model.name }));
+    const preferred = app.settings && app.settings.model;
+    const fallback = app.dropdowns.model && app.dropdowns.model.value;
+    const selected = items.some(i => i.value === preferred)
+      ? preferred
+      : (items.some(i => i.value === fallback) ? fallback : items[0].value);
+
+    app.dropdowns.model.populate(items, selected);
   }
 
   /* ---------- Load Microphones ---------- */
@@ -909,6 +935,7 @@
     const models = await callApi('get_models');
     if (!models) return;
     renderModelList(dom.settingsModelList, models, 'settings');
+    await loadModelOptions();
   }
 
   function renderModelList(container, models, context) {
@@ -994,6 +1021,7 @@
         if (context === 'settings') {
           refreshSettingsModels();
         } else {
+          loadModelOptions();
           dom.onboardingOverlay.classList.add('hidden');
         }
       }, 500);
@@ -1201,6 +1229,7 @@
   async function bootstrap() {
     updateConnectionStatus(true);
     await loadSettings();
+    await loadModelOptions();
     await loadMicrophones();
     await loadHistory();
     await checkOnboarding();

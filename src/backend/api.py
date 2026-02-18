@@ -1,6 +1,7 @@
 import threading
 import time
 import uuid
+import os
 from datetime import datetime, timezone
 
 import webview
@@ -46,8 +47,15 @@ class Api:
             self._window.minimize()
 
     def close(self):
-        """Close (destroy) the main window."""
-        if self._window:
+        """Apply close behavior (tray minimize or quit)."""
+        if not self._window:
+            return
+        behavior = self.get_close_behavior()
+        if behavior == "tray":
+            self._window.hide()
+            if self._pill_manager:
+                self._pill_manager.show()
+        else:
             self._window.destroy()
 
     def show_main_window(self):
@@ -334,8 +342,14 @@ class Api:
             )
             if enabled:
                 import sys
-                exe_path = sys.executable
-                winreg.SetValueEx(key, "WhisperClick", 0, winreg.REG_SZ, f'"{exe_path}"')
+                if getattr(sys, "frozen", False):
+                    launch_cmd = f'"{sys.executable}"'
+                else:
+                    pythonw = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
+                    python_exe = pythonw if os.path.exists(pythonw) else sys.executable
+                    main_py = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "main.py"))
+                    launch_cmd = f'"{python_exe}" "{main_py}"'
+                winreg.SetValueEx(key, "WhisperClick", 0, winreg.REG_SZ, launch_cmd)
             else:
                 try:
                     winreg.DeleteValue(key, "WhisperClick")

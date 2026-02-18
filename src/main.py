@@ -17,6 +17,12 @@ from src.backend.api import Api
 from src.backend.config import load_settings, CONFIG_DIR
 from src.pill_manager import PillManager
 
+SRC_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_DIR = os.path.dirname(SRC_DIR)
+ASSETS_DIR = os.path.join(PROJECT_DIR, "assets")
+TRAY_ICON_PATH = os.path.join(ASSETS_DIR, "tray_icon.ico")
+DEFAULT_HOTKEY = "<ctrl>+<shift>+r"
+
 
 # ---------------------------------------------------------------------------
 # Single-instance guard using a lock file
@@ -41,6 +47,71 @@ def _acquire_instance_lock():
         return False
 
 
+def _to_pynput_hotkey(hotkey: str) -> str:
+    """Convert UI hotkey text (e.g. 'Ctrl + Shift + R') into pynput format."""
+    if not hotkey:
+        return DEFAULT_HOTKEY
+
+    modifier_map = {
+        "ctrl": "<ctrl>",
+        "control": "<ctrl>",
+        "alt": "<alt>",
+        "shift": "<shift>",
+        "win": "<cmd>",
+        "meta": "<cmd>",
+        "cmd": "<cmd>",
+    }
+    special_map = {
+        "space": "<space>",
+        "tab": "<tab>",
+        "enter": "<enter>",
+        "return": "<enter>",
+        "esc": "<esc>",
+        "escape": "<esc>",
+        "up": "<up>",
+        "down": "<down>",
+        "left": "<left>",
+        "right": "<right>",
+        "home": "<home>",
+        "end": "<end>",
+        "pageup": "<page_up>",
+        "pagedown": "<page_down>",
+        "insert": "<insert>",
+        "delete": "<delete>",
+        "backspace": "<backspace>",
+    }
+
+    tokens = [t for t in hotkey.replace(" ", "").split("+") if t]
+    if not tokens:
+        return DEFAULT_HOTKEY
+
+    modifiers = set()
+    key = None
+    for token in tokens:
+        normalized = token.lower()
+        mapped_modifier = modifier_map.get(normalized)
+        if mapped_modifier:
+            modifiers.add(mapped_modifier)
+            continue
+
+        if normalized in special_map:
+            key = special_map[normalized]
+            continue
+
+        if normalized.startswith("f") and normalized[1:].isdigit():
+            key = f"<{normalized}>"
+            continue
+
+        if len(normalized) == 1:
+            key = normalized
+
+    if not key:
+        return DEFAULT_HOTKEY
+
+    ordered_modifiers = [m for m in ("<ctrl>", "<alt>", "<shift>", "<cmd>") if m in modifiers]
+    return "+".join(ordered_modifiers + [key])
+
+
 def create_tray_icon_image(recording=False):
     """Create a simple microphone icon for the system tray."""
     img = Image.new("RGBA", (64, 64), color=(0, 0, 0, 0))
@@ -53,6 +124,23 @@ def create_tray_icon_image(recording=False):
     draw.arc([16, 36, 48, 56], start=0, end=180, fill=color, width=3)
     draw.line([32, 56, 32, 62], fill=color, width=3)
     return img
+
+
+def load_tray_icon_image(recording=False):
+    """Load branded tray icon from assets, with fallback to generated icon."""
+    if os.path.exists(TRAY_ICON_PATH):
+        try:
+            base = Image.open(TRAY_ICON_PATH).convert("RGBA")
+            base = base.resize((64, 64), Image.Resampling.LANCZOS)
+            if not recording:
+                return base
+            icon = base.copy()
+            draw = ImageDraw.Draw(icon)
+            draw.ellipse([44, 44, 60, 60], fill="#ef4444", outline=(255, 255, 255, 220), width=2)
+            return icon
+        except Exception:
+            pass
+    return create_tray_icon_image(recording=recording)
 
 
 def main():
@@ -118,7 +206,7 @@ def main():
 
     def setup_tray():
         nonlocal tray_icon
-        icon_image = create_tray_icon_image()
+        icon_image = load_tray_icon_image()
         menu = pystray.Menu(
             pystray.MenuItem("Show", tray_show, default=True),
             pystray.MenuItem("Record", tray_record),
@@ -136,7 +224,8 @@ def main():
 
     def setup_hotkey():
         try:
-            listener = GlobalHotKeys({"<ctrl>+<shift>+r": on_hotkey})
+            hotkey_binding = _to_pynput_hotkey(settings.get("hotkey"))
+            listener = GlobalHotKeys({hotkey_binding: on_hotkey})
             listener.daemon = True
             listener.start()
         except Exception:
@@ -162,7 +251,7 @@ def main():
     setup_hotkey()
 
     # Get frontend paths
-    frontend_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frontend")
+    frontend_dir = os.path.join(SRC_DIR, "frontend")
     html_path = os.path.join(frontend_dir, "index.html")
     # Create main webview window
     window = webview.create_window(
