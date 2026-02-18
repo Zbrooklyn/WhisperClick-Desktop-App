@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhisperClick</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Toast Notification Container -->
+  <div id="toast-container" aria-live="polite"></div>
+
+  <!-- Onboarding Overlay -->
+  <div id="onboarding-overlay" class="overlay hidden">
+    <div class="overlay-backdrop"></div>
+    <div class="onboarding-modal">
+      <div class="onboarding-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="23"/>
+          <line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+      </div>
+      <h2>Welcome to WhisperClick</h2>
+      <p class="onboarding-subtitle">To get started, download a speech recognition model.</p>
+      <div id="onboarding-model-list" class="onboarding-models"></div>
+      <div id="onboarding-progress-area" class="hidden">
+        <div class="progress-bar-track">
+          <div id="onboarding-progress-bar" class="progress-bar-fill"></div>
+        </div>
+        <span id="onboarding-progress-text" class="progress-text">Downloading...</span>
+      </div>
+      <button id="onboarding-skip-btn" class="btn btn-ghost">Skip for now</button>
+    </div>
+  </div>
+
+  <!-- Settings Drawer -->
+  <div id="settings-backdrop" class="settings-backdrop hidden"></div>
+  <aside id="settings-drawer" class="settings-drawer">
+    <div class="settings-header">
+      <h2>Settings</h2>
+      <button id="settings-close-btn" class="btn-icon" aria-label="Close settings">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="settings-body">
+      <!-- Hotkey -->
+      <div class="settings-section">
+        <h3>Global Hotkey</h3>
+        <div class="setting-row">
+          <span class="setting-label">Toggle Recording</span>
+          <div class="hotkey-config">
+            <kbd id="settings-hotkey-display" class="hotkey-badge">Ctrl + Shift + R</kbd>
+            <button id="settings-hotkey-edit-btn" class="btn btn-sm">Change</button>
+          </div>
+        </div>
+        <div id="hotkey-capture-area" class="hotkey-capture hidden">
+          <p class="hotkey-capture-text">Press your desired key combination...</p>
+          <kbd id="hotkey-capture-display" class="hotkey-badge recording">Waiting...</kbd>
+          <div class="hotkey-capture-actions">
+            <button id="hotkey-save-btn" class="btn btn-sm btn-primary" disabled>Save</button>
+            <button id="hotkey-cancel-btn" class="btn btn-sm btn-ghost">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Appearance -->
+      <div class="settings-section">
+        <h3>Appearance</h3>
+        <div class="setting-row">
+          <span class="setting-label">Theme</span>
+          <div class="toggle-switch-row">
+            <span class="toggle-label-text">Dark</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="settings-theme-toggle">
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label-text">Light</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Transcription -->
+      <div class="settings-section">
+        <h3>Transcription</h3>
+        <div class="setting-row">
+          <span class="setting-label">Language</span>
+          <div class="custom-dropdown custom-dropdown-settings" id="language-dropdown" data-dropdown="language">
+            <button class="dropdown-trigger" id="language-dropdown-trigger">
+              Auto <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="dropdown-menu hidden" id="language-dropdown-menu">
+              <div class="dropdown-item selected" data-value="auto">Auto Detect</div>
+              <div class="dropdown-item" data-value="en">English</div>
+              <div class="dropdown-item" data-value="es">Spanish</div>
+              <div class="dropdown-item" data-value="fr">French</div>
+              <div class="dropdown-item" data-value="de">German</div>
+              <div class="dropdown-item" data-value="ja">Japanese</div>
+              <div class="dropdown-item" data-value="zh">Chinese</div>
+              <div class="dropdown-item" data-value="ko">Korean</div>
+              <div class="dropdown-item" data-value="pt">Portuguese</div>
+              <div class="dropdown-item" data-value="it">Italian</div>
+              <div class="dropdown-item" data-value="ru">Russian</div>
+              <div class="dropdown-item" data-value="ar">Arabic</div>
+              <div class="dropdown-item" data-value="hi">Hindi</div>
+            </div>
+          </div>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">Auto-copy to clipboard</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="auto-copy-toggle" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- System -->
+      <div class="settings-section">
+        <h3>System</h3>
+        <div class="setting-row">
+          <span class="setting-label">Start with Windows</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="settings-startup-toggle">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">When I close the window</span>
+          <div class="select-wrapper select-wrapper-sm">
+            <select id="settings-close-behavior">
+              <option value="tray">Minimize to tray</option>
+              <option value="quit">Quit the app</option>
+            </select>
+            <svg class="select-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">Sound effects</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="settings-sound-toggle" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">Always on top</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="settings-always-on-top-toggle">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">Mini widget when minimized</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="settings-pill-widget-toggle">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Model Management -->
+      <div class="settings-section">
+        <h3>Model Management</h3>
+        <div id="settings-model-list" class="model-management-list"></div>
+        <div id="settings-download-progress" class="hidden">
+          <div class="progress-bar-track">
+            <div id="settings-progress-bar" class="progress-bar-fill"></div>
+          </div>
+          <span id="settings-progress-text" class="progress-text">Downloading...</span>
+        </div>
+      </div>
+
+      <!-- About -->
+      <div class="settings-section">
+        <h3>About</h3>
+        <div class="about-info">
+          <p class="about-app-name">WhisperClick</p>
+          <p class="about-version">Version 1.0.0</p>
+          <p class="about-desc">Local &amp; cloud speech-to-text powered by OpenAI Whisper.</p>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main App -->
+  <div id="app" class="app-container">
+
+    <!-- Header -->
+    <header class="header-bar">
+      <div class="header-left">
+        <div class="app-logo">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+            <line x1="8" y1="23" x2="16" y2="23"/>
+          </svg>
+        </div>
+        <h1 class="app-title">WhisperClick</h1>
+      </div>
+      <div class="header-right">
+        <button id="settings-btn" class="btn-icon" aria-label="Settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+        <div class="window-controls">
+          <button id="minimize-btn" class="btn-icon btn-window" aria-label="Minimize">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+          </button>
+          <button id="close-btn" class="btn-icon btn-window btn-close" aria-label="Close">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <line x1="6" y1="6" x2="18" y2="18"/>
+              <line x1="18" y1="6" x2="6" y2="18"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Toolbar Row -->
+    <div class="toolbar-row">
+      <!-- Mode Switch (compact pill) -->
+      <div class="pill-switch" id="mode-switch">
+        <button class="pill-option active" data-mode="local">Local</button>
+        <button class="pill-option" data-mode="api">API</button>
+        <div class="pill-slider"></div>
+      </div>
+
+      <!-- Model Dropdown (custom) -->
+      <div class="custom-dropdown" id="model-dropdown" data-dropdown="model">
+        <button class="dropdown-trigger" id="model-dropdown-trigger">
+          <span class="dropdown-label">Model</span> base <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
+
+      <!-- Mic Dropdown (custom) -->
+      <div class="custom-dropdown" id="mic-dropdown" data-dropdown="mic">
+        <button class="dropdown-trigger" id="mic-dropdown-trigger">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          </svg>
+          Mic <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Selector Panel (inline accordion for toolbar dropdowns) -->
+    <div id="selector-panel" class="selector-panel collapsed">
+      <div id="selector-panel-items" class="selector-panel-items"></div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+      <!-- Record Section -->
+      <div class="record-section">
+        <button id="record-btn" class="record-button" aria-label="Toggle recording">
+          <div class="record-btn-inner">
+            <svg id="record-icon-mic" class="record-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+            <svg id="record-icon-stop" class="record-icon hidden" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="6" width="12" height="12" rx="2"/>
+            </svg>
+          </div>
+        </button>
+        <div id="record-timer" class="record-timer">00:00</div>
+        <div id="record-state-label" class="record-state-label">Press to record</div>
+
+        <!-- Audio Level Bars -->
+        <div class="audio-bars-container" id="audio-bars">
+          <div class="audio-bar"></div>
+          <div class="audio-bar"></div>
+          <div class="audio-bar"></div>
+          <div class="audio-bar"></div>
+          <div class="audio-bar"></div>
+          <div class="audio-bar"></div>
+        </div>
+      </div>
+
+      <!-- Transcription Result -->
+      <div id="transcription-section" class="transcription-section hidden">
+        <div class="transcription-card">
+          <div class="transcription-header">
+            <h3>Transcription</h3>
+            <div class="transcription-actions">
+              <button id="copy-btn" class="btn btn-sm" aria-label="Copy transcription">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                Copy
+              </button>
+              <div class="export-dropdown">
+                <button id="export-btn" class="btn btn-sm" aria-label="Export transcription">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  Export
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div id="export-menu" class="export-menu hidden">
+                  <button class="export-option" data-format="txt">TXT - Plain Text</button>
+                  <button class="export-option" data-format="srt">SRT - Subtitles</button>
+                  <button class="export-option" data-format="json">JSON - Structured</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="transcription-text" class="transcription-text"></div>
+          <div id="processing-indicator" class="processing-indicator hidden">
+            <div class="spinner"></div>
+            <span>Processing audio...</span>
+            <button id="cancel-processing-btn" class="btn btn-sm btn-ghost cancel-processing-btn">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- History Panel -->
+      <div class="history-section">
+        <button id="history-toggle" class="history-toggle">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <span>History</span>
+          <span id="history-count" class="history-count">0</span>
+          <svg id="history-chevron" class="history-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div id="history-panel" class="history-panel collapsed">
+          <div id="history-list" class="history-list">
+            <div class="history-empty">
+              <p>No transcriptions yet.</p>
+            </div>
+          </div>
+          <div id="history-actions" class="history-actions hidden">
+            <button id="clear-history-btn" class="btn btn-ghost btn-sm">Clear All History</button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Status Bar -->
+    <footer class="status-bar">
+      <div class="status-left">
+        <span id="status-indicator" class="status-dot"></span>
+        <span id="status-text">Ready</span>
+      </div>
+      <div class="status-center">
+        <kbd class="hotkey-hint">Ctrl+Shift+R</kbd>
+        <span class="hotkey-hint-label">to record</span>
+      </div>
+      <div class="status-right">
+        <span id="connection-status" class="connection-status connected">
+          <span class="connection-dot"></span>
+          Connected
+        </span>
+      </div>
+    </footer>
+
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
