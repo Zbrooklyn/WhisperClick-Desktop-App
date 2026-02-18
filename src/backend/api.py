@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import webview
 
 from src.backend.audio_recorder import AudioRecorder
-from src.backend.transcription import TranscriptionService
+from src.backend.transcription import TranscriptionService, TranscriptionCancelled
 from src.backend.tones import play_start_tone, play_stop_tone, play_success_tone, play_error_tone, play_cancel_tone
 from src.backend import models as model_manager
 from src.backend.config import (
@@ -84,6 +84,7 @@ class Api:
 
     def start_recording(self) -> dict:
         try:
+            self._transcription.clear_cancel_request()
             self._recorder.start()
             self._play_tone(play_start_tone)
             return {"success": True}
@@ -102,6 +103,7 @@ class Api:
                 return {"success": False, "error": "No audio recorded"}
 
             t0 = time.perf_counter()
+            self._transcription.clear_cancel_request()
             text = self._transcription.transcribe(wav_bytes)
             transcription_time = round(time.perf_counter() - t0, 2)
 
@@ -126,6 +128,8 @@ class Api:
 
             self._play_tone(play_success_tone)
             return {"success": True, "text": text, "duration": round(duration, 2), "transcription_time": transcription_time}
+        except TranscriptionCancelled:
+            return {"success": False, "cancelled": True, "error": "Transcription cancelled"}
         except Exception as e:
             self._play_tone(play_error_tone)
             return {"success": False, "error": str(e)}
@@ -133,11 +137,17 @@ class Api:
     def cancel_recording(self) -> dict:
         """Cancel the current recording without transcribing."""
         try:
+            self._transcription.request_cancel()
             self._recorder.stop()
             self._play_tone(play_cancel_tone)
             return {"success": True}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    def cancel_processing(self) -> dict:
+        """Request cancellation of an in-flight transcription job."""
+        self._transcription.request_cancel()
+        return {"success": True}
 
     def get_audio_level(self) -> float:
         return self._recorder.get_level()

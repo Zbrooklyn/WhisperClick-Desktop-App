@@ -1,8 +1,13 @@
 import io
 import tempfile
 import os
+import threading
 
 from src.backend.config import OPENAI_API_KEY
+
+
+class TranscriptionCancelled(Exception):
+    """Raised when an in-flight transcription is cancelled."""
 
 
 class TranscriptionService:
@@ -12,6 +17,7 @@ class TranscriptionService:
         self._model_name = "base"
         self._language = None  # None = auto-detect
         self._compute_type = "int8"  # Best for CPU speed
+        self._cancel_requested = threading.Event()
 
     def set_mode(self, mode):
         self.mode = mode
@@ -23,6 +29,15 @@ class TranscriptionService:
 
     def set_language(self, language):
         self._language = language if language != "auto" else None
+
+    def clear_cancel_request(self):
+        self._cancel_requested.clear()
+
+    def request_cancel(self):
+        self._cancel_requested.set()
+
+    def is_cancel_requested(self):
+        return self._cancel_requested.is_set()
 
     def load_local_model(self):
         if self._local_model is None:
@@ -66,12 +81,19 @@ class TranscriptionService:
             if self._language:
                 kwargs["language"] = self._language
             segments, info = model.transcribe(tmp_path, **kwargs)
-            text = " ".join(seg.text.strip() for seg in segments)
+            parts = []
+            for seg in segments:
+                if self.is_cancel_requested():
+                    raise TranscriptionCancelled("Transcription cancelled")
+                parts.append(seg.text.strip())
+            text = " ".join(parts)
             return text.strip()
         finally:
             os.unlink(tmp_path)
 
     def _transcribe_api(self, wav_bytes):
+        if self.is_cancel_requested():
+            raise TranscriptionCancelled("Transcription cancelled")
         from openai import OpenAI
         api_key = OPENAI_API_KEY or os.getenv("OPENAI_API_KEY", "")
         if not api_key:
@@ -82,4 +104,6 @@ class TranscriptionService:
         if self._language:
             kwargs["language"] = self._language
         response = client.audio.transcriptions.create(**kwargs)
+        if self.is_cancel_requested():
+            raise TranscriptionCancelled("Transcription cancelled")
         return response.text.strip()

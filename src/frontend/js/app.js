@@ -534,6 +534,8 @@
 
       // Refresh history
       await loadHistory();
+    } else if (result && result.cancelled) {
+      setState(State.IDLE);
     } else {
       setState(State.IDLE);
       const errMsg = (result && result.error) ? result.error : 'No transcription result';
@@ -541,12 +543,13 @@
     }
   }
 
-  function cancelProcessing() {
+  async function cancelProcessing() {
     if (app.state !== State.PROCESSING) return;
+    await callApi('cancel_processing');
     app.processingCancelled = true;
     dom.processingIndicator.classList.add('hidden');
     setState(State.IDLE);
-    showToast('Dismissed. Transcription continues in background.', 'info', 2500);
+    showToast('Cancelling transcription...', 'info', 2000);
   }
 
   /* ---------- Audio Level Polling (Bars) ---------- */
@@ -978,7 +981,11 @@
         dlBtn.addEventListener('click', async () => {
           dlBtn.disabled = true;
           dlBtn.textContent = 'Starting...';
-          await startModelDownload(model.name, context);
+          const started = await startModelDownload(model.name, context);
+          if (!started) {
+            dlBtn.disabled = false;
+            dlBtn.textContent = 'Download';
+          }
         });
         right.appendChild(dlBtn);
       }
@@ -988,7 +995,12 @@
   }
 
   async function startModelDownload(modelName, context) {
-    await callApi('download_model', modelName);
+    const startResult = await callApi('download_model', modelName);
+    if (!startResult || !startResult.success) {
+      const err = startResult && startResult.error ? startResult.error : 'Failed to start download';
+      showToast(err, 'error');
+      return false;
+    }
 
     const progressArea = context === 'settings'
       ? dom.settingsDownloadProgress
@@ -1051,6 +1063,7 @@
         polling = false;
       }
     }, 500);
+    return true;
   }
 
   /* ---------- Onboarding ---------- */

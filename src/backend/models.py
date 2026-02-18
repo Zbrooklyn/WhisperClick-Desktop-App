@@ -1,5 +1,6 @@
 import os
 import shutil
+import fnmatch
 
 # faster-whisper models are stored in HuggingFace cache
 HF_CACHE_DIR = os.path.join(os.path.expanduser("~"), ".cache", "huggingface", "hub")
@@ -58,18 +59,24 @@ def download_model(model_name, progress_callback=None):
     if not info:
         raise ValueError(f"Unknown model: {model_name}")
 
-    from huggingface_hub import snapshot_download
+    from huggingface_hub import list_repo_files, hf_hub_download
 
-    # Report initial progress
+    allow_patterns = ["*.bin", "*.json", "*.txt", "tokenizer.*", "vocabulary.*"]
+
+    def _allowed(path: str) -> bool:
+        name = os.path.basename(path)
+        return any(fnmatch.fnmatch(path, pattern) or fnmatch.fnmatch(name, pattern) for pattern in allow_patterns)
+
+    repo_id = info["repo"]
+    files = [f for f in list_repo_files(repo_id=repo_id, repo_type="model") if _allowed(f)]
+    if not files:
+        raise RuntimeError(f"No downloadable model files found for {repo_id}")
+
+    total = len(files)
     if progress_callback:
-        progress_callback(0, 100)
+        progress_callback(0, total)
 
-    # Download the CTranslate2 model from HuggingFace
-    snapshot_download(
-        info["repo"],
-        allow_patterns=["*.bin", "*.json", "*.txt", "tokenizer.*", "vocabulary.*"],
-    )
-
-    # Report completion
-    if progress_callback:
-        progress_callback(100, 100)
+    for idx, filename in enumerate(files, start=1):
+        hf_hub_download(repo_id=repo_id, filename=filename, repo_type="model")
+        if progress_callback:
+            progress_callback(idx, total)

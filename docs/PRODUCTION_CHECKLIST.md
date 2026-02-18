@@ -6,50 +6,50 @@ Scope: `projects/whisper-stt-v2`
 ## Release Blockers (P0)
 
 - [ ] Dependencies are reproducible from `requirements.txt`
-  - Current status: FAIL
-  - Evidence: app imports PySide6 (`src/pill_manager.py`, `src/pill_widget.py`, `run_pill.py`) but `requirements.txt` does not include `PySide6`.
+  - Current status: PARTIAL
+  - Evidence: `PySide6` was added to `requirements.txt`, but a clean-machine install test is still pending.
   - Exit criteria: fresh `setup.ps1` environment runs `python src/main.py` without missing-module errors.
 
 - [ ] Toolbar model selector is fully wired
-  - Current status: FAIL
-  - Evidence: model dropdown is created but never populated in frontend (`src/frontend/js/app.js:612`), while only mic dropdown is populated (`src/frontend/js/app.js:644`).
+  - Current status: PARTIAL
+  - Evidence: toolbar model options now load from `get_models` in frontend bootstrap, but full manual UI regression is still pending.
   - Exit criteria: model options render in toolbar, selection updates backend model, persists after restart.
 
 - [ ] Hotkey setting is actually applied (not only saved)
-  - Current status: FAIL
-  - Evidence: UI saves custom hotkey (`src/frontend/js/app.js:1157`) but listener is hardcoded to `<ctrl>+<shift>+r` (`src/main.py:139`).
+  - Current status: PARTIAL
+  - Evidence: startup now maps saved hotkey string to `pynput` binding, but cross-layout/edge-key combinations still need validation.
   - Exit criteria: chosen hotkey in settings is the active global hotkey after apply/restart.
 
 - [ ] Recording start/stop failure handling is robust
-  - Current status: FAIL
-  - Evidence: UI sets recording state before checking `start_recording` result (`src/frontend/js/app.js:475`, `src/frontend/js/app.js:488`).
+  - Current status: PARTIAL
+  - Evidence: frontend now checks `start_recording` result before entering recording state, but broader fault-injection coverage is still pending.
   - Exit criteria: if microphone start fails, UI returns to idle and shows actionable error.
 
 - [ ] "Cancel processing" cancels backend work or is relabeled honestly
-  - Current status: FAIL
-  - Evidence: cancel only sets UI flag (`src/frontend/js/app.js:536`) while `stop_recording` call already runs (`src/frontend/js/app.js:501`).
+  - Current status: PARTIAL
+  - Evidence: frontend now calls backend `cancel_processing`; local transcription checks cancellation and aborts, while API-mode cancellation remains best-effort.
   - Exit criteria: either real cancel support exists in backend worker path, or UI text changes to "Hide result when ready" style behavior.
 
 - [ ] Close button behavior matches setting contract
-  - Current status: FAIL
-  - Evidence: header close button calls `api.close()` (`src/frontend/js/app.js:784`), and backend `close()` destroys window (`src/backend/api.py:48`) instead of using `close_behavior`.
+  - Current status: PARTIAL
+  - Evidence: `api.close()` now respects configured close behavior (`tray` vs `quit`), but manual behavior verification matrix is still pending.
   - Exit criteria: close action follows selected behavior (`tray` vs `quit`) across title-bar and custom close button.
 
 - [ ] Startup registration launches the app reliably
-  - Current status: FAIL
-  - Evidence: autostart writes only `sys.executable` to registry (`src/backend/api.py:337`), which is not sufficient for script-mode startup.
+  - Current status: PARTIAL
+  - Evidence: autostart now writes a full launch command for script mode (`pythonw + src/main.py`) and frozen mode, but reboot verification is pending.
   - Exit criteria: restart Windows and app launches correctly when setting is enabled.
 
 - [ ] App icon and tray icon assets are production-ready
-  - Current status: FAIL
-  - Evidence: no project `.ico` asset present; tray icon is generated in code (`src/main.py:44`) and not branded/stateful.
+  - Current status: PARTIAL
+  - Evidence: branded tray icon assets were added and wired (`assets/tray_icon.ico`, `assets/tray_icon.png`), but taskbar/app executable icon still depends on packaging.
   - Exit criteria: branded `.ico` exists, app/taskbar/tray all use it, and tray state changes for recording/idle.
 
 ## High Priority (P1)
 
 - [ ] Replace fake model download progress with real progress reporting
   - Current status: PARTIAL
-  - Evidence: backend only emits 0% then 100% around `snapshot_download` (`src/backend/models.py:64`, `src/backend/models.py:75`).
+  - Evidence: backend now reports incremental per-file progress via `hf_hub_download`, but UX behavior with very small models still needs confirmation.
   - Exit criteria: progress bar increments meaningfully during download.
 
 - [ ] Persist and restore selected microphone

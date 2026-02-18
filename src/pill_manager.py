@@ -178,6 +178,7 @@ class PillManager:
         if self._pill.get_state() == "processing":
             # Cancel in-flight transcription — bump gen so result is discarded
             self._transcription_gen += 1
+            self._api.cancel_processing()
             self._api._play_tone(play_cancel_tone)
             self._pill.set_state("dormant")
         else:
