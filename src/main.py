@@ -22,6 +22,7 @@ PROJECT_DIR = os.path.dirname(SRC_DIR)
 ASSETS_DIR = os.path.join(PROJECT_DIR, "assets")
 TRAY_ICON_PATH = os.path.join(ASSETS_DIR, "tray_icon.ico")
 DEFAULT_HOTKEY = "<ctrl>+<shift>+r"
+APP_USER_MODEL_ID = "com.whisperclick.desktop"
 
 
 # ---------------------------------------------------------------------------
@@ -45,6 +46,17 @@ def _acquire_instance_lock():
         return True
     except (OSError, IOError):
         return False
+
+
+def _set_windows_app_id():
+    """Set explicit AppUserModelID for stable taskbar icon/grouping on Windows."""
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_USER_MODEL_ID)
+    except Exception:
+        pass
 
 
 def _to_pynput_hotkey(hotkey: str) -> str:
@@ -144,6 +156,8 @@ def load_tray_icon_image(recording=False):
 
 
 def main():
+    _set_windows_app_id()
+
     if not _acquire_instance_lock():
         # Another instance is already running
         try:

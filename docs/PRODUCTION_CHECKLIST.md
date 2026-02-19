@@ -42,7 +42,7 @@ Scope: `projects/whisper-stt-v2`
 
 - [ ] App icon and tray icon assets are production-ready
   - Current status: PARTIAL
-  - Evidence: branded tray icon assets were added and wired (`assets/tray_icon.ico`, `assets/tray_icon.png`), but taskbar/app executable icon still depends on packaging.
+  - Evidence: branded tray/icon assets are wired and Windows packaging now sets exe icon via `whisperclick.spec`, but packaged-run visual validation is still pending.
   - Exit criteria: branded `.ico` exists, app/taskbar/tray all use it, and tray state changes for recording/idle.
 
 ## High Priority (P1)
@@ -73,7 +73,8 @@ Scope: `projects/whisper-stt-v2`
   - Exit criteria: at least one CI pipeline validates install + syntax + smoke startup.
 
 - [ ] Packaging and installer
-  - Current status: FAIL
+  - Current status: PARTIAL
+  - Evidence: reproducible Windows build pipeline was added (`build_windows.ps1`, `whisperclick.spec`, `requirements-build.txt`), but signed/installer and runtime verification are pending.
   - Exit criteria: reproducible Windows build (`.exe`/installer), signed if needed, with icon and startup behavior verified.
 
 - [ ] Documentation completeness
