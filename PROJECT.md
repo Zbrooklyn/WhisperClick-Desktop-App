@@ -1,26 +1,34 @@
-# whisper-stt-v2
+# WhisperClick V3
 
 ## Purpose
 
-Define this project's primary objective and success criteria.
+Desktop Windows transcription app with:
+- local Whisper-based capture/transcription mode,
+- API-backed transcription/translation mode (OpenAI/Gemini),
+- tray + optional pill widget workflows,
+- portable and installer packaging paths.
 
-## Owner Model
+## Current Status
 
-Unassigned (cross-model workspace)
+- Delivery stage: pre-release hardening (not launch-complete yet)
+- Primary tracking docs:
+  - `HANDOFF.md`
+  - `docs/ROADMAP.md`
+  - `docs/PRODUCTION_AUDIT_CHECKLIST.md`
+  - `docs/PRODUCTION_CHECKLIST.md`
 
-## Entry Workflow File
+## Runtime Entry Points
 
-- [docs/WORKFLOW.md](docs/WORKFLOW.md) - define orchestrator workflow for this project
+- Main desktop runtime: `src/main.py`
 
-## Where State Lives
+## Build and Packaging
 
-- `state/session-plan.md` - current objectives and execution progress
-- `state/decisions-log.md` - architecture and product decision log
+- Build/release docs: `docs/WINDOWS_BUILD.md`
+- Core scripts:
+  - `release_windows.ps1`
+  - `build_windows_onefile.ps1`
+  - `build_windows_installer.ps1`
 
-## Where Artifacts Live
+## Known Launch Blockers
 
-- `artifacts/` - screenshots, exports, generated files, and supporting artifacts
-
-## Project Docs
-
-- [HANDOFF.md](HANDOFF.md) - current status, blockers, and next actions for session recovery
+- Pill widget recording parity with main UI pipeline is incomplete.

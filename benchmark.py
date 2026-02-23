@@ -5,10 +5,11 @@ for every downloaded Whisper model.
 """
 
 import os
-import sys
-import time
 import platform
 import subprocess
+import sys
+import time
+
 import numpy as np
 import soundfile as sf
 import torch
@@ -17,6 +18,7 @@ import whisper
 # ──────────────────────────────────────────────
 # 1. System Information
 # ──────────────────────────────────────────────
+
 
 def get_system_info():
     """Gather CPU, RAM, GPU, and OS details."""
@@ -28,11 +30,8 @@ def get_system_info():
     # CPU (try wmic on Windows, fall back to platform.processor())
     cpu_name = platform.processor()
     try:
-        result = subprocess.run(
-            ["wmic", "cpu", "get", "Name"],
-            capture_output=True, text=True, timeout=5
-        )
-        lines = [l.strip() for l in result.stdout.strip().splitlines() if l.strip()]
+        result = subprocess.run(["wmic", "cpu", "get", "Name"], capture_output=True, text=True, timeout=5)
+        lines = [line.strip() for line in result.stdout.strip().splitlines() if line.strip()]
         if len(lines) >= 2:
             cpu_name = lines[1]
     except Exception:
@@ -46,9 +45,11 @@ def get_system_info():
     try:
         result = subprocess.run(
             ["wmic", "OS", "get", "TotalVisibleMemorySize,FreePhysicalMemory"],
-            capture_output=True, text=True, timeout=5
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
-        lines = [l.strip() for l in result.stdout.strip().splitlines() if l.strip()]
+        lines = [line.strip() for line in result.stdout.strip().splitlines() if line.strip()]
         if len(lines) >= 2:
             parts = lines[1].split()
             if len(parts) >= 2:
@@ -79,6 +80,7 @@ def get_system_info():
 # ──────────────────────────────────────────────
 # 2. Generate a 5-second Test WAV File
 # ──────────────────────────────────────────────
+
 
 def generate_test_audio(filepath: str, duration: float = 5.0, sample_rate: int = 16000):
     """
@@ -114,6 +116,7 @@ def generate_test_audio(filepath: str, duration: float = 5.0, sample_rate: int =
 # 3. Discover Downloaded Models
 # ──────────────────────────────────────────────
 
+
 def get_available_models():
     """Return a list of model names from the Whisper cache directory."""
     cache_dir = os.path.join(os.path.expanduser("~"), ".cache", "whisper")
@@ -130,6 +133,7 @@ def get_available_models():
 # ──────────────────────────────────────────────
 # 4. Benchmark a Single Model
 # ──────────────────────────────────────────────
+
 
 def benchmark_model(model_name: str, audio_path: str, device: str = "cpu"):
     """Load a model and transcribe the test audio, returning timing data."""
@@ -174,6 +178,7 @@ def benchmark_model(model_name: str, audio_path: str, device: str = "cpu"):
 # 5. Print Results
 # ──────────────────────────────────────────────
 
+
 def print_summary(sys_info: dict, results: list):
     """Print a formatted summary table."""
     sep = "=" * 80
@@ -183,7 +188,7 @@ def print_summary(sys_info: dict, results: list):
     print(sep)
 
     # System info
-    print(f"\n  System Information")
+    print("\n  System Information")
     print(f"  {'-' * 40}")
     print(f"  OS:              {sys_info['os']}")
     print(f"  CPU:             {sys_info['cpu']}")
@@ -218,9 +223,7 @@ def print_summary(sys_info: dict, results: list):
         elif not transcript:
             transcript = "(empty)"
 
-        print(
-            f"  {r['model']:<14} {load_t:>10.2f} {trans_t:>16.2f} {total_t:>12.2f}   {transcript}"
-        )
+        print(f"  {r['model']:<14} {load_t:>10.2f} {trans_t:>16.2f} {total_t:>12.2f}   {transcript}")
 
     print(f"  {'-' * 74}")
 
@@ -241,6 +244,7 @@ def print_summary(sys_info: dict, results: list):
 # ──────────────────────────────────────────────
 # Main
 # ──────────────────────────────────────────────
+
 
 def main():
     print("\n" + "=" * 80)
@@ -270,7 +274,7 @@ def main():
     # Step 4: Benchmark
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"\n[4/4] Running benchmarks on device: {device}")
-    print(f"  This may take a while for larger models...\n")
+    print("  This may take a while for larger models...\n")
 
     results = []
     for i, model_name in enumerate(models, 1):

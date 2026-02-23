@@ -5,14 +5,18 @@ its signals to the Api layer.
 import sys
 import threading
 
-from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QObject, QTimer, Signal
+from PySide6.QtWidgets import QApplication
 
+from src.backend.logger import get as get_logger
 from src.pill_widget import PillWidget
+
+_log = get_logger("pill_manager")
 
 
 class _Invoker(QObject):
     """Thread-safe bridge for posting callables to the Qt event loop."""
+
     _signal = Signal(object)
 
     def __init__(self):
@@ -39,6 +43,7 @@ class PillManager:
         self._invoker = None
         self._started = False
         self._transcription_gen = 0
+        self._gen_lock = threading.Lock()
 
     # ------------------------------------------------------------------
     # Public — callable from any thread
@@ -79,7 +84,7 @@ class PillManager:
             if self._pill:
                 self._invoker.invoke(lambda: self._pill.set_hotkey(hotkey))
         except Exception:
-            pass
+            _log.warning("Failed to sync hotkey to pill", exc_info=True)
 
     def _sync_monitor(self):
         """Push the current pill_monitor setting to the pill widget."""
@@ -90,7 +95,7 @@ class PillManager:
             if self._pill:
                 self._invoker.invoke(lambda: self._pill.set_preferred_screen(parsed))
         except Exception:
-            pass
+            _log.warning("Failed to sync monitor to pill", exc_info=True)
 
     def hide(self):
         """Hide the pill widget (thread-safe)."""
@@ -183,13 +188,16 @@ class PillManager:
 
     def _do_stop(self):
         self._pill.set_state("processing")
-        self._transcription_gen += 1
-        gen = self._transcription_gen
+        with self._gen_lock:
+            self._transcription_gen += 1
+            gen = self._transcription_gen
         threading.Thread(target=self._transcribe, args=(gen,), daemon=True).start()
 
     def _transcribe(self, gen):
         result = self._api.stop_recording()
-        if gen != self._transcription_gen:
+        with self._gen_lock:
+            current_gen = self._transcription_gen
+        if gen != current_gen:
             return  # cancelled — discard result
         if result.get("success"):
             text = result.get("text", "")
@@ -204,27 +212,31 @@ class PillManager:
         try:
             import ctypes
             import time
+
             self._api._clipboard_copy(text)
             # Restore focus to the window that was active before the pill was clicked
-            hwnd = getattr(self._pill, '_prev_foreground', None)
+            hwnd = getattr(self._pill, "_prev_foreground", None)
             if hwnd and hwnd != 0:
                 ctypes.windll.user32.SetForegroundWindow(hwnd)
                 time.sleep(0.1)
             # Simulate Ctrl+V
-            from pynput.keyboard import Controller as KbController, Key
+            from pynput.keyboard import Controller as KbController
+            from pynput.keyboard import Key
+
             kb = KbController()
             kb.press(Key.ctrl)
-            kb.press('v')
-            kb.release('v')
+            kb.press("v")
+            kb.release("v")
             kb.release(Key.ctrl)
         except Exception:
-            pass  # non-critical — text is still on clipboard
+            _log.warning("Pill auto-paste failed (text still on clipboard)", exc_info=True)
 
     def _on_cancel(self):
         self._stop_level_timer()
         if self._pill.get_state() == "processing":
             # Cancel in-flight transcription — bump gen so result is discarded
-            self._transcription_gen += 1
+            with self._gen_lock:
+                self._transcription_gen += 1
             result = self._api.cancel_processing()  # plays cancel tone internally
             if not isinstance(result, dict) or not result.get("success"):
                 self._pill.set_state("error")
@@ -286,5 +298,5 @@ class PillManager:
         settings = self._api.get_settings()
         mics = self._api.get_microphones()
         history = self._api.get_history()[:3]
-        active_mic = getattr(self._api._recorder, '_device_id', None) if self._api._recorder else None
+        active_mic = getattr(self._api._recorder, "_device_id", None) if self._api._recorder else None
         return settings, mics, history, active_mic

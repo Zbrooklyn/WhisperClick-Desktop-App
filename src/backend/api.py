@@ -1,10 +1,9 @@
 import ctypes
+import os
 import threading
 import time
 import uuid
-import os
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 from urllib import error as urllib_error
 from urllib import parse as urllib_parse
 from urllib import request as urllib_request
@@ -19,23 +18,33 @@ except Exception:  # pragma: no cover - optional dependency fallback
 try:
     from keyring.errors import PasswordDeleteError
 except Exception:  # pragma: no cover - keyring may be unavailable
+
     class PasswordDeleteError(Exception):
         pass
 
-from src.backend.audio_recorder import AudioRecorder
-from src.backend.transcription import TranscriptionService, TranscriptionCancelled
-from src.backend.tones import play_start_tone, play_stop_tone, play_success_tone, play_error_tone, play_cancel_tone
-from src.backend import models as model_manager
+
 import soundfile as sf
 
+from src import __version__
+from src.backend import models as model_manager
+from src.backend.audio_recorder import AudioRecorder
 from src.backend.config import (
     AUDIO_DIR,
     LANGUAGES,
-    load_settings,
-    save_settings as persist_settings,
     load_history,
+    load_settings,
+)
+from src.backend.config import (
     save_history as persist_history,
 )
+from src.backend.config import (
+    save_settings as persist_settings,
+)
+from src.backend.logger import get as get_logger
+from src.backend.tones import play_cancel_tone, play_error_tone, play_start_tone, play_stop_tone, play_success_tone
+from src.backend.transcription import TranscriptionCancelled, TranscriptionService
+
+_log = get_logger("api")
 
 
 class Api:
@@ -71,8 +80,12 @@ class Api:
         # Auto-paste: foreground window handle captured before hotkey fires
         self._paste_target_hwnd = None
 
+    def get_version(self):
+        """Return app version for display in the UI."""
+        return {"version": __version__}
+
     @classmethod
-    def _normalize_provider(cls, provider: str) -> Optional[str]:
+    def _normalize_provider(cls, provider: str) -> str | None:
         normalized = str(provider or "").strip().lower()
         if normalized in cls._API_KEY_ACCOUNT:
             return normalized
@@ -130,11 +143,13 @@ class Api:
     # Window drag (physical-pixel approach — no DPI conversion needed)
     # ------------------------------------------------------------------
     _drag_state = {}
+    _drag_lock = threading.Lock()
 
     def drag_start(self):
         """Called on mousedown in drag region. Stores physical positions."""
         import ctypes
         import ctypes.wintypes as wintypes
+
         cursor = wintypes.POINT()
         ctypes.windll.user32.GetCursorPos(ctypes.byref(cursor))
         hwnd = ctypes.windll.user32.FindWindowW(None, "WhisperClick")
@@ -142,36 +157,42 @@ class Api:
             return
         rect = wintypes.RECT()
         ctypes.windll.user32.GetWindowRect(hwnd, ctypes.byref(rect))
-        self._drag_state = {
-            'cursor_x': cursor.x, 'cursor_y': cursor.y,
-            'win_x': rect.left, 'win_y': rect.top,
-            'hwnd': hwnd, 'active': True,
-        }
+        with self._drag_lock:
+            self._drag_state = {
+                "cursor_x": cursor.x,
+                "cursor_y": cursor.y,
+                "win_x": rect.left,
+                "win_y": rect.top,
+                "hwnd": hwnd,
+                "active": True,
+            }
 
     def drag_move(self):
         """Called on mousemove during drag. Uses physical pixel deltas only."""
-        if not self._drag_state.get('active'):
-            return
+        with self._drag_lock:
+            if not self._drag_state.get("active"):
+                return
+            state = self._drag_state.copy()
         import ctypes
         import ctypes.wintypes as wintypes
+
         cursor = wintypes.POINT()
         ctypes.windll.user32.GetCursorPos(ctypes.byref(cursor))
-        dx = cursor.x - self._drag_state['cursor_x']
-        dy = cursor.y - self._drag_state['cursor_y']
-        new_x = self._drag_state['win_x'] + dx
-        new_y = self._drag_state['win_y'] + dy
+        dx = cursor.x - state["cursor_x"]
+        dy = cursor.y - state["cursor_y"]
+        new_x = state["win_x"] + dx
+        new_y = state["win_y"] + dy
         SWP_NOSIZE = 0x0001
         SWP_NOZORDER = 0x0004
         SWP_NOACTIVATE = 0x0010
         ctypes.windll.user32.SetWindowPos(
-            self._drag_state['hwnd'], 0,
-            new_x, new_y, 0, 0,
-            SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+            state["hwnd"], 0, new_x, new_y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
         )
 
     def drag_end(self):
         """Called on mouseup to end drag."""
-        self._drag_state['active'] = False
+        with self._drag_lock:
+            self._drag_state["active"] = False
 
     def resize_window(self, width, height):
         """Resize the main window."""
@@ -239,11 +260,13 @@ class Api:
             return
         try:
             if state == "dormant":
-                w.evaluate_js("if(typeof endProcessingState==='function'){endProcessingState();} if(typeof clearInterval!=='undefined'){clearInterval(timerInterval);} isRecording=false; if(typeof setIdleUi==='function'){setIdleUi();}")
+                w.evaluate_js(
+                    "if(typeof endProcessingState==='function'){endProcessingState();} if(typeof clearInterval!=='undefined'){clearInterval(timerInterval);} isRecording=false; if(typeof setIdleUi==='function'){setIdleUi();}"
+                )
             elif state == "recording":
                 w.evaluate_js("if(typeof setRecordingUi==='function'){isRecording=true;isProcessing=false;}")
         except Exception:
-            pass
+            _log.warning("Frontend sync failed for state=%s", state, exc_info=True)
 
     def _notify_pill(self, state: str):
         """Push a state change to the pill widget (thread-safe, best-effort).
@@ -252,7 +275,7 @@ class Api:
         of whether the action originated from the main UI, hotkey, or tray.
         """
         pm = self._pill_manager
-        if not pm or not getattr(pm, '_invoker', None) or not getattr(pm, '_pill', None):
+        if not pm or not getattr(pm, "_invoker", None) or not getattr(pm, "_pill", None):
             self._pending_pill_state = state  # queue for replay on reconnect
             return
         try:
@@ -272,7 +295,7 @@ class Api:
                 pm._invoker.invoke(lambda: pm._stop_level_polling())
                 pm._invoker.invoke(lambda: pm._pill.set_state("dormant"))
         except Exception:
-            pass
+            _log.warning("Pill sync failed for state=%s", state, exc_info=True)
 
     def set_hotkey_updater(self, updater):
         """Set callback that applies updated global hotkey bindings at runtime."""
@@ -337,12 +360,12 @@ class Api:
 
         chars = text.strip()
         # Count character types (letters only — ignore spaces/punctuation/numbers)
-        ascii_letters = sum(1 for c in chars if 'a' <= c.lower() <= 'z')
-        cjk = sum(1 for c in chars if '\u4e00' <= c <= '\u9fff')
-        hangul = sum(1 for c in chars if '\uac00' <= c <= '\ud7af')
-        kana = sum(1 for c in chars if '\u3040' <= c <= '\u30ff')
-        arabic = sum(1 for c in chars if '\u0600' <= c <= '\u06ff')
-        devanagari = sum(1 for c in chars if '\u0900' <= c <= '\u097f')
+        ascii_letters = sum(1 for c in chars if "a" <= c.lower() <= "z")
+        cjk = sum(1 for c in chars if "\u4e00" <= c <= "\u9fff")
+        hangul = sum(1 for c in chars if "\uac00" <= c <= "\ud7af")
+        kana = sum(1 for c in chars if "\u3040" <= c <= "\u30ff")
+        arabic = sum(1 for c in chars if "\u0600" <= c <= "\u06ff")
+        devanagari = sum(1 for c in chars if "\u0900" <= c <= "\u097f")
         total_letters = ascii_letters + cjk + hangul + kana + arabic + devanagari
         if total_letters == 0:
             return "auto"
@@ -424,16 +447,11 @@ class Api:
                 effective_source = self._guess_language(text, target_language)
 
             # Skip translation if source matches target (e.g. English→English)
-            skip_translate = (
-                effective_source != "auto"
-                and effective_source.lower() == target_language.lower()
-            )
+            skip_translate = effective_source != "auto" and effective_source.lower() == target_language.lower()
 
             if output_mode in ("translate", "both") and text.strip() and not skip_translate:
                 try:
-                    translation = self._transcription.translate(
-                        text, target_language, source_language
-                    )
+                    translation = self._transcription.translate(text, target_language, source_language)
                 except Exception as translate_err:
                     translation = f"[Translation failed: {translate_err}]"
 
@@ -449,10 +467,7 @@ class Api:
                 elif translation.strip().lower() == text.strip().lower():
                     output_text = text  # Same text — no point showing both
                 else:
-                    output_text = (
-                        f"Transcript:\n{text}\n\n"
-                        f"Translation ({target_language}):\n{translation}"
-                    )
+                    output_text = f"Transcript:\n{text}\n\n" f"Translation ({target_language}):\n{translation}"
             else:
                 output_text = text
 
@@ -462,7 +477,7 @@ class Api:
             entry = {
                 "id": str(uuid.uuid4()),
                 "text": output_text,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "duration": round(duration, 2),
                 "transcription_time": transcription_time,
             }
@@ -488,7 +503,7 @@ class Api:
                         paste_text = output_text
                     self._auto_paste(paste_text)
                 except Exception:
-                    pass  # Non-critical failure
+                    _log.warning("Auto-paste failed after transcription", exc_info=True)
 
             self._play_tone(play_success_tone)
             self._notify_pill("success")
@@ -588,22 +603,25 @@ class Api:
             if is_primary:
                 label += " (Primary)"
 
-            monitors.append({
-                "index": idx,
-                "name": f"Display {idx + 1}",
-                "resolution": f"{width}x{height}",
-                "primary": is_primary,
-                "label": label,
-            })
+            monitors.append(
+                {
+                    "index": idx,
+                    "name": f"Display {idx + 1}",
+                    "resolution": f"{width}x{height}",
+                    "primary": is_primary,
+                    "label": label,
+                }
+            )
             return True
 
         MONITORENUMPROC = ctypes.WINFUNCTYPE(
-            ctypes.c_int, wintypes.HMONITOR, wintypes.HDC,
-            ctypes.POINTER(wintypes.RECT), wintypes.LPARAM,
+            ctypes.c_int,
+            wintypes.HMONITOR,
+            wintypes.HDC,
+            ctypes.POINTER(wintypes.RECT),
+            wintypes.LPARAM,
         )
-        ctypes.windll.user32.EnumDisplayMonitors(
-            None, None, MONITORENUMPROC(_enum_cb), 0
-        )
+        ctypes.windll.user32.EnumDisplayMonitors(None, None, MONITORENUMPROC(_enum_cb), 0)
 
         return monitors
 
@@ -615,11 +633,16 @@ class Api:
         try:
             return AudioRecorder.list_devices()
         except Exception:
+            _log.error("Failed to list audio devices", exc_info=True)
             return []
 
     def set_microphone(self, mic_id: int) -> dict:
         try:
-            self._recorder.set_device(int(mic_id))
+            mic_id = int(mic_id)
+        except (TypeError, ValueError):
+            return {"success": False, "error": f"Invalid microphone ID: {mic_id!r}"}
+        try:
+            self._recorder.set_device(mic_id)
             return {"success": True}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -631,12 +654,14 @@ class Api:
     def get_models(self) -> list:
         result = []
         for name, info in model_manager.MODEL_INFO.items():
-            result.append({
-                "name": name,
-                "size_mb": info["size_mb"],
-                "description": info["description"],
-                "downloaded": model_manager.is_model_downloaded(name),
-            })
+            result.append(
+                {
+                    "name": name,
+                    "size_mb": info["size_mb"],
+                    "description": info["description"],
+                    "downloaded": model_manager.is_model_downloaded(name),
+                }
+            )
         return result
 
     def download_model(self, name: str) -> dict:
@@ -673,7 +698,7 @@ class Api:
                 with self._download_lock:
                     self._download_progress = {
                         "progress": 0.0,
-                        "status": f"error: {str(e)}",
+                        "status": f"error: {e!s}",
                     }
 
         thread = threading.Thread(target=_download_thread, daemon=True)
@@ -705,6 +730,9 @@ class Api:
         return LANGUAGES
 
     def set_language(self, code: str) -> dict:
+        valid_codes = {lang["code"] for lang in LANGUAGES}
+        if code not in valid_codes:
+            return {"success": False, "error": f"Invalid language code: {code}"}
         try:
             self._transcription.set_language(code)
             self._settings["language"] = code
@@ -746,12 +774,44 @@ class Api:
     def get_settings(self) -> dict:
         self._settings = load_settings()
         # Never expose API keys to frontend — they have their own secure endpoint
-        safe = {k: v for k, v in self._settings.items()
-                if not k.endswith("_api_key")}
+        safe = {k: v for k, v in self._settings.items() if not k.endswith("_api_key")}
         return safe
+
+    # Allowed values for validated settings fields
+    _VALID_MODES = ("local", "api")
+    _VALID_THEMES = ("dark", "light", "system")
+    _VALID_CLOSE_BEHAVIORS = ("tray", "quit")
+    _VALID_OUTPUT_MODES = ("transcribe", "translate", "both")
+    _VALID_COPY_TARGETS = ("transcript", "translation", "both")
+
+    def _validate_settings(self, settings: dict) -> list:
+        """Validate settings values. Returns list of warning strings for invalid keys."""
+        warnings = []
+        if "mode" in settings and settings["mode"] not in self._VALID_MODES:
+            warnings.append(f"Invalid mode: {settings['mode']!r}")
+        if "theme" in settings and settings["theme"] not in self._VALID_THEMES and settings["theme"] is not None:
+            warnings.append(f"Invalid theme: {settings['theme']!r}")
+        if "close_behavior" in settings and settings["close_behavior"] not in self._VALID_CLOSE_BEHAVIORS:
+            warnings.append(f"Invalid close_behavior: {settings['close_behavior']!r}")
+        if "output_mode" in settings and settings["output_mode"] not in self._VALID_OUTPUT_MODES:
+            warnings.append(f"Invalid output_mode: {settings['output_mode']!r}")
+        if "auto_copy_target" in settings and settings["auto_copy_target"] not in self._VALID_COPY_TARGETS:
+            warnings.append(f"Invalid auto_copy_target: {settings['auto_copy_target']!r}")
+        if "hotkey" in settings and not isinstance(settings["hotkey"], str):
+            warnings.append(f"hotkey must be a string, got {type(settings['hotkey']).__name__}")
+        if "audio_retention_hours" in settings:
+            val = settings["audio_retention_hours"]
+            if not isinstance(val, int | float) or val < 0:
+                warnings.append(f"audio_retention_hours must be >= 0, got {val!r}")
+        return warnings
 
     def save_settings(self, settings: dict) -> dict:
         try:
+            # Validate before applying
+            validation_warnings = self._validate_settings(settings)
+            if validation_warnings:
+                _log.warning("Settings validation: %s", "; ".join(validation_warnings))
+
             self._settings = {**self._settings, **settings}
             persist_settings(self._settings)
             result = {"success": True}
@@ -893,6 +953,9 @@ class Api:
                 base = "https://api.openai.com/v1"
             else:
                 base = "https://generativelanguage.googleapis.com/v1beta"
+        # Validate URL scheme
+        if not base.startswith("https://") and not base.startswith("http://"):
+            return {"success": False, "valid": False, "error": "Base URL must start with https:// or http://"}
 
         try:
             if normalized_provider == "openai":
@@ -917,12 +980,17 @@ class Api:
             try:
                 detail = exc.read(1024).decode("utf-8", errors="ignore").strip()
             except Exception:
+                _log.debug("Could not read API key verification error body", exc_info=True)
                 detail = ""
             lowered_detail = detail.lower()
 
             if status in (401, 403):
                 return {"success": True, "valid": False, "status": status, "error": "Invalid API key."}
-            if status == 400 and "api key" in lowered_detail and ("not valid" in lowered_detail or "invalid" in lowered_detail):
+            if (
+                status == 400
+                and "api key" in lowered_detail
+                and ("not valid" in lowered_detail or "invalid" in lowered_detail)
+            ):
                 return {"success": True, "valid": False, "status": status, "error": "Invalid API key."}
 
             error_msg = f"Verification failed ({status})."
@@ -948,13 +1016,16 @@ class Api:
         """Add or remove WhisperClick from Windows startup via registry."""
         try:
             import winreg
+
             key = winreg.OpenKey(
                 winreg.HKEY_CURRENT_USER,
                 r"Software\Microsoft\Windows\CurrentVersion\Run",
-                0, winreg.KEY_SET_VALUE,
+                0,
+                winreg.KEY_SET_VALUE,
             )
             if enabled:
                 import sys
+
                 if getattr(sys, "frozen", False):
                     launch_cmd = f'"{sys.executable}"'
                 else:
@@ -970,13 +1041,15 @@ class Api:
                     pass
             winreg.CloseKey(key)
         except Exception:
-            pass  # Non-critical — may fail on non-Windows or without permissions
+            _log.warning("Autostart registry update failed", exc_info=True)
 
     # ------------------------------------------------------------------
     # Export / Clipboard
     # ------------------------------------------------------------------
 
     def export_transcription(self, text: str, format: str) -> dict:
+        if format not in ("txt", "srt", "json"):
+            return {"success": False, "error": f"Unsupported format: {format}"}
         try:
             file_types = {
                 "txt": ("Text Files (*.txt)",),
@@ -1014,6 +1087,7 @@ class Api:
     def _clipboard_copy(text: str):
         """Copy text to the system clipboard using tkinter."""
         import tkinter as tk
+
         root = None
         try:
             root = tk.Tk()
@@ -1026,7 +1100,7 @@ class Api:
                 try:
                     root.destroy()
                 except Exception:
-                    pass
+                    _log.debug("Tkinter clipboard root destroy failed", exc_info=True)
 
     def capture_paste_target(self):
         """Snapshot the current foreground window as the paste target.
@@ -1039,7 +1113,7 @@ class Api:
             if hwnd:
                 self._paste_target_hwnd = hwnd
         except Exception:
-            pass
+            _log.debug("capture_paste_target failed", exc_info=True)
 
     def _auto_paste(self, text: str):
         """Copy text to clipboard and paste into the user's active window.
@@ -1054,7 +1128,9 @@ class Api:
         self._clipboard_copy(text)
         try:
             import time
-            from pynput.keyboard import Controller as KbController, Key
+
+            from pynput.keyboard import Controller as KbController
+            from pynput.keyboard import Key
 
             # Find WhisperClick's own window handle
             wc_hwnd = ctypes.windll.user32.FindWindowW(None, "WhisperClick")
@@ -1076,11 +1152,11 @@ class Api:
             time.sleep(0.08)
             kb = KbController()
             kb.press(Key.ctrl)
-            kb.press('v')
-            kb.release('v')
+            kb.press("v")
+            kb.release("v")
             kb.release(Key.ctrl)
         except Exception:
-            pass  # Non-critical — text is still on clipboard
+            _log.warning("Auto-paste keystroke injection failed (text still on clipboard)", exc_info=True)
 
     # ------------------------------------------------------------------
     # History
@@ -1092,7 +1168,7 @@ class Api:
             entry = {
                 "id": str(uuid.uuid4()),
                 "text": str(text or ""),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "duration": round(max(float(duration), 0.0), 2),
                 "transcription_time": round(max(float(transcription_time), 0.0), 2),
             }
@@ -1105,7 +1181,7 @@ class Api:
                 try:
                     self._clipboard_copy(entry["text"])
                 except Exception:
-                    pass  # Non-critical failure
+                    _log.warning("Auto-copy to clipboard failed", exc_info=True)
 
             return {"success": True, "entry": entry}
         except Exception as e:
@@ -1139,7 +1215,7 @@ class Api:
                     try:
                         os.remove(os.path.join(AUDIO_DIR, fname))
                     except Exception:
-                        pass
+                        _log.debug("Failed to delete audio file %s", fname, exc_info=True)
             persist_history([])
             return {"success": True}
         except Exception as e:
@@ -1161,11 +1237,13 @@ class Api:
             sf.write(out_path, data, sr, format="OGG", subtype="OPUS")
             return out_path
         except Exception:
+            _log.error("Audio save failed for id=%s", audio_id, exc_info=True)
             return None
 
     def get_audio(self, history_id: str) -> dict:
         """Return base64-encoded OGG audio for playback in frontend."""
         import base64
+
         history = load_history()
         entry = next((e for e in history if e.get("id") == history_id), None)
         if not entry or not entry.get("audio_file"):
@@ -1195,7 +1273,7 @@ class Api:
                 try:
                     os.remove(fpath)
                 except Exception:
-                    pass
+                    _log.debug("Failed to clean up audio file %s", fname, exc_info=True)
         # Strip stale audio_file references from history entries
         changed = False
         for entry in history:

@@ -1,11 +1,17 @@
 """Generate sound recommendation samples as WAV files."""
-import sys, os, wave
+
+import os
+import sys
+import wave
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np
-from src.backend.tones import _felt_piano, _wood_transient, _adsr, _reverb, _mix_layers, SR
+
+from src.backend.tones import SR, _felt_piano, _mix_layers, _reverb, _wood_transient
 
 out_dir = os.path.expanduser("~/Desktop/whisperclick_sounds")
 os.makedirs(out_dir, exist_ok=True)
+
 
 def save_wav(filename, audio):
     path = os.path.join(out_dir, filename)
@@ -20,26 +26,39 @@ def save_wav(filename, audio):
         wf.writeframes(int16.tobytes())
     print(f"  Saved: {filename}", flush=True)
 
+
 # Helpers
 def octave_note(freq, dur, vol=0.42, **kw):
     low = _felt_piano(freq / 2, dur, volume=vol * 0.45, **kw)
     high = _felt_piano(freq, dur, volume=vol * 0.55, **kw)
     return _mix_layers(low, high)
 
+
 def padded_note(freq, dur, vol=0.42, pad_vol=0.13, pad_attack=180, **kw):
     main = _felt_piano(freq, dur, volume=vol, **kw)
-    pad = _felt_piano(freq / 2, dur * 1.3, volume=pad_vol,
-                      attack_ms=pad_attack, decay_ms=80, sustain_level=0.5,
-                      release_ms=300, vibrato_hz=2.5, vibrato_depth=0.003, damping=1.5)
+    pad = _felt_piano(
+        freq / 2,
+        dur * 1.3,
+        volume=pad_vol,
+        attack_ms=pad_attack,
+        decay_ms=80,
+        sustain_level=0.5,
+        release_ms=300,
+        vibrato_hz=2.5,
+        vibrato_depth=0.003,
+        damping=1.5,
+    )
     return _mix_layers(main, pad)
+
 
 def piano_chord(freqs, dur, vol=0.42, **kw):
     notes = [_felt_piano(f, dur, volume=vol / len(freqs) * 1.6, **kw) for f in freqs]
     mx = max(len(n) for n in notes)
     out = np.zeros(mx, dtype=np.float32)
     for n in notes:
-        out[:len(n)] += n
+        out[: len(n)] += n
     return out
+
 
 one_sec = np.zeros(int(SR * 1.0), dtype=np.float32)
 gap = np.zeros(int(SR * 0.03), dtype=np.float32)
@@ -47,13 +66,15 @@ sgap = np.zeros(int(SR * 0.025), dtype=np.float32)
 tiny = np.zeros(int(SR * 0.02), dtype=np.float32)
 
 # Common parameter sets
-pk = dict(attack_ms=6, decay_ms=55, sustain_level=0.6, release_ms=130,
-          vibrato_hz=3.5, vibrato_depth=0.002)
-pk_long = dict(attack_ms=6, decay_ms=55, sustain_level=0.6, release_ms=180,
-               vibrato_hz=3.0, vibrato_depth=0.003, damping=1.3)
+pk = dict(attack_ms=6, decay_ms=55, sustain_level=0.6, release_ms=130, vibrato_hz=3.5, vibrato_depth=0.002)
+pk_long = dict(
+    attack_ms=6, decay_ms=55, sustain_level=0.6, release_ms=180, vibrato_hz=3.0, vibrato_depth=0.003, damping=1.3
+)
 pk_damp = dict(attack_ms=5, decay_ms=40, sustain_level=0.4, release_ms=80, damping=0.5)
-pk_err = dict(attack_ms=8, decay_ms=55, sustain_level=0.45, release_ms=100,
-              vibrato_hz=2.5, vibrato_depth=0.003, damping=0.7)
+pk_err = dict(
+    attack_ms=8, decay_ms=55, sustain_level=0.45, release_ms=100, vibrato_hz=2.5, vibrato_depth=0.003, damping=0.7
+)
+
 
 def build_sequence(tones):
     """Join tones with 1-second gaps."""
@@ -150,10 +171,8 @@ save_wav("REC2_piano_with_depth.wav", build_sequence(r2))
 # ==================================================================
 print("Rec 3: Rich Chords", flush=True)
 r3 = []
-ck = dict(attack_ms=6, decay_ms=55, sustain_level=0.6, release_ms=150,
-          vibrato_hz=3.0, vibrato_depth=0.002)
-ck_long = dict(attack_ms=6, decay_ms=55, sustain_level=0.6, release_ms=200,
-               vibrato_hz=3.0, vibrato_depth=0.003)
+ck = dict(attack_ms=6, decay_ms=55, sustain_level=0.6, release_ms=150, vibrato_hz=3.0, vibrato_depth=0.002)
+ck_long = dict(attack_ms=6, decay_ms=55, sustain_level=0.6, release_ms=200, vibrato_hz=3.0, vibrato_depth=0.003)
 
 # Start: Am -> C major
 click = _wood_transient(0.012, volume=0.15, brightness=0.7)
@@ -175,11 +194,11 @@ an2 = _felt_piano(330, 0.45, volume=0.37, **ck)
 an3 = _felt_piano(262, 0.55, volume=0.42, **ck_long)
 total_s = int(SR * 0.8)
 arp_s = np.zeros(total_s, dtype=np.float32)
-arp_s[:min(len(an1), total_s)] += an1[:total_s]
+arp_s[: min(len(an1), total_s)] += an1[:total_s]
 o2 = arp_gap_len
-arp_s[o2:o2 + min(len(an2), total_s - o2)] += an2[:total_s - o2]
+arp_s[o2 : o2 + min(len(an2), total_s - o2)] += an2[: total_s - o2]
 o3 = arp_gap_len * 2
-arp_s[o3:o3 + min(len(an3), total_s - o3)] += an3[:total_s - o3]
+arp_s[o3 : o3 + min(len(an3), total_s - o3)] += an3[: total_s - o3]
 r3.append(_reverb(np.concatenate([click, arp_s]), echoes=5, delay_ms=35, decay=0.28))
 
 # Cancel: single damped
@@ -190,9 +209,17 @@ r3.append(_reverb(np.concatenate([click, n1, tiny, n2]), echoes=2, delay_ms=25, 
 
 # Error: dissonant chord A3+Ab3
 click = _wood_transient(0.012, volume=0.10, brightness=0.15)
-err_ch = piano_chord([208, 220], 0.35, 0.30,
-                     attack_ms=8, decay_ms=60, sustain_level=0.45,
-                     release_ms=120, vibrato_hz=2.5, vibrato_depth=0.004)
+err_ch = piano_chord(
+    [208, 220],
+    0.35,
+    0.30,
+    attack_ms=8,
+    decay_ms=60,
+    sustain_level=0.45,
+    release_ms=120,
+    vibrato_hz=2.5,
+    vibrato_depth=0.004,
+)
 r3.append(_reverb(np.concatenate([click, err_ch]), echoes=4, delay_ms=42, decay=0.22))
 
 save_wav("REC3_rich_chords.wav", build_sequence(r3))

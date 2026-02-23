@@ -1,18 +1,42 @@
+import fnmatch
 import os
 import shutil
-import fnmatch
 
 # faster-whisper models are stored in HuggingFace cache
 HF_CACHE_DIR = os.path.join(os.path.expanduser("~"), ".cache", "huggingface", "hub")
 
 # Map model names to their HuggingFace repo IDs (used by faster-whisper)
 MODEL_INFO = {
-    "tiny": {"size_mb": 75, "description": "Fastest — no punctuation, minor errors", "repo": "Systran/faster-whisper-tiny"},
-    "base": {"size_mb": 142, "description": "Best for CPU — fast + accurate (recommended)", "repo": "Systran/faster-whisper-base"},
-    "small": {"size_mb": 466, "description": "Best punctuation — 2x slower than base", "repo": "Systran/faster-whisper-small"},
-    "medium": {"size_mb": 1500, "description": "High accuracy — slow on CPU, needs ~5GB RAM", "repo": "Systran/faster-whisper-medium"},
-    "large": {"size_mb": 3000, "description": "Best accuracy — very slow on CPU, needs GPU", "repo": "Systran/faster-whisper-large-v3"},
-    "turbo": {"size_mb": 1500, "description": "Fast on GPU only — slow on CPU, skip if no GPU", "repo": "Systran/faster-whisper-large-v3-turbo"},
+    "tiny": {
+        "size_mb": 75,
+        "description": "Fastest — no punctuation, minor errors",
+        "repo": "Systran/faster-whisper-tiny",
+    },
+    "base": {
+        "size_mb": 142,
+        "description": "Best for CPU — fast + accurate (recommended)",
+        "repo": "Systran/faster-whisper-base",
+    },
+    "small": {
+        "size_mb": 466,
+        "description": "Best punctuation — 2x slower than base",
+        "repo": "Systran/faster-whisper-small",
+    },
+    "medium": {
+        "size_mb": 1500,
+        "description": "High accuracy — slow on CPU, needs ~5GB RAM",
+        "repo": "Systran/faster-whisper-medium",
+    },
+    "large": {
+        "size_mb": 3000,
+        "description": "Best accuracy — very slow on CPU, needs GPU",
+        "repo": "Systran/faster-whisper-large-v3",
+    },
+    "turbo": {
+        "size_mb": 1500,
+        "description": "Fast on GPU only — slow on CPU, skip if no GPU",
+        "repo": "Systran/faster-whisper-large-v3-turbo",
+    },
 }
 
 
@@ -37,9 +61,8 @@ def is_model_downloaded(model_name):
     # Check if any snapshot has a model.bin file
     for snap in os.listdir(snapshot_dir):
         snap_path = os.path.join(snapshot_dir, snap)
-        if os.path.isdir(snap_path):
-            if os.path.exists(os.path.join(snap_path, "model.bin")):
-                return True
+        if os.path.isdir(snap_path) and os.path.exists(os.path.join(snap_path, "model.bin")):
+            return True
     return False
 
 
@@ -59,7 +82,7 @@ def download_model(model_name, progress_callback=None):
     if not info:
         raise ValueError(f"Unknown model: {model_name}")
 
-    from huggingface_hub import list_repo_files, hf_hub_download
+    from huggingface_hub import hf_hub_download, list_repo_files
 
     allow_patterns = ["*.bin", "*.json", "*.txt", "tokenizer.*", "vocabulary.*"]
 

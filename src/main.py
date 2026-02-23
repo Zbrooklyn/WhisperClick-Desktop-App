@@ -1,10 +1,10 @@
-import sys
-import os
-import threading
-import time
-import json
 import ctypes
 import ctypes.wintypes as wintypes
+import json
+import os
+import sys
+import threading
+import time
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -23,23 +23,27 @@ except Exception:
         try:
             ctypes.windll.user32.SetProcessDPIAware()
         except Exception:
-            pass
+            pass  # DPI: all methods unavailable — accept system default
 
 # Allow running from project root
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
+import pystray
 import webview
 from PIL import Image, ImageDraw
-import pystray
+
 # Win32 RegisterHotKey suppresses the key combo so other apps never see it.
 # pynput GlobalHotKeys was previously used but it does NOT suppress events.
-
 from src.backend.api import Api
-from src.backend.config import load_settings, CONFIG_DIR
+from src.backend.config import CONFIG_DIR, load_settings
+from src.backend.logger import get as get_logger
 from src.pill_manager import PillManager
+
+_log = get_logger("main")
 
 # ---------------------------------------------------------------------------
 # Window position persistence
@@ -51,7 +55,7 @@ _cached_hwnd = None  # set once after window creation
 def _load_window_pos():
     """Load saved window position and size, or return None."""
     try:
-        with open(_WINDOW_POS_FILE, "r") as f:
+        with open(_WINDOW_POS_FILE) as f:
             pos = json.load(f)
         if isinstance(pos.get("x"), int) and isinstance(pos.get("y"), int):
             return pos
@@ -71,8 +75,7 @@ def _save_window_pos(x, y, w=None, h=None):
         with open(_WINDOW_POS_FILE, "w") as f:
             json.dump(data, f)
     except Exception:
-        pass
-
+        _log.warning("Failed to save window position", exc_info=True)
 
 
 def _calc_default_window_size():
@@ -103,8 +106,10 @@ def _calc_default_window_size():
         MDT_EFFECTIVE_DPI = 0
         dpi_x = ctypes.c_uint()
         ctypes.windll.shcore.GetDpiForMonitor(
-            hmon, MDT_EFFECTIVE_DPI,
-            ctypes.byref(dpi_x), ctypes.byref(ctypes.c_uint()),
+            hmon,
+            MDT_EFFECTIVE_DPI,
+            ctypes.byref(dpi_x),
+            ctypes.byref(ctypes.c_uint()),
         )
         scale = dpi_x.value / 96.0
 
@@ -114,6 +119,7 @@ def _calc_default_window_size():
         h = max(620, int(w * 1.58))
         return w, h
     except Exception:
+        _log.warning("DPI-aware window sizing failed, using fallback", exc_info=True)
         return 520, 820  # safe fallback
 
 
@@ -139,8 +145,10 @@ def _get_hwnd_pos():
     rect = wintypes.RECT()
     ctypes.windll.user32.GetWindowRect(hwnd, ctypes.byref(rect))
     return {
-        "x": rect.left, "y": rect.top,
-        "w": rect.right - rect.left, "h": rect.bottom - rect.top,
+        "x": rect.left,
+        "y": rect.top,
+        "w": rect.right - rect.left,
+        "h": rect.bottom - rect.top,
     }
 
 
@@ -155,8 +163,7 @@ def _set_hwnd_pos(x, y, w=None, h=None):
     if w is None or h is None:
         flags |= SWP_NOSIZE
         w, h = 0, 0
-    ctypes.windll.user32.SetWindowPos(hwnd, 0, int(x), int(y),
-                                       int(w), int(h), flags)
+    ctypes.windll.user32.SetWindowPos(hwnd, 0, int(x), int(y), int(w), int(h), flags)
 
 
 def _is_pos_on_screen(x, y):
@@ -169,20 +176,19 @@ def _is_pos_on_screen(x, y):
         return True
 
     MONITORENUMPROC = ctypes.WINFUNCTYPE(
-        ctypes.c_int, wintypes.HMONITOR, wintypes.HDC,
-        ctypes.POINTER(wintypes.RECT), wintypes.LPARAM,
+        ctypes.c_int,
+        wintypes.HMONITOR,
+        wintypes.HDC,
+        ctypes.POINTER(wintypes.RECT),
+        wintypes.LPARAM,
     )
-    ctypes.windll.user32.EnumDisplayMonitors(
-        None, None, MONITORENUMPROC(_enum_cb), 0
-    )
+    ctypes.windll.user32.EnumDisplayMonitors(None, None, MONITORENUMPROC(_enum_cb), 0)
     if not monitors:
         return True  # can't verify, assume ok
     # Consider visible if the top-left corner is within any monitor
     # with a small margin so the title bar is reachable
-    for left, top, right, bottom in monitors:
-        if left <= x < right - 50 and top <= y < bottom - 50:
-            return True
-    return False
+    return any(left <= x < right - 50 and top <= y < bottom - 50 for left, top, right, bottom in monitors)
+
 
 SRC_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(SRC_DIR)
@@ -196,6 +202,7 @@ HOTKEY_BRIDGE_COOLDOWN_SEC = 0.2
 # ---------------------------------------------------------------------------
 _lock_file = None
 
+
 def _acquire_instance_lock():
     """Ensure only one instance of WhisperClick is running."""
     global _lock_file
@@ -205,12 +212,14 @@ def _acquire_instance_lock():
         _lock_file = open(lock_path, "w")
         if sys.platform == "win32":
             import msvcrt
+
             msvcrt.locking(_lock_file.fileno(), msvcrt.LK_NBLCK, 1)
         else:
             import fcntl
+
             fcntl.flock(_lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
         return True
-    except (OSError, IOError):
+    except OSError:
         return False
 
 
@@ -220,9 +229,10 @@ def _set_windows_app_id():
         return
     try:
         import ctypes
+
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_USER_MODEL_ID)
     except Exception:
-        pass
+        _log.warning("Failed to set AppUserModelID", exc_info=True)
 
 
 def _runtime_base_dir() -> Path:
@@ -249,19 +259,49 @@ def _resolve_frontend_index() -> Path:
 
 
 _BLOCKED_HOTKEYS = {
-    "ctrl+c", "ctrl+v", "ctrl+x", "ctrl+z", "ctrl+y",
-    "ctrl+a", "ctrl+s", "ctrl+p", "ctrl+f",
-    "ctrl+w", "ctrl+q", "ctrl+n", "ctrl+t",
-    "ctrl+shift+t", "ctrl+tab",
-    "alt+f4", "alt+tab",
-    "ctrl+alt+delete", "ctrl+shift+esc",
-    "ctrl+shift+g", "ctrl+shift+k", "ctrl+shift+d",
-    "ctrl+shift+p", "ctrl+shift+i", "ctrl+shift+j",
-    "ctrl+shift+c", "ctrl+shift+v",
-    "ctrl+l", "ctrl+h", "ctrl+d", "ctrl+b",
-    "ctrl+g", "ctrl+k", "ctrl+e",
-    "f1", "f2", "f3", "f4", "f5", "f6", "f11",
-    "alt+f1", "alt+f2",
+    "ctrl+c",
+    "ctrl+v",
+    "ctrl+x",
+    "ctrl+z",
+    "ctrl+y",
+    "ctrl+a",
+    "ctrl+s",
+    "ctrl+p",
+    "ctrl+f",
+    "ctrl+w",
+    "ctrl+q",
+    "ctrl+n",
+    "ctrl+t",
+    "ctrl+shift+t",
+    "ctrl+tab",
+    "alt+f4",
+    "alt+tab",
+    "ctrl+alt+delete",
+    "ctrl+shift+esc",
+    "ctrl+shift+g",
+    "ctrl+shift+k",
+    "ctrl+shift+d",
+    "ctrl+shift+p",
+    "ctrl+shift+i",
+    "ctrl+shift+j",
+    "ctrl+shift+c",
+    "ctrl+shift+v",
+    "ctrl+l",
+    "ctrl+h",
+    "ctrl+d",
+    "ctrl+b",
+    "ctrl+g",
+    "ctrl+k",
+    "ctrl+e",
+    "f1",
+    "f2",
+    "f3",
+    "f4",
+    "f5",
+    "f6",
+    "f11",
+    "alt+f1",
+    "alt+f2",
 }
 
 
@@ -277,20 +317,58 @@ _WM_HOTKEY = 0x0312
 _HOTKEY_ID = 1  # single global hotkey
 
 _VK_MAP = {
-    "space": 0x20, "tab": 0x09, "enter": 0x0D, "return": 0x0D,
-    "esc": 0x1B, "escape": 0x1B,
-    "backspace": 0x08, "delete": 0x2E, "insert": 0x2D,
-    "home": 0x24, "end": 0x23,
-    "pageup": 0x21, "pagedown": 0x22,
-    "up": 0x26, "down": 0x28, "left": 0x25, "right": 0x27,
+    "space": 0x20,
+    "tab": 0x09,
+    "enter": 0x0D,
+    "return": 0x0D,
+    "esc": 0x1B,
+    "escape": 0x1B,
+    "backspace": 0x08,
+    "delete": 0x2E,
+    "insert": 0x2D,
+    "home": 0x24,
+    "end": 0x23,
+    "pageup": 0x21,
+    "pagedown": 0x22,
+    "up": 0x26,
+    "down": 0x28,
+    "left": 0x25,
+    "right": 0x27,
 }
-# F1–F24
+# Punctuation / symbol keys (OEM keys, US keyboard layout)
+# Both base and shifted characters map to the same VK code.
+_VK_MAP.update(
+    {
+        ";": 0xBA,
+        ":": 0xBA,  # VK_OEM_1 (;: key)
+        "=": 0xBB,  # VK_OEM_PLUS (=+ key, base)
+        ",": 0xBC,
+        "<": 0xBC,  # VK_OEM_COMMA
+        "-": 0xBD,
+        "_": 0xBD,  # VK_OEM_MINUS
+        ".": 0xBE,
+        ">": 0xBE,  # VK_OEM_PERIOD
+        "/": 0xBF,
+        "?": 0xBF,  # VK_OEM_2
+        "`": 0xC0,
+        "~": 0xC0,  # VK_OEM_3
+        "[": 0xDB,
+        "{": 0xDB,  # VK_OEM_4
+        "\\": 0xDC,
+        "|": 0xDC,  # VK_OEM_5
+        "]": 0xDD,
+        "}": 0xDD,  # VK_OEM_6
+        "'": 0xDE,
+        '"': 0xDE,  # VK_OEM_7
+    }
+)
+# F1-F24
 for _i in range(1, 25):
     _VK_MAP[f"f{_i}"] = 0x70 + (_i - 1)
-# A–Z (VK codes are uppercase ASCII)
-for _c in range(ord('a'), ord('z') + 1):
+# A-Z (VK codes are uppercase ASCII)
+for _c in range(ord("a"), ord("z") + 1):
     _VK_MAP[chr(_c)] = _c - 32
-# 0–9
+# 0-9
 for _d in range(10):
     _VK_MAP[str(_d)] = 0x30 + _d
 
@@ -308,9 +386,13 @@ def _parse_hotkey_to_win32(hotkey: str):
         return None
 
     modifier_names = {
-        "ctrl": _MOD_CONTROL, "control": _MOD_CONTROL,
-        "alt": _MOD_ALT, "shift": _MOD_SHIFT,
-        "win": _MOD_WIN, "meta": _MOD_WIN, "cmd": _MOD_WIN,
+        "ctrl": _MOD_CONTROL,
+        "control": _MOD_CONTROL,
+        "alt": _MOD_ALT,
+        "shift": _MOD_SHIFT,
+        "win": _MOD_WIN,
+        "meta": _MOD_WIN,
+        "cmd": _MOD_WIN,
     }
 
     tokens = [t for t in hotkey.replace(" ", "").split("+") if t]
@@ -381,7 +463,7 @@ class Win32HotkeyListener:
                         try:
                             self._callback()
                         except Exception:
-                            pass
+                            _log.error("Hotkey callback failed", exc_info=True)
                 ctypes.windll.user32.UnregisterHotKey(None, _HOTKEY_ID)
                 self._registered = False
                 se.set()
@@ -407,7 +489,7 @@ class Win32HotkeyListener:
             # Post WM_QUIT to break GetMessageW loop
             ctypes.windll.user32.PostThreadMessageW(tid, 0x0012, 0, 0)  # WM_QUIT
             # Wait for UnregisterHotKey to complete inside the pump thread
-            stopped = getattr(self, '_stopped_event', None)
+            stopped = getattr(self, "_stopped_event", None)
             if stopped:
                 stopped.wait(timeout=2)
             self._thread.join(timeout=1)
@@ -451,7 +533,7 @@ def load_tray_icon_image(recording=False):
             draw.ellipse([44, 44, 60, 60], fill="#ef4444", outline=(255, 255, 255, 220), width=2)
             return icon
         except Exception:
-            pass
+            _log.warning("Failed to load branded tray icon, using generated", exc_info=True)
     return create_tray_icon_image(recording=recording)
 
 
@@ -462,9 +544,12 @@ def main():
         # Another instance is already running
         try:
             import ctypes
+
             ctypes.windll.user32.MessageBoxW(
-                0, "WhisperClick is already running.\nCheck the system tray.",
-                "WhisperClick", 0x40,
+                0,
+                "WhisperClick is already running.\nCheck the system tray.",
+                "WhisperClick",
+                0x40,
             )
         except Exception:
             print("WhisperClick is already running.")
@@ -510,16 +595,56 @@ def main():
         hide_pill()
 
     def tray_quit(icon=None, item=None):
-        pill_manager.shutdown()
-        if tray_icon:
-            tray_icon.stop()
-        if window:
-            window.destroy()
-        # Failsafe: force exit if webview doesn't shut down cleanly
+        _log.info("Shutdown initiated")
+
+        # 1. Stop hotkey listener
+        try:
+            with hotkey_lock:
+                hotkey_listener.stop()
+        except Exception:
+            _log.debug("Hotkey listener stop failed during shutdown", exc_info=True)
+
+        # 2. Stop pill widget
+        try:
+            pill_manager.shutdown()
+        except Exception:
+            _log.debug("Pill manager shutdown failed", exc_info=True)
+
+        # 3. Stop tray icon
+        try:
+            if tray_icon:
+                tray_icon.stop()
+        except Exception:
+            _log.debug("Tray icon stop failed during shutdown", exc_info=True)
+
+        # 4. Save window position
+        try:
+            pos = _get_hwnd_pos()
+            if pos:
+                _save_window_pos(pos["x"], pos["y"], pos["w"], pos["h"])
+        except Exception:
+            _log.debug("Window pos save failed during shutdown", exc_info=True)
+
+        # 5. Close audio streams
+        try:
+            if api._recorder.is_recording():
+                api._recorder.stop()
+        except Exception:
+            _log.debug("Audio recorder stop failed during shutdown", exc_info=True)
+
+        # 6. Destroy webview window
+        try:
+            if window:
+                window.destroy()
+        except Exception:
+            _log.debug("Window destroy failed during shutdown", exc_info=True)
+
+        # 7. Wait briefly for threads, then force exit as last resort
         def _force_exit():
-            import time
-            time.sleep(2)
+            time.sleep(3)
+            _log.info("Force exit — threads did not finish in time")
             os._exit(0)
+
         threading.Thread(target=_force_exit, daemon=True).start()
 
     def setup_tray():
@@ -545,8 +670,7 @@ def main():
         try:
             window.evaluate_js("triggerTrustedHotkeyToggle()")
         except Exception:
-            # Keep listener alive even if JS bridge is temporarily unavailable.
-            pass
+            _log.warning("Hotkey JS bridge call failed", exc_info=True)
 
     def request_hotkey_toggle():
         nonlocal hotkey_dispatch_inflight, last_hotkey_dispatch_at
@@ -577,6 +701,15 @@ def main():
         nonlocal hotkey_listener
         hotkey_display = hotkey_text if hotkey_text else settings.get("hotkey")
 
+        # Validate before disrupting the current binding
+        if _parse_hotkey_to_win32(hotkey_display) is None:
+            _log.warning("Hotkey '%s' could not be parsed — keeping current binding", hotkey_display)
+            return {
+                "success": False,
+                "binding": hotkey_display,
+                "error": f"Unsupported hotkey: {hotkey_display}",
+            }
+
         with hotkey_lock:
             hotkey_listener.stop()
             hotkey_listener = Win32HotkeyListener(on_hotkey)
@@ -586,8 +719,11 @@ def main():
                     settings["hotkey"] = hotkey_text
                 return {"success": True, "binding": hotkey_display}
             else:
-                return {"success": False, "binding": hotkey_display,
-                        "error": "Could not register hotkey (may be in use by another app)"}
+                return {
+                    "success": False,
+                    "binding": hotkey_display,
+                    "error": "Could not register hotkey (may be in use by another app)",
+                }
 
     # --- Window close handler ---
     def on_closing():
@@ -597,7 +733,7 @@ def main():
             if pos:
                 _save_window_pos(pos["x"], pos["y"], pos["w"], pos["h"])
         except Exception:
-            pass
+            _log.warning("Failed to save window pos on close", exc_info=True)
 
         behavior = api.get_close_behavior()
         if behavior == "quit":
@@ -612,6 +748,7 @@ def main():
                 else:
                     hide_pill()
             except Exception:
+                _log.warning("Pill widget toggle on close failed", exc_info=True)
                 hide_pill()
             return False
 
@@ -629,6 +766,7 @@ def main():
         msg = f"Frontend file not found: {html_path}"
         try:
             import ctypes
+
             ctypes.windll.user32.MessageBoxW(0, msg, "WhisperClick Error", 0x10)
         except Exception:
             print(msg)
@@ -671,18 +809,19 @@ def main():
         def _restore_and_save():
             # 1. Wait for HWND to become available (up to 5 seconds)
             hwnd = None
-            for attempt in range(50):
+            for _attempt in range(50):
                 hwnd = _find_hwnd()
                 if hwnd:
                     break
                 time.sleep(0.1)
 
-            if hwnd and saved_pos:
-                if _is_pos_on_screen(saved_pos["x"], saved_pos["y"]):
-                    _set_hwnd_pos(
-                        saved_pos["x"], saved_pos["y"],
-                        saved_pos.get("w"), saved_pos.get("h"),
-                    )
+            if hwnd and saved_pos and _is_pos_on_screen(saved_pos["x"], saved_pos["y"]):
+                _set_hwnd_pos(
+                    saved_pos["x"],
+                    saved_pos["y"],
+                    saved_pos.get("w"),
+                    saved_pos.get("h"),
+                )
 
             # 3. Start periodic position+size saver (survives force-kill)
             last_state = None
@@ -696,7 +835,7 @@ def main():
                             _save_window_pos(*state)
                             last_state = state
                 except Exception:
-                    pass
+                    _log.debug("Periodic window pos save failed", exc_info=True)
 
         threading.Thread(target=_restore_and_save, daemon=True).start()
 

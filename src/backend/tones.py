@@ -12,16 +12,38 @@ Volume hierarchy:
   Error   = similar to stop (informative, not alarming)
 """
 
+import atexit
+import threading
+import time
+
 import numpy as np
 import sounddevice as sd
-import threading
 
 SR = 44100
+_play_lock = threading.Lock()
+
+
+def _cleanup_audio():
+    """Wait for any in-flight tone to finish, then stop PortAudio cleanly."""
+    sd.stop()
+    _play_lock.acquire(timeout=2)
+    try:
+        pass
+    finally:
+        try:
+            _play_lock.release()
+        except RuntimeError:
+            pass
+    time.sleep(0.05)  # let PortAudio settle before interpreter teardown
+
+
+atexit.register(_cleanup_audio)
 
 
 # ---------------------------------------------------------------------------
 # Synthesis building blocks
 # ---------------------------------------------------------------------------
+
 
 def _adsr(n, attack_ms=6, decay_ms=60, sustain_level=0.7, release_ms=120):
     """Build an ADSR envelope."""
@@ -53,24 +75,37 @@ def _wood_transient(duration=0.010, volume=0.15, brightness=0.5):
     env = np.exp(-np.linspace(0, 10, n))
     kernel_size = max(2, int(12 * (1.0 - brightness)))
     kernel = np.ones(kernel_size) / kernel_size
-    filtered = np.convolve(noise * env, kernel, mode='same')
+    filtered = np.convolve(noise * env, kernel, mode="same")
     body_freq = 120 + brightness * 80
     body = np.sin(2 * np.pi * body_freq * np.linspace(0, duration, n, False))
     body *= np.exp(-np.linspace(0, 15, n)) * volume * 0.3
     return (filtered + body).astype(np.float32)
 
 
-def _felt_piano(freq, duration, volume=0.3,
-                attack_ms=8, decay_ms=80, sustain_level=0.55, release_ms=150,
-                vibrato_hz=0, vibrato_depth=0, damping=1.0):
+def _felt_piano(
+    freq,
+    duration,
+    volume=0.3,
+    attack_ms=8,
+    decay_ms=80,
+    sustain_level=0.55,
+    release_ms=150,
+    vibrato_hz=0,
+    vibrato_depth=0,
+    damping=1.0,
+):
     """Felt piano with inharmonicity and dual-string detuning."""
     n = int(SR * duration)
     t = np.linspace(0, duration, n, False)
     B = 0.0004
 
     partials = [
-        (1, 1.0), (2, 0.45), (3, 0.18),
-        (4, 0.08), (5, 0.03), (6, 0.01),
+        (1, 1.0),
+        (2, 0.45),
+        (3, 0.18),
+        (4, 0.08),
+        (5, 0.03),
+        (6, 0.01),
     ]
 
     if vibrato_hz > 0 and vibrato_depth > 0:
@@ -80,14 +115,14 @@ def _felt_piano(freq, duration, volume=0.3,
 
     wave1 = np.zeros(n, dtype=np.float64)
     for partial_n, amp in partials:
-        f_n = freq * partial_n * np.sqrt(1 + B * partial_n ** 2)
+        f_n = freq * partial_n * np.sqrt(1 + B * partial_n**2)
         partial_decay = np.exp(-t * partial_n * 1.5 / (duration * damping))
         wave1 += amp * np.sin(2 * np.pi * f_n * t * pitch_mod) * partial_decay
 
     detune = 0.8
     wave2 = np.zeros(n, dtype=np.float64)
     for partial_n, amp in partials:
-        f_n = (freq + detune) * partial_n * np.sqrt(1 + B * partial_n ** 2)
+        f_n = (freq + detune) * partial_n * np.sqrt(1 + B * partial_n**2)
         partial_decay = np.exp(-t * partial_n * 1.5 / (duration * damping))
         wave2 += amp * np.sin(2 * np.pi * f_n * t * pitch_mod) * partial_decay
 
@@ -99,9 +134,16 @@ def _felt_piano(freq, duration, volume=0.3,
 
 def _sub_bass(freq, duration, volume=0.12, damping=1.0):
     """Sub-bass: two octaves below the root. Adds warmth."""
-    return _felt_piano(freq / 4, duration * 1.1, volume=volume,
-                       attack_ms=12, decay_ms=70, sustain_level=0.5,
-                       release_ms=150, damping=damping)
+    return _felt_piano(
+        freq / 4,
+        duration * 1.1,
+        volume=volume,
+        attack_ms=12,
+        decay_ms=70,
+        sustain_level=0.5,
+        release_ms=150,
+        damping=damping,
+    )
 
 
 def _deep_bass(freq, duration, volume=0.18):
@@ -121,8 +163,8 @@ def _octave_note(freq, duration, volume=0.42, **kw):
     high = _felt_piano(freq, duration, volume=volume * 0.55, **kw)
     mx = max(len(low), len(high))
     out = np.zeros(mx, dtype=np.float32)
-    out[:len(low)] += low
-    out[:len(high)] += high
+    out[: len(low)] += low
+    out[: len(high)] += high
     return out
 
 
@@ -132,21 +174,21 @@ def _reverb(audio, echoes=4, delay_ms=30, decay=0.3):
     delay_samples = int(SR * delay_ms / 1000)
     for i in range(1, echoes + 1):
         offset = delay_samples * i
-        gain = decay ** i
+        gain = decay**i
         padded = np.zeros(len(audio) + offset, dtype=np.float32)
-        padded[offset:offset + len(audio)] = audio * gain
+        padded[offset : offset + len(audio)] = audio * gain
         if len(result) < len(padded):
             result = np.pad(result, (0, len(padded) - len(result)))
-        result[:len(padded)] += padded
+        result[: len(padded)] += padded
     return result
 
 
 def _mix_layers(*layers):
     """Mix audio layers of different lengths."""
-    max_len = max(len(l) for l in layers)
+    max_len = max(len(layer) for layer in layers)
     result = np.zeros(max_len, dtype=np.float32)
     for layer in layers:
-        result[:len(layer)] += layer
+        result[: len(layer)] += layer
     return result
 
 
@@ -159,25 +201,27 @@ def _normalize(audio, peak=0.85):
 
 
 def _play(audio):
-    """Play audio in a background thread."""
-    threading.Thread(
-        target=lambda: sd.play(audio, SR, blocking=True),
-        daemon=True,
-    ).start()
+    """Play audio in a background thread (serialized to avoid sounddevice crashes)."""
+
+    def _do_play():
+        with _play_lock:
+            sd.play(audio, SR, blocking=True)
+
+    threading.Thread(target=_do_play, daemon=True).start()
 
 
 # ---------------------------------------------------------------------------
 # Common parameters
 # ---------------------------------------------------------------------------
 
-_PK = dict(attack_ms=6, decay_ms=55, sustain_level=0.6, release_ms=130,
-           vibrato_hz=3.5, vibrato_depth=0.002)
-_PK_LONG = dict(attack_ms=6, decay_ms=55, sustain_level=0.6, release_ms=180,
-                vibrato_hz=3.0, vibrato_depth=0.003, damping=1.3)
-_PK_DAMP = dict(attack_ms=5, decay_ms=40, sustain_level=0.4, release_ms=80,
-                damping=0.5)
-_PK_ERR = dict(attack_ms=8, decay_ms=55, sustain_level=0.45, release_ms=100,
-               vibrato_hz=2.5, vibrato_depth=0.003, damping=0.7)
+_PK = dict(attack_ms=6, decay_ms=55, sustain_level=0.6, release_ms=130, vibrato_hz=3.5, vibrato_depth=0.002)
+_PK_LONG = dict(
+    attack_ms=6, decay_ms=55, sustain_level=0.6, release_ms=180, vibrato_hz=3.0, vibrato_depth=0.003, damping=1.3
+)
+_PK_DAMP = dict(attack_ms=5, decay_ms=40, sustain_level=0.4, release_ms=80, damping=0.5)
+_PK_ERR = dict(
+    attack_ms=8, decay_ms=55, sustain_level=0.45, release_ms=100, vibrato_hz=2.5, vibrato_depth=0.003, damping=0.7
+)
 
 _GAP = np.zeros(int(SR * 0.03), dtype=np.float32)
 _SGAP = np.zeros(int(SR * 0.025), dtype=np.float32)
@@ -188,6 +232,7 @@ _TINY = np.zeros(int(SR * 0.02), dtype=np.float32)
 # Pre-render all tones at import time for instant playback
 # ---------------------------------------------------------------------------
 
+
 def _render_start():
     """Rising fifth: C4 -> G4, octave-doubled + sub-bass + deep bass."""
     click = _wood_transient(0.012, volume=0.15, brightness=0.7)
@@ -196,22 +241,18 @@ def _render_start():
     melody = np.concatenate([click, n1, _GAP, n2])
     sub = _sub_bass(262, 0.65, volume=0.14)
     deep = _deep_bass(262, 0.70, volume=0.20)
-    tone = _reverb(_mix_layers(melody, sub, deep),
-                   echoes=4, delay_ms=32, decay=0.25)
+    tone = _reverb(_mix_layers(melody, sub, deep), echoes=4, delay_ms=32, decay=0.25)
     return _normalize(tone, 0.80)
 
 
 def _render_stop():
     """Single damped C4, octave-doubled + bass layers."""
     click = _wood_transient(0.010, volume=0.12, brightness=0.3)
-    note = _octave_note(262, 0.28, 0.38,
-                        attack_ms=6, decay_ms=50, sustain_level=0.45,
-                        release_ms=100, damping=0.7)
+    note = _octave_note(262, 0.28, 0.38, attack_ms=6, decay_ms=50, sustain_level=0.45, release_ms=100, damping=0.7)
     melody = np.concatenate([click, note])
     sub = _sub_bass(262, 0.35, volume=0.10, damping=0.6)
     deep = _deep_bass(262, 0.38, volume=0.16)
-    tone = _reverb(_mix_layers(melody, sub, deep),
-                   echoes=3, delay_ms=28, decay=0.20)
+    tone = _reverb(_mix_layers(melody, sub, deep), echoes=3, delay_ms=28, decay=0.20)
     return _normalize(tone, 0.72)
 
 
@@ -228,9 +269,9 @@ def _render_success():
     deep = _deep_bass(262, 0.55, volume=0.20)
     total_len = max(len(melody), bass_offset + max(len(sub), len(deep)))
     mixed = np.zeros(total_len, dtype=np.float32)
-    mixed[:len(melody)] += melody
-    mixed[bass_offset:bass_offset + len(sub)] += sub
-    mixed[bass_offset:bass_offset + len(deep)] += deep
+    mixed[: len(melody)] += melody
+    mixed[bass_offset : bass_offset + len(sub)] += sub
+    mixed[bass_offset : bass_offset + len(deep)] += deep
     tone = _reverb(mixed, echoes=5, delay_ms=35, decay=0.28)
     return _normalize(tone, 0.85)
 
@@ -243,8 +284,7 @@ def _render_cancel():
     melody = np.concatenate([click, n1, _TINY, n2])
     sub = _sub_bass(196, 0.35, volume=0.08, damping=0.5)
     deep = _deep_bass(196, 0.38, volume=0.12)
-    tone = _reverb(_mix_layers(melody, sub, deep),
-                   echoes=2, delay_ms=25, decay=0.15)
+    tone = _reverb(_mix_layers(melody, sub, deep), echoes=2, delay_ms=25, decay=0.15)
     return _normalize(tone, 0.55)
 
 
@@ -257,8 +297,7 @@ def _render_error():
     melody = np.concatenate([click, n1, eg, n2])
     sub = _sub_bass(220, 0.50, volume=0.12, damping=0.6)
     deep = _deep_bass(220, 0.55, volume=0.18)
-    tone = _reverb(_mix_layers(melody, sub, deep),
-                   echoes=4, delay_ms=42, decay=0.22)
+    tone = _reverb(_mix_layers(melody, sub, deep), echoes=4, delay_ms=42, decay=0.22)
     return _normalize(tone, 0.70)
 
 
@@ -274,21 +313,26 @@ _TONE_ERROR = _render_error()
 # Public API — just play the cached audio
 # ---------------------------------------------------------------------------
 
+
 def play_start_tone():
     """Start recording — warm rising fifth."""
     _play(_TONE_START)
+
 
 def play_stop_tone():
     """Stop recording — warm descending fifth."""
     _play(_TONE_STOP)
 
+
 def play_success_tone():
     """Transcription complete — resolving triad."""
     _play(_TONE_SUCCESS)
 
+
 def play_cancel_tone():
     """Cancel — quick descending, damped."""
     _play(_TONE_CANCEL)
+
 
 def play_error_tone():
     """Error — low dissonant half-step."""

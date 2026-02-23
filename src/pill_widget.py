@@ -4,12 +4,17 @@ Design: tiny dormant capsule → hover expands with mini bars → click to recor
 Color palette: Claude-inspired matte warm tones — soft terracotta + stone grays.
 """
 
-import sys
 import math
 import random
-from PySide6.QtWidgets import QWidget, QApplication, QMenu, QLabel
-from PySide6.QtCore import Qt, QTimer, QRectF, QPoint, Signal, QPointF
-from PySide6.QtGui import QPainter, QPen, QBrush, QColor, QCursor, QPainterPath
+import sys
+
+from PySide6.QtCore import QPoint, QPointF, QRectF, Qt, QTimer, Signal
+from PySide6.QtGui import QBrush, QColor, QCursor, QPainter, QPainterPath, QPen
+from PySide6.QtWidgets import QApplication, QMenu, QWidget
+
+from src.backend.logger import get as get_logger
+
+_log = get_logger("pill_widget")
 
 
 # ---------------------------------------------------------------------------
@@ -50,35 +55,35 @@ _MENU_STYLE = """
 # ---------------------------------------------------------------------------
 # Colour palette — Claude matte pastels
 # ---------------------------------------------------------------------------
-COL_BG          = QColor(41, 37, 36)         # stone-800 warm dark
-COL_BORDER      = QColor(255, 255, 255, 18)
-COL_BORDER_HV   = QColor(255, 255, 255, 40)
-COL_MINIBAR     = QColor(255, 255, 255, 35)  # dormant mini-bars dim
-COL_MINIBAR_HV  = QColor(207, 150, 115)      # soft terracotta on hover
-COL_BAR         = QColor(207, 150, 115)      # warm terracotta — voice bars
-COL_BAR_PROC    = QColor(207, 150, 115, 180) # processing pulse
-COL_X_BG        = QColor(255, 255, 255, 20)
-COL_X_BG_HV     = QColor(255, 255, 255, 45)
-COL_X_FG        = QColor(168, 162, 158)      # stone-400
-COL_X_FG_HV     = QColor(231, 229, 228)      # stone-200
-COL_STOP_BG     = QColor(220, 100, 80)       # muted warm red
-COL_STOP_BG_HV  = QColor(235, 120, 100)
-COL_STOP_FG     = QColor(255, 255, 255)
-COL_SUCCESS     = QColor(207, 150, 115)      # terracotta flash
-COL_ERROR       = QColor(220, 100, 80)       # muted red flash
+COL_BG = QColor(41, 37, 36)  # stone-800 warm dark
+COL_BORDER = QColor(255, 255, 255, 18)
+COL_BORDER_HV = QColor(255, 255, 255, 40)
+COL_MINIBAR = QColor(255, 255, 255, 35)  # dormant mini-bars dim
+COL_MINIBAR_HV = QColor(207, 150, 115)  # soft terracotta on hover
+COL_BAR = QColor(207, 150, 115)  # warm terracotta — voice bars
+COL_BAR_PROC = QColor(207, 150, 115, 180)  # processing pulse
+COL_X_BG = QColor(255, 255, 255, 20)
+COL_X_BG_HV = QColor(255, 255, 255, 45)
+COL_X_FG = QColor(168, 162, 158)  # stone-400
+COL_X_FG_HV = QColor(231, 229, 228)  # stone-200
+COL_STOP_BG = QColor(220, 100, 80)  # muted warm red
+COL_STOP_BG_HV = QColor(235, 120, 100)
+COL_STOP_FG = QColor(255, 255, 255)
+COL_SUCCESS = QColor(207, 150, 115)  # terracotta flash
+COL_ERROR = QColor(220, 100, 80)  # muted red flash
 
 # ---------------------------------------------------------------------------
 # Sizes
 # ---------------------------------------------------------------------------
 DORMANT_W, DORMANT_H = 72, 14
-HOVER_W, HOVER_H     = 88, 18         # slight expand on hover
-RECORDING_W, RECORDING_H = 200, 40    # taller for bigger bars
-DORMANT_BARS  = 14                     # mini bars in dormant state
+HOVER_W, HOVER_H = 88, 18  # slight expand on hover
+RECORDING_W, RECORDING_H = 200, 40  # taller for bigger bars
+DORMANT_BARS = 14  # mini bars in dormant state
 DORMANT_BAR_W = 1.5
 DORMANT_BAR_GAP = 1.5
-NUM_BARS      = 22                     # recording voice bars
-BAR_W         = 3                      # wider bars
-BAR_GAP       = 2
+NUM_BARS = 22  # recording voice bars
+BAR_W = 3  # wider bars
+BAR_GAP = 2
 
 
 class TooltipBubble(QWidget):
@@ -103,7 +108,8 @@ class TooltipBubble(QWidget):
         self._radius = 10
 
         # Measure text size
-        from PySide6.QtGui import QFontMetrics, QFont
+        from PySide6.QtGui import QFont, QFontMetrics
+
         font = QFont("Segoe UI", 11)
         font.setWeight(QFont.Weight.Normal)
         fm = QFontMetrics(font)
@@ -125,11 +131,12 @@ class TooltipBubble(QWidget):
             self._recompute_size()
 
     def _recompute_size(self):
-        text_w = (self._fm.horizontalAdvance(self._text_main)
-                  + self._fm_bold.horizontalAdvance(self._text_key)
-                  + self._fm.horizontalAdvance(self._text_end))
-        self.setFixedSize(int(text_w + self._padding_h * 2),
-                          int(self._text_h + self._padding_v * 2))
+        text_w = (
+            self._fm.horizontalAdvance(self._text_main)
+            + self._fm_bold.horizontalAdvance(self._text_key)
+            + self._fm.horizontalAdvance(self._text_end)
+        )
+        self.setFixedSize(int(text_w + self._padding_h * 2), int(self._text_h + self._padding_v * 2))
 
     def paintEvent(self, event):
         p = QPainter(self)
@@ -155,6 +162,7 @@ class TooltipBubble(QWidget):
         p.drawText(QPointF(x, y), self._text_main)
 
         from PySide6.QtGui import QFontMetrics
+
         x += QFontMetrics(self._font).horizontalAdvance(self._text_main)
 
         p.setFont(self._font_bold)
@@ -218,11 +226,7 @@ class PillWidget(QWidget):
         self._h = float(DORMANT_H)
 
         # Window flags
-        self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint
-            | Qt.WindowType.WindowStaysOnTopHint
-            | Qt.WindowType.Tool
-        )
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.Tool)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setMouseTracking(True)
         self.setFixedSize(DORMANT_W, DORMANT_H)
@@ -531,13 +535,14 @@ class PillWidget(QWidget):
         # Save the foreground window before the pill steals focus on click
         try:
             import ctypes
+
             hwnd = ctypes.windll.user32.GetForegroundWindow()
             # Don't save our own window handle — we need the *other* app's handle
             own_hwnd = int(self.winId())
             if hwnd and hwnd != own_hwnd:
                 self._prev_foreground = hwnd
         except Exception:
-            pass
+            _log.debug("enterEvent foreground capture failed", exc_info=True)
         self._hovered = True
         if self._state == "dormant":
             self._animate_to(HOVER_W, HOVER_H)
@@ -554,7 +559,7 @@ class PillWidget(QWidget):
         self.update()
 
     def mouseMoveEvent(self, event):
-        pos = event.position() if hasattr(event, 'position') else event.localPos()
+        pos = event.position() if hasattr(event, "position") else event.localPos()
         if self._state == "recording":
             self._hover_x = self._x_btn_rect().contains(pos)
             self._hover_stop = self._stop_btn_rect().contains(pos)
@@ -564,8 +569,7 @@ class PillWidget(QWidget):
                 self.setCursor(Qt.CursorShape.ArrowCursor)
         elif self._state == "processing":
             self._hover_x = self._x_btn_rect().contains(pos)
-            self.setCursor(Qt.CursorShape.PointingHandCursor if self._hover_x
-                           else Qt.CursorShape.ArrowCursor)
+            self.setCursor(Qt.CursorShape.PointingHandCursor if self._hover_x else Qt.CursorShape.ArrowCursor)
         elif self._state == "dormant":
             self.setCursor(Qt.CursorShape.PointingHandCursor)
         else:
@@ -577,7 +581,7 @@ class PillWidget(QWidget):
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
-            pos = event.position() if hasattr(event, 'position') else event.localPos()
+            pos = event.position() if hasattr(event, "position") else event.localPos()
             if self._state == "dormant":
                 self._tooltip.hide()
                 self.record_requested.emit()
@@ -727,9 +731,10 @@ class PillWidget(QWidget):
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
     import os
+
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
-    from src.backend.tones import play_start_tone, play_stop_tone, play_success_tone, play_error_tone
+    from src.backend.tones import play_start_tone, play_stop_tone, play_success_tone
 
     app = QApplication(sys.argv)
     pill = PillWidget()
@@ -740,27 +745,34 @@ if __name__ == "__main__":
     def on_record():
         play_start_tone()
         pill.set_state("recording")
+
         def update_level():
             pill.set_audio_level(random.random() * 0.8 + 0.1)
+
         level_timer.timeout.connect(update_level)
         level_timer.start(80)
 
     def on_stop():
         play_stop_tone()
         level_timer.stop()
-        try: level_timer.timeout.disconnect()
-        except RuntimeError: pass
+        try:
+            level_timer.timeout.disconnect()
+        except RuntimeError:
+            pass
         pill.set_state("processing")
 
         def on_done():
             play_success_tone()
             pill.set_state("success")
+
         QTimer.singleShot(2000, on_done)
 
     def on_cancel():
         level_timer.stop()
-        try: level_timer.timeout.disconnect()
-        except RuntimeError: pass
+        try:
+            level_timer.timeout.disconnect()
+        except RuntimeError:
+            pass
         pill.set_state("dormant")
 
     def on_hide():

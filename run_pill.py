@@ -1,8 +1,8 @@
 """Launcher for pill widget standalone test."""
-import sys
-import os
+
 import ctypes
-import time
+import os
+import sys
 
 # Hide the console window
 try:
@@ -16,10 +16,12 @@ sys.path.insert(0, ROOT)
 
 try:
     import random
-    from PySide6.QtWidgets import QApplication
+
     from PySide6.QtCore import QTimer
+    from PySide6.QtWidgets import QApplication
+
+    from src.backend.tones import play_cancel_tone, play_start_tone, play_stop_tone, play_success_tone
     from src.pill_widget import PillWidget
-    from src.backend.tones import play_start_tone, play_stop_tone, play_success_tone, play_error_tone, play_cancel_tone
 
     app = QApplication(sys.argv)
     pill = PillWidget()
@@ -28,14 +30,18 @@ try:
 
     def stop_level_timer():
         level_timer.stop()
-        try: level_timer.timeout.disconnect()
-        except RuntimeError: pass
+        try:
+            level_timer.timeout.disconnect()
+        except RuntimeError:
+            pass
 
     def on_record():
         play_start_tone()
         pill.set_state("recording")
+
         def update_level():
             pill.set_audio_level(random.random() * 0.8 + 0.1)
+
         level_timer.timeout.connect(update_level)
         level_timer.start(80)
 
@@ -47,9 +53,11 @@ try:
     def _do_stop():
         play_stop_tone()
         pill.set_state("processing")
+
         def on_done():
             play_success_tone()
             pill.set_state("success")
+
         QTimer.singleShot(2000, on_done)
 
     def on_cancel():
@@ -77,5 +85,6 @@ try:
 
 except Exception:
     import traceback
+
     with open(os.path.join(ROOT, "pill_error.log"), "w") as f:
         traceback.print_exc(file=f)

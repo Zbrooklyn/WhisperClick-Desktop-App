@@ -32,6 +32,14 @@
     dropdowns:        {},   // CustomDropdown instances
   };
 
+  const BAR_IDLE_HEIGHT = 8;
+
+  function getBarMaxHeight() {
+    if (!dom.audioBars) return 48;
+    // Leave a small top gutter so bars do not clip against the container edge.
+    return Math.max(BAR_IDLE_HEIGHT + 6, dom.audioBars.clientHeight - 4);
+  }
+
   /* ---------- Toolbar Selector (inline accordion panel) ---------- */
   class ToolbarSelector {
     constructor(id, onChange) {
@@ -77,17 +85,21 @@
       });
 
       panel.dataset.owner = this._name;
+      panel.classList.toggle('panel-mic', this._name === 'mic-dropdown');
       panel.classList.remove('collapsed');
       panel.classList.add('open');
+      this.el.classList.add('is-open');
     }
 
     _closePanel() {
       const panel = document.getElementById('selector-panel');
       if (panel.dataset.owner === this._name || !panel.dataset.owner) {
         panel.classList.remove('open');
+        panel.classList.remove('panel-mic');
         panel.classList.add('collapsed');
         panel.dataset.owner = '';
       }
+      this.el.classList.remove('is-open');
     }
 
     select(value, label) {
@@ -118,9 +130,7 @@
       const svgs = this.trigger.querySelectorAll('svg');
       const chevron = svgs.length > 0 ? ' ' + svgs[svgs.length - 1].outerHTML : '';
       if (this._name === 'mic-dropdown') {
-        const micIcon = svgs.length > 1 ? svgs[0].outerHTML + ' ' : '';
-        const short = label.length > 20 ? label.substring(0, 20) + '\u2026' : label;
-        this.trigger.innerHTML = micIcon + escapeHtml(short) + ' ' + chevron;
+        this.trigger.innerHTML = buildMicTriggerHtml(this.trigger, label);
       } else {
         const labelSpan = this.trigger.querySelector('.dropdown-label');
         const labelPrefix = labelSpan ? labelSpan.outerHTML + ' ' : '';
@@ -172,11 +182,13 @@
       Object.values(app.dropdowns).forEach(d => { if (d !== this) d.close(); });
       this.menu.classList.remove('hidden');
       this.open = true;
+      this.el.classList.add('is-open');
     }
 
     close() {
       this.menu.classList.add('hidden');
       this.open = false;
+      this.el.classList.remove('is-open');
     }
 
     select(value, label, silent) {
@@ -191,9 +203,7 @@
       const labelSpan = this.trigger.querySelector('.dropdown-label');
       const labelPrefix = labelSpan ? labelSpan.outerHTML + ' ' : '';
       if (this.el.id === 'mic-dropdown') {
-        const micIcon = svgs.length > 1 ? svgs[0].outerHTML + ' ' : '';
-        const short = label.length > 20 ? label.substring(0, 20) + '\u2026' : label;
-        this.trigger.innerHTML = micIcon + escapeHtml(short) + ' ' + chevron;
+        this.trigger.innerHTML = buildMicTriggerHtml(this.trigger, label);
       } else {
         this.trigger.innerHTML = labelPrefix + escapeHtml(label) + chevron;
       }
@@ -225,9 +235,7 @@
           const svgs = this.trigger.querySelectorAll('svg');
           const chevron = svgs.length > 0 ? ' ' + svgs[svgs.length - 1].outerHTML : '';
           if (this.el.id === 'mic-dropdown') {
-            const micIcon = svgs.length > 1 ? svgs[0].outerHTML + ' ' : '';
-            const short = sel.label.length > 20 ? sel.label.substring(0, 20) + '\u2026' : sel.label;
-            this.trigger.innerHTML = micIcon + escapeHtml(short) + ' ' + chevron;
+            this.trigger.innerHTML = buildMicTriggerHtml(this.trigger, sel.label);
           } else {
             this.trigger.innerHTML = escapeHtml(sel.label) + chevron;
           }
@@ -253,6 +261,7 @@
     dom.modeSwitch        = document.getElementById('mode-switch');
 
     // Record
+    dom.recordSection     = document.querySelector('.record-section');
     dom.recordBtn         = document.getElementById('record-btn');
     dom.recordIconMic     = document.getElementById('record-icon-mic');
     dom.recordIconStop    = document.getElementById('record-icon-stop');
@@ -378,6 +387,16 @@
     return el.innerHTML;
   }
 
+  function buildMicTriggerHtml(triggerEl, label) {
+    const safeLabel = label || 'Microphone';
+    const svgs = triggerEl.querySelectorAll('svg');
+    const micIcon = svgs.length > 1 ? svgs[0].outerHTML : '';
+    const chevron = svgs.length > 0 ? svgs[svgs.length - 1].outerHTML : '';
+    const escapedLabel = escapeHtml(safeLabel);
+    const titleAttr = escapedLabel;
+    return `${micIcon}<span class="mic-current-label" title="${titleAttr}">${escapedLabel}</span>${chevron}`;
+  }
+
   function formatTime(seconds) {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
@@ -420,16 +439,19 @@
     dom.recordBtn.classList.toggle('recording', isRecording);
     dom.recordIconMic.classList.toggle('hidden', isRecording);
     dom.recordIconStop.classList.toggle('hidden', !isRecording);
+    if (dom.recordSection) {
+      dom.recordSection.classList.toggle('is-recording', isRecording);
+    }
 
     // Disable record button during processing
     dom.recordBtn.disabled = (next === State.PROCESSING);
 
     // State label
     const labels = {
-      [State.IDLE]:       'Press to record',
-      [State.RECORDING]:  'Recording... click to stop',
-      [State.PROCESSING]: 'Processing audio...',
-      [State.DONE]:       'Press to record again',
+      [State.IDLE]:       'Ready to record',
+      [State.RECORDING]:  'Recording',
+      [State.PROCESSING]: 'Transcribing',
+      [State.DONE]:       'Ready again',
     };
     dom.recordStateLabel.textContent = labels[next] || '';
 
@@ -457,7 +479,7 @@
     if (next !== State.RECORDING) {
       dom.audioBars.classList.remove('active');
       const bars = dom.audioBars.querySelectorAll('.audio-bar');
-      bars.forEach(bar => { bar.style.height = '4px'; });
+      bars.forEach(bar => { bar.style.height = `${BAR_IDLE_HEIGHT}px`; });
     }
   }
 
@@ -575,10 +597,16 @@
     const bars = dom.audioBars.querySelectorAll('.audio-bar');
     function animateBars() {
       if (app.state !== State.RECORDING) return;
-      bars.forEach((bar, i) => {
-        // Base height from level + slight per-bar randomization
-        const rand = 0.7 + Math.random() * 0.6;
-        const h = Math.max(4, _currentLevel * 22 * rand);
+      bars.forEach((bar) => {
+        // Keep a visible baseline even with quiet input, then scale strongly with level.
+        const rand = 0.55 + Math.random() * 0.95;
+        const barMaxHeight = getBarMaxHeight();
+        const dynamicRange = barMaxHeight - BAR_IDLE_HEIGHT;
+        const activity = Math.max(_currentLevel, 0.08);
+        const h = Math.min(
+          barMaxHeight,
+          BAR_IDLE_HEIGHT + (activity * dynamicRange * rand)
+        );
         bar.style.height = h + 'px';
       });
       app.levelRafId = requestAnimationFrame(animateBars);
@@ -601,6 +629,7 @@
   /* ---------- Mode Toggle ---------- */
   function initModeSwitch() {
     const buttons = dom.modeSwitch.querySelectorAll('.pill-option');
+    dom.modeSwitch.classList.add('control-active');
     buttons.forEach(btn => {
       btn.addEventListener('click', async () => {
         buttons.forEach(b => b.classList.remove('active'));

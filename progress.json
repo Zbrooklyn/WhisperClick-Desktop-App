@@ -1,0 +1,131 @@
+{
+  "project": "WhisperClick V3",
+  "updated": "2026-02-22",
+  "features": {
+    "release_build_pipeline": {
+      "status": "complete",
+      "description": "Folder portable, one-file portable, installer builds"
+    },
+    "ui_bridge_wiring": {
+      "status": "complete",
+      "description": "Recording, settings, mic selection, history CRUD via native bridge"
+    },
+    "api_mode_history": {
+      "status": "complete",
+      "description": "History persistence for API-mode transcription outputs"
+    },
+    "api_key_management": {
+      "status": "complete",
+      "description": "Secure keyring storage, startup hydration, provider verification"
+    },
+    "hotkey_system": {
+      "status": "complete",
+      "description": "Capture flow, runtime rebind, native bridge path for desktop mode"
+    },
+    "local_model_manager": {
+      "status": "complete",
+      "description": "Download, select, and use local Whisper models"
+    },
+    "timer_behavior": {
+      "status": "complete",
+      "description": "Resets to 00:00 after processing"
+    },
+    "icon_pipeline": {
+      "status": "complete",
+      "description": "SVG source of truth, PNG/ICO generation"
+    },
+    "history_search": {
+      "status": "complete",
+      "description": "Substring filter on text and title"
+    },
+    "txt_export": {
+      "status": "complete",
+      "description": "Blob download for history entries"
+    },
+    "translation_service": {
+      "status": "complete",
+      "description": "Multi-provider translation (OpenAI, Gemini, local)"
+    },
+    "audio_feedback": {
+      "status": "complete",
+      "description": "Start/stop/success/error/cancel tones"
+    },
+    "tray_integration": {
+      "status": "complete",
+      "description": "System tray with menu and visibility toggle"
+    },
+    "dpi_awareness": {
+      "status": "complete",
+      "description": "Per-Monitor V2 DPI with Win32 physical-pixel drag"
+    },
+    "clipboard_integration": {
+      "status": "complete",
+      "description": "Auto-copy with configurable target"
+    },
+    "pill_recording_parity": {
+      "status": "in-progress",
+      "description": "Pill widget recording path not fully aligned with main UI pipeline"
+    },
+    "full_release_validation": {
+      "status": "not-started",
+      "description": "Manual production audit matrix (tray, pill, local/API, device edge cases)"
+    },
+    "second_machine_validation": {
+      "status": "not-started",
+      "description": "Rebuild and test on a second Windows machine"
+    }
+  },
+  "known_issues": {
+    "api_py_size": {
+      "status": "acknowledged",
+      "description": "api.py at 1274 lines exceeds 800-line limit",
+      "type": "tech_debt"
+    },
+    "stop_recording_size": {
+      "status": "acknowledged",
+      "description": "api.py:stop_recording() ~120 lines exceeds 80-line limit",
+      "type": "tech_debt"
+    }
+  },
+  "testing": {
+    "v3_full_test": {
+      "count": 269,
+      "last_result": "269 passed, 0 failed",
+      "requires": "audio_hardware"
+    },
+    "pytest_tests": {
+      "count": 19,
+      "last_result": "15 passed, 4 failed (pre-existing mock patching issue in TestTranslateOpenAI)",
+      "location": "tests/",
+      "requires": "none"
+    },
+    "smoke_test": {
+      "count": 9,
+      "last_result": "9 passed, 0 failed",
+      "requires": "gui"
+    },
+    "compile_check": {
+      "files": 22,
+      "result": "all clean"
+    }
+  },
+  "infrastructure": {
+    "formatter": {
+      "tool": "black",
+      "status": "complete"
+    },
+    "linter": {
+      "tool": "ruff",
+      "status": "complete"
+    },
+    "pre_commit": {
+      "status": "complete"
+    },
+    "ci_pipeline": {
+      "status": "complete"
+    },
+    "lint_audit": {
+      "status": "complete"
+    }
+  }
+}

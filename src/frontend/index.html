@@ -12,14 +12,14 @@
             theme: {
                 extend: {
                     colors: {
-                        stone: { 
-                            750: '#292524', 
-                            850: '#1C1917', 
+                        stone: {
+                            750: '#292524',
+                            850: '#1C1917',
                             900: '#171514',
                             950: '#0c0a09'
                         },
-                        accent: { 
-                            DEFAULT: '#CF9673', 
+                        accent: {
+                            DEFAULT: '#CF9673',
                             hover: '#D4A484',
                             dim: 'rgba(207, 150, 115, 0.1)',
                             processing: '#D4A373'
@@ -117,7 +117,7 @@
                 </div>
                 <h1 class="text-2xl font-bold mb-2 text-stone-800 dark:text-stone-100">WhisperClick</h1>
                 <p class="text-stone-500 dark:text-stone-400 mb-8 text-sm">Local capture is available right away.<br>Add an API key for transcription and translation.</p>
-                
+
                 <div class="bg-stone-100 dark:bg-stone-800 rounded-xl p-4 mb-6 border border-stone-200 dark:border-stone-700 text-left">
                     <div class="flex justify-between items-center mb-2">
                         <span class="font-medium text-sm dark:text-stone-200">Local Capture Mode</span>
@@ -174,7 +174,7 @@
         <div id="detail-modal" class="absolute inset-0 z-[60] hidden">
             <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity opacity-0" id="detail-backdrop" onclick="closeDetailModal()"></div>
             <div class="absolute inset-x-0 bottom-0 h-[85%] bg-stone-100 dark:bg-stone-800 rounded-t-2xl shadow-2xl border-t border-stone-200 dark:border-stone-700 flex flex-col transform translate-y-full transition-transform duration-300 ease-out" id="detail-card">
-                
+
                 <div class="flex items-center justify-between p-4 border-b border-stone-200 dark:border-stone-700">
                     <div class="flex-1 mr-4">
                         <input type="text" id="detail-title" class="w-full bg-transparent text-lg font-semibold border-none focus:ring-0 p-0 placeholder-stone-400 dark:text-stone-200" value="Transcription Details">
@@ -184,7 +184,7 @@
                         <i data-lucide="x" class="w-5 h-5"></i>
                     </button>
                 </div>
-                
+
                 <div class="flex-1 p-6 overflow-y-auto font-serif text-lg leading-relaxed text-stone-800 dark:text-stone-200 select-text" id="detail-text"></div>
 
                 <div class="p-4 border-t border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-850/50 flex justify-between items-center">
@@ -293,7 +293,7 @@
                 <h2 class="font-semibold text-lg dark:text-stone-200">Settings</h2>
                 <button onclick="toggleSettings()" class="p-1 hover:bg-stone-200 dark:hover:bg-stone-700 rounded text-stone-600 dark:text-stone-400"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
-            
+
             <div class="flex-1 overflow-y-auto p-4 space-y-6">
                 <!-- Appearance -->
                 <div class="space-y-3 pb-5 border-b border-stone-200 dark:border-stone-700">
@@ -541,10 +541,10 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="pt-6 mt-4 border-t border-stone-200 dark:border-stone-700 text-center">
                     <p class="font-semibold text-sm dark:text-stone-200">WhisperClick</p>
-                    <p class="text-xs text-stone-500">v2.0.1 • Local AI</p>
+                    <p id="app-version" class="text-xs text-stone-500">v1.0.0</p>
                 </div>
             </div>
         </aside>
@@ -603,10 +603,10 @@
 
         <!-- Main Content -->
         <main class="flex-1 flex flex-col overflow-hidden relative bg-stone-50 dark:bg-stone-850">
-            
+
             <!-- Expanded Clickable Recording Section -->
             <div id="recording-surface" onclick="toggleRecording(event)" class="group cursor-pointer shrink-0 px-6 py-6 flex items-center justify-between border-b border-stone-200 dark:border-stone-800 bg-stone-50 hover:bg-stone-100 dark:bg-stone-850 dark:hover:bg-stone-800/80 transition-all z-20 relative overflow-hidden" data-tooltip="Click anywhere to record (Ctrl + Alt + R)">
-                
+
                 <!-- Processing Background Pulse -->
                 <div id="processing-pulse" class="absolute inset-0 bg-accent/10 opacity-0 transition-opacity duration-500 pointer-events-none"></div>
 
@@ -617,7 +617,7 @@
                     <i id="icon-loader" data-lucide="loader-2" class="w-5 h-5 hidden animate-spin text-accent"></i>
                     <svg id="icon-cancel" class="w-5 h-5 hidden text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </div>
-                
+
                 <!-- Middle: Expansive Audio Visualizer -->
                 <div class="flex-1 flex justify-center items-center h-12 mx-6 z-10 opacity-40 group-hover:opacity-70 transition-opacity duration-300 overflow-hidden" id="audio-viz">
                     <!-- Expanded array of bars to fill the center space -->
@@ -764,7 +764,7 @@
         const micBtn = document.getElementById('mic-btn');
         const modelChevron = document.getElementById('model-chevron');
         const micChevron = document.getElementById('mic-chevron');
-        
+
         const iconMic = document.getElementById('icon-mic');
         const iconStop = document.getElementById('icon-stop');
         const iconLoader = document.getElementById('icon-loader');
@@ -773,14 +773,14 @@
         const timerEl = document.getElementById('timer');
         const statusText = document.getElementById('status-text');
         const audioViz = document.getElementById('audio-viz');
-        
+
         const historyList = document.getElementById('history-list');
         const historyBadge = document.getElementById('history-badge');
         const emptyState = document.getElementById('empty-state');
         const clearHistoryBtn = document.getElementById('clear-history-btn');
         const bannerContainer = document.getElementById('banner-container');
         const processingPulse = document.getElementById('processing-pulse');
-        
+
         const settingsDrawer = document.getElementById('settings-drawer');
         const detailModal = document.getElementById('detail-modal');
         const detailBackdrop = document.getElementById('detail-backdrop');
@@ -821,7 +821,7 @@
         const clearHistoryModal = document.getElementById('clear-history-modal');
         const clearHistoryBackdrop = document.getElementById('clear-history-backdrop');
         const clearHistoryCard = document.getElementById('clear-history-card');
-        
+
         const onboardingOverlay = document.getElementById('onboarding-overlay');
         const onboardingLocalStep = document.getElementById('onboarding-local-step');
         const onboardingApiStep = document.getElementById('onboarding-api-step');
@@ -2462,6 +2462,13 @@
             updateModelStatusCard();
             renderModelManager();
             await initializeNativeBridgeState();
+            try {
+                const ver = await callNativeApi('get_version');
+                if (ver && ver.version) {
+                    const el = document.getElementById('app-version');
+                    if (el) el.textContent = 'v' + ver.version;
+                }
+            } catch { /* version display is non-critical */ }
             await hydrateApiKeysFromBackend();
 
             // After keys are loaded, ensure the active provider actually has a key.
@@ -2765,7 +2772,7 @@
                 return;
             }
             activePanel = type;
-            
+
             if (type === 'model') {
                 if (currentMode === 'api') {
                     const provider = getActiveProvider();
@@ -4063,7 +4070,7 @@
                 applyVizSettings();
             }, 120);
         });
-        
+
         function toggleSettings() {
             const isOpen = !settingsDrawer.classList.contains('translate-x-full');
             if (isOpen) {
@@ -4361,7 +4368,7 @@
             URL.revokeObjectURL(url);
             showToast(`Exported as ${fmt.toUpperCase()}`, "success");
         }
-        
+
         // Initialize visualizer controls + resting state on first load
         applyVizSettings();
         syncHistoryUi();
