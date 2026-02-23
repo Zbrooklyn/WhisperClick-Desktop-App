@@ -95,6 +95,11 @@ api = Api()
 # Snapshot settings so we can restore after tests that modify them
 _original_settings = load_settings()
 
+# Snapshot API keys (stored in keyring, NOT in settings.json)
+_original_api_keys = {}
+for _provider in ("openai", "gemini"):
+    _original_api_keys[_provider] = api.get_api_key(_provider).get("api_key", "")
+
 # ══════════════════════════════════════════════════════════════════════
 #  1. SETTINGS
 # ══════════════════════════════════════════════════════════════════════
@@ -2083,6 +2088,23 @@ test("mode still correct", lambda: final_settings.get("mode") == _original_setti
 test("api_provider still correct", lambda: final_settings.get("api_provider") == _original_settings.get("api_provider"))
 test("target_language still correct", lambda: final_settings.get("target_language") == _original_settings.get("target_language"))
 test("output_mode still correct", lambda: final_settings.get("output_mode") == _original_settings.get("output_mode"))
+
+# Verify API keys in keyring were not corrupted
+def test_api_keys_not_corrupted():
+    """Verify API keys in keyring match pre-test snapshot."""
+    issues = []
+    for provider, original_key in _original_api_keys.items():
+        current_key = api.get_api_key(provider).get("api_key", "")
+        if current_key != original_key:
+            # Show only first 8 chars for security
+            orig_hint = (original_key[:8] + "...") if original_key else "(empty)"
+            curr_hint = (current_key[:8] + "...") if current_key else "(empty)"
+            issues.append(f"{provider}: was={orig_hint} now={curr_hint}")
+    if issues:
+        raise AssertionError(f"API keys corrupted by tests: {'; '.join(issues)}")
+    return True
+
+test("API keys not corrupted by test suite", test_api_keys_not_corrupted)
 
 # ══════════════════════════════════════════════════════════════════════
 #  SUMMARY
