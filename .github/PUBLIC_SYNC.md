@@ -1,7 +1,7 @@
 # Public/Private Repo Sync Guard
 
 This file documents which files are **private-only** and must NEVER be published
-to the public repository (`Zbrooklyn/whisper-click-public`).
+to the public repository (`Zbrooklyn/WhisperClick-Desktop-App`).
 
 ## Private-Only Files (NEVER publish)
 
@@ -20,7 +20,7 @@ to the public repository (`Zbrooklyn/whisper-click-public`).
 
 ## Public Repo Structure
 
-The public repo (`Zbrooklyn/whisper-click-public`) contains:
+The public repo (`Zbrooklyn/WhisperClick-Desktop-App`) contains:
 
 - All `src/` source code
 - All `assets/` icons

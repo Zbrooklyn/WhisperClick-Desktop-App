@@ -1,67 +1,119 @@
-# WhisperClick
+<p align="center">
+  <img src="assets/microphone_logo.png" alt="WhisperClick" width="80">
+</p>
 
-**Local-first AI speech-to-text for Windows.** Press a hotkey, speak, and your words appear as text — instantly pasted wherever your cursor is.
+<h1 align="center">WhisperClick</h1>
 
-WhisperClick runs a local Whisper model for fully offline transcription, or connects to OpenAI/Gemini APIs for cloud-powered accuracy. No always-on microphone. No background listening. You control when it records.
+<p align="center">
+  <strong>Talk instead of type. Anywhere on Windows.</strong><br>
+  One hotkey. Instant transcription. Pasted right where your cursor is.
+</p>
 
-## Features
+<p align="center">
+  <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest">Download for Windows</a>
+</p>
 
-- **Global hotkey** — toggle recording from any app with a customizable keyboard shortcut
-- **Local mode** — fully offline transcription using [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (tiny → large models)
-- **API mode** — cloud transcription via OpenAI Whisper API or Google Gemini
-- **Auto-paste** — transcribed text is copied to clipboard and pasted at your cursor
-- **Floating pill** — minimal always-on-top recording indicator with timer
-- **History** — searchable transcription history with audio playback (24h retention)
-- **Sound feedback** — distinct audio cues for start, stop, success, error, and cancel
-- **System tray** — runs quietly in the background with tray icon and menu
-- **Multi-monitor DPI** — correct window positioning across mixed-DPI displays
-- **50+ languages** — supports all languages available in Whisper
+---
 
-## Quick Start
+## What is WhisperClick?
 
-### Download (Windows)
+WhisperClick is a desktop speech-to-text app that lives in your system tray. Press a hotkey from any application, say what you're thinking, and the text appears at your cursor. That's it.
 
-1. Go to [Releases](https://github.com/Zbrooklyn/whisper-click-public/releases)
-2. Download one of:
-   - **`WhisperClick-Setup-*.exe`** — installer (recommended)
-   - **`WhisperClick-portable-*.zip`** — portable folder, no install needed
-   - **`WhisperClick-portable-onefile-*.exe`** — single-file portable EXE
-3. Run WhisperClick. It starts in the system tray.
-4. Press `Ctrl+Shift+R` (default) to start/stop recording.
+It works two ways:
 
-### Run from Source
+- **Local mode** runs a Whisper AI model directly on your machine. No internet. No data leaves your computer. Ever.
+- **API mode** sends audio to OpenAI or Google Gemini for transcription when you want cloud-level accuracy.
+
+You pick the mode. You pick when it listens. There's no always-on microphone and no background recording.
+
+---
+
+## See it in action
+
+<p align="center">
+  <img src="docs/reference/ui-captures/Screenshot 2026-02-18 121310.png" alt="WhisperClick main window" width="500">
+</p>
+
+The floating pill sits at the top of your screen. When you start recording, it shows a live timer and audio visualization. When you stop, your words are transcribed and pasted.
+
+<p align="center">
+  <img src="docs/reference/ui-captures/Recording state Screenshot 2026-02-17 182008.png" alt="WhisperClick recording pill" width="180">
+</p>
+
+---
+
+## Why WhisperClick?
+
+**You talk 3-4x faster than you type.** WhisperClick closes the gap between thinking and writing.
+
+- **Works in any app.** Email, Slack, Google Docs, your IDE, any text field. One global hotkey triggers recording wherever you are.
+- **Runs fully offline.** Local mode uses [faster-whisper](https://github.com/SYSTRAN/faster-whisper) on your hardware. Your audio never leaves your machine.
+- **No extra steps.** Press the hotkey, talk, stop. Text appears at your cursor already pasted.
+- **50+ languages.** Supports every language Whisper handles.
+- **Searchable history.** Every transcription is saved with audio playback so you can find what you said later.
+- **Stays out of your way.** Lives in the system tray. A small floating pill shows up only while recording.
+
+---
+
+## Download
+
+Go to the [latest release](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest) and grab one of these:
+
+| Download | Best for |
+|----------|----------|
+| **WhisperClick-Setup-*.exe** | Most users. Installs to your system, adds Start Menu shortcut. |
+| **WhisperClick-portable-*.zip** | USB drives, shared machines. Unzip and run, no install. |
+| **WhisperClick-portable-onefile-*.exe** | Single file you can drop anywhere and run. |
+
+### Get started in 30 seconds
+
+1. Run the installer or portable EXE
+2. WhisperClick appears in your system tray
+3. Press `Ctrl+Shift+R` to start recording
+4. Talk, then press `Ctrl+Shift+R` again to stop
+5. Your words appear as text, pasted at your cursor
+
+### Set up API mode (optional)
+
+1. Right-click the tray icon, open **Settings**
+2. Switch to **API** mode, pick OpenAI or Gemini
+3. Paste your API key (verified and stored securely in your OS keyring)
+
+### Set up local mode
+
+1. Open **Settings**, switch to **Local** mode
+2. Pick a model size (tiny for speed, large for accuracy)
+3. Hit **Download** once, then it runs fully offline from that point on
+
+---
+
+## Privacy
+
+We don't collect anything. No telemetry, no analytics, no background network calls.
+
+- **Local mode**: Audio is processed on your machine and never sent anywhere.
+- **API mode**: Audio goes to OpenAI or Google only when you press the hotkey. Nothing is stored after transcription.
+
+Full details in [PRIVACY.md](PRIVACY.md).
+
+---
+
+## For Developers
+
+### Run from source
 
 ```bash
-# Clone the repo
-git clone https://github.com/Zbrooklyn/whisper-click-public.git
-cd whisper-click-public
+git clone https://github.com/Zbrooklyn/WhisperClick-Desktop-App.git
+cd WhisperClick-Desktop-App
 
-# Create virtual environment
 python -m venv venv
 venv\Scripts\activate
-
-# Install dependencies
 pip install -r requirements.txt
 
-# Run
 python src/main.py
 ```
 
-### API Mode Setup
-
-1. Open Settings (right-click tray icon → Settings)
-2. Select **API** mode and choose a provider (OpenAI or Gemini)
-3. Paste your API key — it's verified on entry and stored securely via OS keyring
-
-### Local Mode Setup
-
-1. Open Settings → select **Local** mode
-2. Choose a model size (tiny → large) — smaller = faster, larger = more accurate
-3. Click **Download** — the model downloads once and runs fully offline
-
-## Building from Source
-
-See [docs/WINDOWS_BUILD.md](docs/WINDOWS_BUILD.md) for detailed build instructions.
+### Build distributable packages
 
 ```powershell
 # Folder portable (PyInstaller)
@@ -74,33 +126,30 @@ See [docs/WINDOWS_BUILD.md](docs/WINDOWS_BUILD.md) for detailed build instructio
 .\build_windows_installer.ps1
 ```
 
-## Architecture
+Full build guide: [docs/WINDOWS_BUILD.md](docs/WINDOWS_BUILD.md)
+
+### Project structure
 
 ```
 src/
-  main.py              # Entrypoint: pywebview + pystray + hotkey + tray
+  main.py              # App entrypoint (pywebview + pystray + hotkey + tray)
   pill_manager.py      # Floating pill lifecycle (PySide6)
   pill_widget.py       # Floating pill UI widget
   backend/
-    api.py             # Desktop bridge API (webview ↔ Python)
-    audio_recorder.py  # Native audio capture (sounddevice)
-    config.py          # Settings/history persistence
-    transcription.py   # Transcription service (OpenAI, Gemini, local Whisper)
+    api.py             # Desktop bridge API
+    audio_recorder.py  # Audio capture (sounddevice)
+    config.py          # Settings and history persistence
+    transcription.py   # Transcription engine (OpenAI, Gemini, local Whisper)
   frontend/
-    index.html         # Main UI (HTML/CSS/JS via pywebview)
+    index.html         # Main UI
 ```
 
-## Privacy
-
-WhisperClick respects your privacy. See [PRIVACY.md](PRIVACY.md) for details.
-
-- **Local mode**: Audio is processed entirely on your machine. Nothing leaves your computer.
-- **API mode**: Audio is sent to OpenAI or Google for transcription. No audio is stored by WhisperClick after transcription completes.
+---
 
 ## License
 
-This project is licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) — free for personal and community use, no commercial use permitted. See [LICENSE](LICENSE). For commercial licensing, contact the copyright holder.
+WhisperClick is source-available under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). Free for personal and community use. Commercial use requires a separate license. See [LICENSE](LICENSE).
 
 ## Security
 
-To report a security vulnerability, see [SECURITY.md](SECURITY.md).
+Found a vulnerability? See [SECURITY.md](SECURITY.md) for responsible disclosure.

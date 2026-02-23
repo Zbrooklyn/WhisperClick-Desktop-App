@@ -133,8 +133,8 @@ These must never appear in new code:
 ## Public/Private Repo Safety
 
 WhisperClick has two repositories:
-- **Private**: `Zbrooklyn/whisper-click` — full dev workflow, internal docs, progress tracking
-- **Public**: `Zbrooklyn/whisper-click-public` — clean release with source code and user-facing docs
+- **Private**: `Zbrooklyn/whisperclick-dev` — full dev workflow, internal docs, progress tracking
+- **Public**: `Zbrooklyn/WhisperClick-Desktop-App` — clean release with source code and user-facing docs
 
 ### Rules
 
