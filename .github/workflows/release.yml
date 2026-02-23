@@ -55,8 +55,8 @@ jobs:
         run: |
           "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" ^
             /DAppVersion=${{ steps.version.outputs.ver }} ^
-            /DSourceDir=dist\WhisperClick ^
-            /DOutputDir=dist ^
+            /DSourceDir=%CD%\dist\WhisperClick ^
+            /DOutputDir=%CD%\dist ^
             installer\WhisperClick.iss
 
       - name: Create GitHub Release
