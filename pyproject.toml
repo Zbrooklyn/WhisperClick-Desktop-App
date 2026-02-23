@@ -1,0 +1,36 @@
+[tool.black]
+line-length = 120
+target-version = ["py312"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort (import ordering)
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+    "RUF", # ruff-specific rules
+]
+ignore = [
+    "E501",    # line too long — black handles this
+    "SIM105",  # contextlib.suppress — try/except/pass is clearer for this codebase
+    "SIM108",  # ternary operator — if/else blocks are more readable for multi-line conditions
+    "SIM115",  # context manager for open — not always appropriate (e.g., NamedTemporaryFile)
+    "RUF012",  # ClassVar annotations — not needed for this desktop app's class attributes
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tools/*" = ["E402"]       # late imports in test/tool scripts
+"src/main.py" = ["E402"]   # DPI awareness must run before UI imports
+"benchmark.py" = ["E402"]
+"generate_samples.py" = ["E402"]
+"run_pill.py" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

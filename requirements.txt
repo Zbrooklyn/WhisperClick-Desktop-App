@@ -1,0 +1,13 @@
+pywebview>=6.0
+sounddevice>=0.4.6
+numpy>=1.26.0
+scipy>=1.12.0
+soundfile>=0.12.1
+faster-whisper>=1.0.0
+openai>=1.12.0
+pynput>=1.7.6
+python-dotenv>=1.0.1
+pystray>=0.19.0
+Pillow>=10.0.0
+PySide6>=6.8.0
+keyring>=25.0.0

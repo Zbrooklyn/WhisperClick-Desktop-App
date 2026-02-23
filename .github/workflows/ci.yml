@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install linters
+        run: pip install black ruff
+
+      - name: Check formatting with black
+        run: black --check src/ tools/ tests/ benchmark.py generate_samples.py run_pill.py --line-length 120
+
+      - name: Lint with ruff
+        run: ruff check src/ tools/ tests/ benchmark.py generate_samples.py run_pill.py
+
+      - name: Run lint audit
+        run: python tools/lint_audit.py
+
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run unit tests
+        run: python -m pytest tests/ -v
+        # Note: tools/v3_full_test.py requires audio hardware (microphone +
+        # speakers) and a running desktop environment, so it cannot be executed
+        # in CI.  Only the 19 unit tests under tests/ are run here.
+
+  compile-check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Compile-check all source
+        run: python -m compileall src/ tools/ tests/ -q

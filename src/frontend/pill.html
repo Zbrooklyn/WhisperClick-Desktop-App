@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WhisperClick Mini</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      background: #1E2028;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+      font-family: -apple-system, 'Segoe UI', system-ui, Roboto, sans-serif;
+      width: 100%;
+      height: 100%;
+    }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    /* ============ DORMANT STATE ============ */
+    .dormant {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      padding: 0 4px;
+    }
+    .dormant .dot {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.25);
+      transition: background 200ms ease;
+    }
+    body:hover .dormant .dot {
+      background: rgba(255,255,255,0.6);
+    }
+
+    /* ============ TOOLTIP on hover ============ */
+    .tooltip {
+      display: none;
+      position: fixed;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      margin-bottom: 8px;
+      background: #111218;
+      color: #E2E8F0;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 8px 14px;
+      border-radius: 8px;
+      white-space: nowrap;
+      pointer-events: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    }
+    .tooltip kbd {
+      font-family: inherit;
+      font-weight: 700;
+      color: #fff;
+    }
+    body:hover .tooltip { display: block; }
+
+    /* ============ RECORDING STATE ============ */
+    .recording-ui {
+      display: none;
+      align-items: center;
+      width: 100%;
+      height: 100%;
+      padding: 0 6px;
+      gap: 6px;
+    }
+    body.recording .dormant { display: none; }
+    body.recording .tooltip { display: none !important; }
+    body.recording .recording-ui { display: flex; }
+    body.recording { cursor: default; }
+
+    /* Cancel button (X) */
+    .btn-cancel {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255,255,255,0.1);
+      color: #A0AEC0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 150ms;
+    }
+    .btn-cancel:hover { background: rgba(255,255,255,0.18); color: #E2E8F0; }
+
+    /* Voice bars container */
+    .voice-bars {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      height: 100%;
+      padding: 6px 0;
+    }
+    .vbar {
+      width: 2.5px;
+      min-height: 3px;
+      border-radius: 1.5px;
+      background: #E2E8F0;
+      transition: height 80ms ease;
+    }
+
+    /* Stop button (red square) */
+    .btn-stop {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: none;
+      background: #EF4444;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 150ms;
+    }
+    .btn-stop:hover { background: #F87171; }
+    .btn-stop .stop-icon {
+      width: 10px;
+      height: 10px;
+      background: #fff;
+      border-radius: 2px;
+    }
+
+    /* ============ PROCESSING STATE ============ */
+    body.processing .dormant { display: none; }
+    body.processing .tooltip { display: none !important; }
+    body.processing .recording-ui { display: flex; }
+    body.processing .btn-cancel { visibility: hidden; }
+    body.processing .btn-stop { visibility: hidden; }
+    body.processing { cursor: default; }
+    body.processing .vbar {
+      background: #F59E0B;
+      animation: proc-wave 1s ease-in-out infinite alternate;
+    }
+
+    @keyframes proc-wave {
+      0% { opacity: 0.3; transform: scaleY(0.5); }
+      100% { opacity: 1; transform: scaleY(1); }
+    }
+
+    /* ============ RESULT FLASH ============ */
+    body.success { border-color: #10B981; }
+    body.error   { border-color: #EF4444; }
+
+    /* ============ RIGHT-CLICK CONTEXT MENU ============ */
+    .ctx-menu {
+      display: none;
+      position: fixed;
+      background: #F7F8FA;
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 10px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+      padding: 6px 0;
+      z-index: 1000;
+      min-width: 200px;
+    }
+    .ctx-menu.visible { display: block; }
+    .ctx-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 8px 16px;
+      background: none;
+      border: none;
+      color: #1A202C;
+      font-size: 13px;
+      font-family: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+    .ctx-item:hover { background: rgba(0,0,0,0.05); }
+    .ctx-item .shortcut { color: #9CA3AF; font-size: 12px; }
+    .ctx-sep { height: 1px; background: rgba(0,0,0,0.08); margin: 4px 0; }
+  </style>
+</head>
+<body id="pill">
+  <!-- Tooltip -->
+  <div class="tooltip" id="tooltip">
+    Click or hold <kbd>Ctrl+Alt+R</kbd> to start dictating
+  </div>
+
+  <!-- Dormant: row of dots -->
+  <div class="dormant" id="dormant">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="dot"></div>
+  </div>
+
+  <!-- Recording UI -->
+  <div class="recording-ui" id="recording-ui">
+    <button class="btn-cancel" id="btn-cancel" title="Cancel">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+    <div class="voice-bars" id="voice-bars"></div>
+    <button class="btn-stop" id="btn-stop" title="Stop recording">
+      <div class="stop-icon"></div>
+    </button>
+  </div>
+
+  <!-- Context menu (light theme like Wispr) -->
+  <div class="ctx-menu" id="ctx-menu">
+    <button class="ctx-item" id="ctx-show">Show WhisperClick</button>
+    <button class="ctx-item" id="ctx-settings">Go to settings</button>
+    <div class="ctx-sep"></div>
+    <button class="ctx-item" id="ctx-history">View transcript history</button>
+    <button class="ctx-item" id="ctx-paste">
+      Paste last transcript <span class="shortcut">Ctrl+Shift+V</span>
+    </button>
+    <div class="ctx-sep"></div>
+    <button class="ctx-item" id="ctx-hide">Hide for now</button>
+  </div>
+
+  <script>
+    (function() {
+      'use strict';
+
+      const DORMANT_W = 90, DORMANT_H = 28;
+      const REC_W = 200, REC_H = 38;
+
+      // Generate voice bars
+      const NUM_BARS = 20;
+      const vbarsEl = document.getElementById('voice-bars');
+      const barEls = [];
+      for (let i = 0; i < NUM_BARS; i++) {
+        const b = document.createElement('div');
+        b.className = 'vbar';
+        b.style.height = '3px';
+        vbarsEl.appendChild(b);
+        barEls.push(b);
+      }
+
+      let recording = false;
+      let processing = false;
+      let levelPoll = null;
+      let shrinkTimeout = null;
+
+      const body = document.body;
+
+      function api() {
+        return window.pywebview && window.pywebview.api;
+      }
+
+      function resize(w, h) {
+        if (api()) { try { api().resize_pill(w, h); } catch {} }
+      }
+
+      function goIdle() {
+        body.className = '';
+        resize(DORMANT_W, DORMANT_H);
+      }
+
+      function visualizeBars(level) {
+        const l = Math.min(Math.max(level || 0, 0), 1);
+        const maxH = REC_H - 12;
+        const minH = 3;
+        for (let i = 0; i < NUM_BARS; i++) {
+          const rand = 0.3 + Math.random() * 0.7;
+          const h = minH + (maxH - minH) * l * rand;
+          barEls[i].style.height = Math.round(h) + 'px';
+        }
+      }
+
+      async function startRec() {
+        if (!api() || recording || processing) return;
+        recording = true;
+        if (shrinkTimeout) { clearTimeout(shrinkTimeout); shrinkTimeout = null; }
+
+        body.className = 'recording';
+        resize(REC_W, REC_H);
+
+        levelPoll = setInterval(async () => {
+          if (!recording) return;
+          try {
+            const level = await api().get_audio_level();
+            visualizeBars(level);
+          } catch {}
+        }, 80);
+
+        try { await api().start_recording(); } catch {}
+      }
+
+      async function stopRec() {
+        if (!recording) return;
+        recording = false;
+        processing = true;
+        clearInterval(levelPoll);
+
+        body.className = 'processing';
+        for (let i = 0; i < NUM_BARS; i++) {
+          barEls[i].style.height = '6px';
+          barEls[i].style.animationDelay = (i * 0.05) + 's';
+        }
+
+        let result = null;
+        try {
+          result = await api().stop_recording();
+        } catch (e) {
+          result = { success: false, error: e.message || 'Error' };
+        }
+
+        processing = false;
+
+        if (result && result.success) {
+          body.className = 'success';
+        } else {
+          body.className = 'error';
+        }
+
+        resize(DORMANT_W, DORMANT_H);
+        shrinkTimeout = setTimeout(goIdle, 2000);
+      }
+
+      function cancelRec() {
+        if (!recording) return;
+        recording = false;
+        clearInterval(levelPoll);
+        // Cancel without processing
+        if (api()) { try { api().cancel_recording(); } catch {} }
+        goIdle();
+      }
+
+      // Dormant click → start recording
+      body.addEventListener('click', function(e) {
+        if (e.target.closest('.ctx-menu')) return;
+        if (e.target.closest('.btn-cancel') || e.target.closest('.btn-stop')) return;
+        if (!recording && !processing) startRec();
+      });
+
+      document.getElementById('btn-stop').addEventListener('click', function(e) {
+        e.stopPropagation();
+        stopRec();
+      });
+
+      document.getElementById('btn-cancel').addEventListener('click', function(e) {
+        e.stopPropagation();
+        cancelRec();
+      });
+
+      // --- Right-click context menu ---
+      const ctxMenu = document.getElementById('ctx-menu');
+
+      body.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        // Position above the widget
+        ctxMenu.style.left = '50%';
+        ctxMenu.style.transform = 'translateX(-50%)';
+        ctxMenu.style.bottom = '100%';
+        ctxMenu.style.top = 'auto';
+        ctxMenu.style.marginBottom = '6px';
+        ctxMenu.classList.add('visible');
+      });
+
+      document.addEventListener('click', function(e) {
+        if (!e.target.closest('.ctx-menu')) ctxMenu.classList.remove('visible');
+      });
+
+      document.getElementById('ctx-show').addEventListener('click', function(e) {
+        e.stopPropagation();
+        ctxMenu.classList.remove('visible');
+        if (api()) { try { api().show_main_window(); } catch {} }
+      });
+
+      document.getElementById('ctx-settings').addEventListener('click', function(e) {
+        e.stopPropagation();
+        ctxMenu.classList.remove('visible');
+        if (api()) {
+          try { api().show_main_window(); } catch {}
+          setTimeout(function() { try { api().open_settings_from_pill(); } catch {} }, 300);
+        }
+      });
+
+      document.getElementById('ctx-history').addEventListener('click', function(e) {
+        e.stopPropagation();
+        ctxMenu.classList.remove('visible');
+        if (api()) {
+          try { api().show_main_window(); } catch {}
+        }
+      });
+
+      document.getElementById('ctx-paste').addEventListener('click', function(e) {
+        e.stopPropagation();
+        ctxMenu.classList.remove('visible');
+        if (api()) { try { api().paste_last_transcript(); } catch {} }
+      });
+
+      document.getElementById('ctx-hide').addEventListener('click', function(e) {
+        e.stopPropagation();
+        ctxMenu.classList.remove('visible');
+        if (api()) { try { api().hide_pill_widget(); } catch {} }
+      });
+
+      window.pillSetRecording = function(isRec) {
+        if (isRec && !recording) startRec();
+        else if (!isRec && recording) stopRec();
+      };
+    })();
+  </script>
+</body>
+</html>
