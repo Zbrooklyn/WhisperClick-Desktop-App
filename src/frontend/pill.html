@@ -194,7 +194,7 @@
 <body id="pill">
   <!-- Tooltip -->
   <div class="tooltip" id="tooltip">
-    Click or hold <kbd>Ctrl+Shift+R</kbd> to start dictating
+    Click or hold <kbd>Ctrl+Alt+R</kbd> to start dictating
   </div>
 
   <!-- Dormant: row of dots -->
@@ -395,7 +395,6 @@
         ctxMenu.classList.remove('visible');
         if (api()) {
           try { api().show_main_window(); } catch {}
-          // TODO: navigate to history tab
         }
       });
 

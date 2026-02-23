@@ -96,7 +96,7 @@ class TooltipBubble(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
 
         self._text_main = "Click or hold "
-        self._text_key = "Ctrl+Shift+R"
+        self._text_key = "Ctrl+Alt+R"
         self._text_end = " to start dictating"
         self._padding_h = 16
         self._padding_v = 10
@@ -112,13 +112,24 @@ class TooltipBubble(QWidget):
         font_bold = QFont("Segoe UI", 11)
         font_bold.setWeight(QFont.Weight.DemiBold)
         self._font_bold = font_bold
-        fm_bold = QFontMetrics(font_bold)
+        self._fm_bold = QFontMetrics(font_bold)
 
-        text_w = fm.horizontalAdvance(self._text_main) + fm_bold.horizontalAdvance(self._text_key) + fm.horizontalAdvance(self._text_end)
-        text_h = fm.height()
-        self._text_h = text_h
+        self._text_h = fm.height()
+        self._fm = fm
+        self._recompute_size()
 
-        self.setFixedSize(int(text_w + self._padding_h * 2), int(text_h + self._padding_v * 2))
+    def set_hotkey(self, hotkey_text: str):
+        """Update the displayed hotkey and resize the tooltip."""
+        if hotkey_text and hotkey_text != self._text_key:
+            self._text_key = hotkey_text
+            self._recompute_size()
+
+    def _recompute_size(self):
+        text_w = (self._fm.horizontalAdvance(self._text_main)
+                  + self._fm_bold.horizontalAdvance(self._text_key)
+                  + self._fm.horizontalAdvance(self._text_end))
+        self.setFixedSize(int(text_w + self._padding_h * 2),
+                          int(self._text_h + self._padding_v * 2))
 
     def paintEvent(self, event):
         p = QPainter(self)
@@ -219,6 +230,10 @@ class PillWidget(QWidget):
         # Tooltip
         self._tooltip = TooltipBubble()
 
+        # Multi-monitor: track which screen the pill is on
+        self._active_screen = None
+        self._preferred_screen = None  # None = auto (follow cursor), int = monitor index
+
         # Position
         self._reposition()
 
@@ -248,6 +263,16 @@ class PillWidget(QWidget):
 
     def get_state(self) -> str:
         return self._state
+
+    def set_hotkey(self, hotkey_text: str):
+        """Update the tooltip hotkey text."""
+        self._tooltip.set_hotkey(hotkey_text)
+
+    def set_preferred_screen(self, index):
+        """Pin the pill to a specific monitor index, or None for auto."""
+        self._preferred_screen = index
+        self._active_screen = None  # force re-evaluation
+        self._reposition()
 
     def set_audio_level(self, level: float):
         self._audio_level = max(0.0, min(1.0, level))
@@ -300,9 +325,24 @@ class PillWidget(QWidget):
         self._reposition()
 
     def _reposition(self):
-        screen = QApplication.primaryScreen()
-        if screen:
-            geo = screen.availableGeometry()
+        if self._preferred_screen is not None:
+            # User pinned the pill to a specific monitor
+            screens = QApplication.screens()
+            if 0 <= self._preferred_screen < len(screens):
+                screen = screens[self._preferred_screen]
+            else:
+                screen = QApplication.primaryScreen()
+        elif self._state in ("dormant", "success", "error") or self._active_screen is None:
+            # Auto mode — follow cursor, but lock during recording/processing
+            screen = QApplication.screenAt(QCursor.pos())
+            if not screen:
+                screen = QApplication.primaryScreen()
+        else:
+            screen = self._active_screen
+
+        self._active_screen = screen or QApplication.primaryScreen()
+        if self._active_screen:
+            geo = self._active_screen.availableGeometry()
             x = geo.x() + (geo.width() - self.width()) // 2
             y = geo.y() + geo.height() - self.height() - 10
             self.move(x, y)
@@ -576,6 +616,8 @@ class PillWidget(QWidget):
         if data:
             settings, mics, history, active_mic = data
             self._build_dynamic_menu(settings, mics, history, active_mic)
+            # Keep tooltip hotkey in sync with settings
+            self._tooltip.set_hotkey(settings.get("hotkey", "Ctrl+Alt+R"))
 
     def _build_dynamic_menu(self, settings, mics, history, active_mic):
         menu = self._ctx_menu
@@ -650,8 +692,9 @@ class PillWidget(QWidget):
 
         menu.addSeparator()
 
-        # Hotkey reminder
-        act_hotkey = menu.addAction("Ctrl+Shift+R")
+        # Hotkey reminder (from the settings already fetched)
+        hotkey_label = settings.get("hotkey", "Ctrl+Alt+R")
+        act_hotkey = menu.addAction(hotkey_label)
         act_hotkey.setEnabled(False)
 
         # Hide

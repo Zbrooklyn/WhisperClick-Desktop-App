@@ -9,7 +9,6 @@ from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from src.pill_widget import PillWidget
-from src.backend.tones import play_cancel_tone
 
 
 class _Invoker(QObject):
@@ -59,7 +58,39 @@ class PillManager:
     def show(self):
         """Show the pill widget (thread-safe)."""
         if self._invoker and self._pill:
+            self._sync_hotkey()
+            self._sync_monitor()
             self._invoker.invoke(self._pill.show)
+
+    def set_monitor(self, value):
+        """Set which monitor the pill appears on (thread-safe).
+
+        *value* is ``"auto"`` (follow cursor) or an int monitor index.
+        """
+        if self._invoker and self._pill:
+            parsed = None if value == "auto" else int(value)
+            self._invoker.invoke(lambda: self._pill.set_preferred_screen(parsed))
+
+    def _sync_hotkey(self):
+        """Push the current hotkey setting to the pill tooltip."""
+        try:
+            settings = self._api.get_settings()
+            hotkey = settings.get("hotkey", "Ctrl+Alt+R")
+            if self._pill:
+                self._invoker.invoke(lambda: self._pill.set_hotkey(hotkey))
+        except Exception:
+            pass
+
+    def _sync_monitor(self):
+        """Push the current pill_monitor setting to the pill widget."""
+        try:
+            settings = self._api.get_settings()
+            value = settings.get("pill_monitor", "auto")
+            parsed = None if value == "auto" else int(value)
+            if self._pill:
+                self._invoker.invoke(lambda: self._pill.set_preferred_screen(parsed))
+        except Exception:
+            pass
 
     def hide(self):
         """Hide the pill widget (thread-safe)."""
@@ -112,9 +143,9 @@ class PillManager:
         result = self._api.start_recording()
         if result.get("success"):
             self._pill.set_state("recording")
-            # Disconnect first to prevent accumulating duplicate connections
+            # Disconnect all to prevent accumulating duplicate connections
             try:
-                self._level_timer.timeout.disconnect(self._update_level)
+                self._level_timer.timeout.disconnect()
             except RuntimeError:
                 pass
             self._level_timer.timeout.connect(self._update_level)
@@ -129,6 +160,22 @@ class PillManager:
             self._level_timer.timeout.disconnect()
         except RuntimeError:
             pass
+
+    # Public helpers called by Api._notify_pill (via _invoker on Qt thread)
+    def _start_level_polling(self):
+        """Start audio-level polling (must be called on Qt thread)."""
+        if self._level_timer.isActive():
+            return  # already polling
+        try:
+            self._level_timer.timeout.disconnect()
+        except RuntimeError:
+            pass
+        self._level_timer.timeout.connect(self._update_level)
+        self._level_timer.start(80)
+
+    def _stop_level_polling(self):
+        """Stop audio-level polling (must be called on Qt thread)."""
+        self._stop_level_timer()
 
     def _on_stop(self):
         self._stop_level_timer()
@@ -178,15 +225,22 @@ class PillManager:
         if self._pill.get_state() == "processing":
             # Cancel in-flight transcription — bump gen so result is discarded
             self._transcription_gen += 1
-            self._api.cancel_processing()
-            self._api._play_tone(play_cancel_tone)
-            self._pill.set_state("dormant")
+            result = self._api.cancel_processing()  # plays cancel tone internally
+            if not isinstance(result, dict) or not result.get("success"):
+                self._pill.set_state("error")
+                QTimer.singleShot(2000, lambda: self._pill.set_state("dormant"))
+            else:
+                self._pill.set_state("dormant")
         else:
             QTimer.singleShot(50, self._do_cancel)
 
     def _do_cancel(self):
-        self._api.cancel_recording()
-        self._pill.set_state("dormant")
+        result = self._api.cancel_recording()
+        if not isinstance(result, dict) or not result.get("success"):
+            self._pill.set_state("error")
+            QTimer.singleShot(2000, lambda: self._pill.set_state("dormant"))
+        else:
+            self._pill.set_state("dormant")
 
     # ------------------------------------------------------------------
     # Navigation signal handlers (Qt thread)
@@ -232,5 +286,5 @@ class PillManager:
         settings = self._api.get_settings()
         mics = self._api.get_microphones()
         history = self._api.get_history()[:3]
-        active_mic = self._api._recorder._device_id
+        active_mic = getattr(self._api._recorder, '_device_id', None) if self._api._recorder else None
         return settings, mics, history, active_mic
