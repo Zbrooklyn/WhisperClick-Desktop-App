@@ -1666,24 +1666,31 @@ test("set_api_key invalid provider returns error", test_set_api_key_invalid_prov
 
 # set_api_key with empty key (should clear)
 def test_set_api_key_empty_clears():
+    # Snapshot original key so we can restore it
+    original = api.get_api_key("openai").get("api_key", "")
     result = api.set_api_key("openai", "")
     assert result["success"], f"set empty key failed: {result}"
     # Verify key is now empty
     get_result = api.get_api_key("openai")
     assert get_result["api_key"] == "", f"key should be empty, got: {get_result['api_key']}"
+    # Restore original key
+    if original:
+        api.set_api_key("openai", original)
     return True
 
 test("set_api_key empty string clears key", test_set_api_key_empty_clears)
 
 # set_api_key + get_api_key roundtrip
 def test_api_key_roundtrip():
+    # Snapshot original key so we can restore it
+    original = api.get_api_key("openai").get("api_key", "")
     test_key = "sk-test-roundtrip-key-12345"
     set_result = api.set_api_key("openai", test_key)
     assert set_result["success"]
     get_result = api.get_api_key("openai")
     assert get_result["api_key"] == test_key
-    # Clean up
-    api.set_api_key("openai", "")
+    # Restore original key
+    api.set_api_key("openai", original)
     return True
 
 test("set/get api_key roundtrip", test_api_key_roundtrip)
