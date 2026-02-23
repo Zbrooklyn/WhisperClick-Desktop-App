@@ -130,6 +130,19 @@ These must never appear in new code:
 - Drag: Win32 physical-pixel approach (see `docs/dpi-drag-fix-spec.md`)
 - Build: PyInstaller specs in project root, Inno Setup in `installer/`
 
+## Public/Private Repo Safety
+
+WhisperClick has two repositories:
+- **Private**: `Zbrooklyn/whisper-click` — full dev workflow, internal docs, progress tracking
+- **Public**: `Zbrooklyn/whisper-click-public` — clean release with source code and user-facing docs
+
+### Rules
+
+1. **NEVER copy private-only files to the public repo.** Always check `.github/PUBLIC_SYNC.md` first.
+2. **Private-only files**: `HANDOFF.md`, `progress.json`, `CLAUDE.md`, `PROJECT.md`, `docs/DEVELOPER_QUESTIONS.md`, `docs/PROFESSIONAL_GAPS.md`, `docs/PRODUCTION_AUDIT_CHECKLIST.md`, `docs/PRODUCTION_CHECKLIST.md`, `docs/ROADMAP.md`, `.github/PUBLIC_SYNC.md`
+3. **Before any cross-repo operation**, verify the file is not in the private-only list.
+4. **Source code must be identical** in both repos — only documentation differs.
+
 ## Files to Keep Updated
 
 | File | Purpose | When to update |

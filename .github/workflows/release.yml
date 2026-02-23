@@ -1,0 +1,72 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: echo "ver=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build folder portable
+        run: pyinstaller whisperclick.spec
+
+      - name: ZIP portable folder
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "dist\WhisperClick\*" `
+            -DestinationPath "dist\WhisperClick-portable-${{ steps.version.outputs.ver }}-windows-x64.zip"
+
+      - name: Build onefile portable
+        run: pyinstaller whisperclick_onefile.spec
+
+      - name: Rename onefile EXE
+        shell: pwsh
+        run: |
+          Move-Item "dist\WhisperClick-Portable.exe" `
+            "dist\WhisperClick-portable-onefile-${{ steps.version.outputs.ver }}-windows-x64.exe"
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: Build installer
+        shell: cmd
+        run: |
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" ^
+            /DAppVersion=${{ steps.version.outputs.ver }} ^
+            /DSourceDir=dist\WhisperClick ^
+            /DOutputDir=dist ^
+            installer\WhisperClick.iss
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" ^
+            "dist\WhisperClick-portable-${{ steps.version.outputs.ver }}-windows-x64.zip" ^
+            "dist\WhisperClick-portable-onefile-${{ steps.version.outputs.ver }}-windows-x64.exe" ^
+            "dist\WhisperClick-Setup-${{ steps.version.outputs.ver }}-windows-x64.exe" ^
+            --title "WhisperClick ${{ steps.version.outputs.ver }}" ^
+            --generate-notes
+        shell: cmd

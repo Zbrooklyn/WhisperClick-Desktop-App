@@ -103,3 +103,41 @@ Last updated: 2026-02-20
   - [ ] Define explicit launch acceptance criteria.
   - [ ] Assign go/no-go owner and sign-off chain.
   - [ ] Document rollback trigger thresholds and decision process.
+
+## macOS Support
+
+Estimated effort: 2-3 weeks for basic Mac port (no code signing).
+
+### Component Compatibility Matrix
+
+| Component | Windows (current) | Mac Equivalent | Effort |
+|-----------|-------------------|----------------|--------|
+| Global hotkey | `RegisterHotKey` Win32 | `pynput` or `pyobjc` CGEventTap | Medium |
+| DPI / window sizing | `ctypes.windll.shcore` | `NSScreen` via `pyobjc` | Medium |
+| Window positioning | `GetWindowRect`/`SetWindowPos` | `pyobjc` NSWindow | Medium |
+| Window drag | Win32 `GetCursorPos` | `pyobjc` NSEvent | Medium |
+| Multi-monitor | `EnumDisplayMonitors` | `NSScreen.screens()` | Low |
+| Single-instance lock | `msvcrt.locking` | `fcntl.flock` (already done) | Done |
+| Webview backend | WebView2 | WebKit (pywebview auto-selects) | None |
+| System tray | pystray | pystray (works on Mac) | None |
+| PySide6 pill | Works | Works cross-platform | None |
+| Audio | sounddevice | sounddevice (works on Mac) | None |
+| Installer | Inno Setup → EXE | DMG + .app bundle (PyInstaller) | Medium |
+| Code signing | Not required | Required (Apple Developer $99/yr) | High |
+| Auto-start | Windows Registry | `~/Library/LaunchAgents/` plist | Low |
+
+### Files Needing Platform Branching
+
+- `src/main.py` — heaviest Win32 usage (hotkey registration, DPI awareness, window management, drag)
+- `src/backend/api.py` — autostart registry code (lines ~1020-1044)
+- `src/pill_widget.py` — some Win32 DPI calls
+
+### Approach
+
+- [ ] Create `src/platform/` module with `windows.py` and `mac.py` backends
+- [ ] Abstract Win32 calls behind platform-agnostic interface
+- [ ] Add `pyobjc` to optional Mac dependencies
+- [ ] Add macOS PyInstaller spec and DMG packaging
+- [ ] Add macOS CI workflow (GitHub Actions `macos-latest`)
+- [ ] Test on macOS with single and multi-monitor setups
+- [ ] Investigate Apple code signing and notarization requirements
