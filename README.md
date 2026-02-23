@@ -99,7 +99,7 @@ WhisperClick respects your privacy. See [PRIVACY.md](PRIVACY.md) for details.
 
 ## License
 
-Copyright (c) 2025-2026 WhisperClick. All Rights Reserved. See [LICENSE](LICENSE).
+This project is licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) — free for personal and community use, no commercial use permitted. See [LICENSE](LICENSE). For commercial licensing, contact the copyright holder.
 
 ## Security
 
