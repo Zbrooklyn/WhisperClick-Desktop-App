@@ -31,13 +31,23 @@ You pick the mode. You pick when it listens. There's no always-on microphone and
 ## See it in action
 
 <p align="center">
-  <img src="docs/reference/ui-captures/Screenshot 2026-02-18 121310.png" alt="WhisperClick main window" width="500">
+  <img src="docs/reference/ui-captures/app-light.png" alt="WhisperClick — light mode" width="500">
 </p>
 
-The floating pill sits at the top of your screen. When you start recording, it shows a live timer and audio visualization. When you stop, your words are transcribed and pasted.
+<p align="center">
+  <img src="docs/reference/ui-captures/app-dark.png" alt="WhisperClick — dark mode" width="500">
+</p>
+
+The floating pill sits at the top of your screen while you record. It shows your hotkey, a live timer, and audio visualization.
 
 <p align="center">
-  <img src="docs/reference/ui-captures/Recording state Screenshot 2026-02-17 182008.png" alt="WhisperClick recording pill" width="180">
+  <img src="docs/reference/ui-captures/pill-tooltip.png" alt="WhisperClick pill with hotkey tooltip" width="400">
+</p>
+
+Right-click the system tray icon to switch microphones, change language, or open settings.
+
+<p align="center">
+  <img src="docs/reference/ui-captures/tray-menu.png" alt="WhisperClick system tray menu" width="280">
 </p>
 
 ---

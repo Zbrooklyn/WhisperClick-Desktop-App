@@ -1,6 +1,8 @@
 import json
 import os
 import shutil
+import uuid
+from datetime import UTC, datetime, timedelta
 
 from dotenv import load_dotenv
 
@@ -104,6 +106,82 @@ def save_settings(settings):
         json.dump(settings, f, indent=2)
 
 
+def _create_demo_history():
+    """Generate onboarding history entries for first-run experience.
+
+    Each entry looks like a transcription but actually walks the user through
+    setup. Newest entry (top of list) is the welcome message. Users can delete
+    these as they go, just like real history cards.
+    """
+    now = datetime.now(UTC)
+    # Ordered newest-first (top of history = first thing user sees)
+    demos = [
+        {
+            "text": (
+                "Welcome to WhisperClick! This is your transcription history. "
+                "Everything you dictate shows up here. "
+                "These cards are here to help you get started — delete them anytime."
+            ),
+            "duration": 5.0,
+            "transcription_time": 0.0,
+            "minutes_ago": 1,
+        },
+        {
+            "text": (
+                "Step 1: Open Settings (click the gear icon in the top right). "
+                "Pick Local mode to transcribe offline, or API mode to use "
+                "OpenAI or Google Gemini. Local mode keeps your audio on your machine."
+            ),
+            "duration": 7.0,
+            "transcription_time": 0.0,
+            "minutes_ago": 2,
+        },
+        {
+            "text": (
+                "Step 2: Try your first recording. Press Ctrl+Shift+R (or whatever "
+                "hotkey you set). Talk normally, then press it again to stop. "
+                "Your words get transcribed and pasted wherever your cursor is."
+            ),
+            "duration": 6.0,
+            "transcription_time": 0.0,
+            "minutes_ago": 3,
+        },
+        {
+            "text": (
+                "Step 3: See that small pill at the top of your screen? That's your "
+                "recording indicator. It shows a live timer while you talk. "
+                "Right-click it to change your microphone, language, or view past transcriptions."
+            ),
+            "duration": 6.5,
+            "transcription_time": 0.0,
+            "minutes_ago": 4,
+        },
+        {
+            "text": (
+                "You're all set. Go ahead and clear these cards whenever you're ready. "
+                "If you need to change your hotkey, switch providers, or download a "
+                "local model, it's all in Settings. Happy dictating!"
+            ),
+            "duration": 5.5,
+            "transcription_time": 0.0,
+            "minutes_ago": 5,
+        },
+    ]
+    entries = []
+    for d in demos:
+        entries.append(
+            {
+                "id": str(uuid.uuid4()),
+                "text": d["text"],
+                "timestamp": (now - timedelta(minutes=d["minutes_ago"])).isoformat(),
+                "duration": d["duration"],
+                "transcription_time": d["transcription_time"],
+                "demo": True,
+            }
+        )
+    return entries
+
+
 def load_history():
     os.makedirs(CONFIG_DIR, exist_ok=True)
     if os.path.exists(HISTORY_FILE):
@@ -116,7 +194,10 @@ def load_history():
         except (json.JSONDecodeError, ValueError, UnicodeDecodeError) as exc:
             _get_log().error("Corrupt history.json — returning empty list: %s", exc)
             return []
-    return []
+    # First run — seed with demo history
+    demo = _create_demo_history()
+    save_history(demo)
+    return demo
 
 
 def save_history(history):
