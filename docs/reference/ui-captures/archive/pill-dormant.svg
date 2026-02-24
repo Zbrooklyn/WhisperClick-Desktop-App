@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <!-- Tooltip -->
+  <rect x="52" y="10" width="296" height="38" rx="8" fill="#111218"/>
+  <text x="200" y="34" text-anchor="middle" fill="#E2E8F0" font-family="-apple-system, Segoe UI, system-ui, sans-serif" font-size="13" font-weight="500">
+    Click or hold <tspan font-weight="700" fill="#fff">Ctrl + Shift + R</tspan> to start dictating
+  </text>
+
+  <!-- Pill body -->
+  <rect x="140" y="62" width="120" height="38" rx="19" fill="#1E2028" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+
+  <!-- Dormant dots -->
+  <circle cx="175" cy="81" r="2.5" fill="rgba(207,150,115,0.7)"/>
+  <circle cx="183" cy="81" r="2.5" fill="rgba(207,150,115,0.7)"/>
+  <circle cx="191" cy="81" r="2.5" fill="rgba(207,150,115,0.7)"/>
+  <circle cx="199" cy="81" r="2.5" fill="rgba(207,150,115,0.7)"/>
+  <circle cx="207" cy="81" r="2.5" fill="rgba(207,150,115,0.7)"/>
+  <circle cx="215" cy="81" r="2.5" fill="rgba(207,150,115,0.7)"/>
+  <circle cx="223" cy="81" r="2.5" fill="rgba(207,150,115,0.7)"/>
+</svg>
