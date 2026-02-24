@@ -1,0 +1,44 @@
+name: Sync to Public Repo
+
+# Runs on every push to main on the private repo (whisperclick-dev).
+# Strips private-only files and force-pushes to the public repo.
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    # Only run on the private repo — skip if triggered elsewhere
+    if: github.repository == 'Zbrooklyn/whisperclick-dev'
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove private-only files
+        run: |
+          # List from .github/PUBLIC_SYNC.md
+          rm -f HANDOFF.md
+          rm -f progress.json
+          rm -f CLAUDE.md
+          rm -f PROJECT.md
+          rm -f docs/DEVELOPER_QUESTIONS.md
+          rm -f docs/PROFESSIONAL_GAPS.md
+          rm -f docs/PRODUCTION_AUDIT_CHECKLIST.md
+          rm -f docs/PRODUCTION_CHECKLIST.md
+          rm -f docs/ROADMAP.md
+          rm -f .github/PUBLIC_SYNC.md
+
+      - name: Commit and force-push to public repo
+        env:
+          PUBLIC_REPO_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+        run: |
+          git config user.name "sync-public"
+          git config user.email "noreply@whisperclick.app"
+          git add -A
+          git commit -m "Sync from private repo" --allow-empty
+          git remote add public https://x-access-token:${PUBLIC_REPO_TOKEN}@github.com/Zbrooklyn/WhisperClick-Desktop-App.git
+          git push --force public main

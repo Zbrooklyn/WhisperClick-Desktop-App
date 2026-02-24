@@ -145,18 +145,21 @@ WhisperClick has two repositories:
 
 ### Sync Workflow
 
-```bash
-# 1. Push to private repo (normal workflow)
-git push origin main
+Syncing to the public repo is **automated via GitHub Actions**. On every push to
+`main` on the private repo, `.github/workflows/sync-public.yml` strips private
+files and force-pushes to the public repo.
 
-# 2. Sync to public repo (strips private files automatically)
-python tools/sync_public.py
-```
+**One-time setup:** Add a `PUBLIC_REPO_TOKEN` secret to the private repo
+(Settings > Secrets > Actions) with a GitHub PAT that has `repo` scope.
 
-- `tools/sync_public.py` creates a temp branch, removes private-only files, force-pushes to `public/main`, then cleans up.
-- Run it after every push to origin when you want public updated.
-- The script reads the private file list from its own `PRIVATE_ONLY_FILES` constant (kept in sync with `.github/PUBLIC_SYNC.md`).
-- **Never** use `git push public` directly — it will leak private files.
+**Manual fallback:** `python tools/sync_public.py` (for immediate syncs or if CI is down).
+
+**Never** use `git push public` directly — it will leak private files.
+
+The private file list is maintained in three places (keep in sync):
+1. `.github/PUBLIC_SYNC.md` — authoritative reference
+2. `.github/workflows/sync-public.yml` — CI automation
+3. `tools/sync_public.py` — manual script
 
 ## Files to Keep Updated
 
