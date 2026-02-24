@@ -41,7 +41,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional icons:"; Flags: unchecked
-Name: "startmenu"; Description: "Create a &Start Menu shortcut"; GroupDescription: "Additional icons:"; Flags: checked
+Name: "startmenu"; Description: "Create a &Start Menu shortcut"; GroupDescription: "Additional icons:"
 Name: "taskbarpin"; Description: "&Pin to taskbar"; GroupDescription: "Additional icons:"; Flags: unchecked
 Name: "autostart"; Description: "Start with &Windows"; GroupDescription: "System integration:"
 
