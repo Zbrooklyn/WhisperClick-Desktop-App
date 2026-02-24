@@ -2850,14 +2850,20 @@ venv\Scripts\activate
             totalEl.innerHTML = '<strong>' + totalDownloads.toLocaleString() + '</strong> total downloads';
           }
 
-          // Also update the hero/nav download buttons with version
-          if (version) {
-            document.querySelectorAll('.btn-primary').forEach(function(btn) {
-              if (btn.textContent.trim().startsWith('Download for Windows')) {
+          // Also update the hero/nav download buttons with version + direct link
+          var installerAsset = assets.find(function(a) {
+            return a.name.toLowerCase().includes('setup') && a.name.toLowerCase().includes('.exe');
+          });
+          document.querySelectorAll('.btn-primary').forEach(function(btn) {
+            if (btn.textContent.trim().startsWith('Download for Windows')) {
+              if (installerAsset) {
+                btn.href = installerAsset.browser_download_url;
+              }
+              if (version) {
                 btn.innerHTML = btn.innerHTML.replace('Download for Windows', 'Download for Windows <span style="opacity:0.7;font-weight:400;font-size:0.85em;">' + version + '</span>');
               }
-            });
-          }
+            }
+          });
         })
         .catch(function() {
           // API failed — remove skeletons, keep fallback links
