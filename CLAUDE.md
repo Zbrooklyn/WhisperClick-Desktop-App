@@ -138,10 +138,25 @@ WhisperClick has two repositories:
 
 ### Rules
 
-1. **NEVER copy private-only files to the public repo.** Always check `.github/PUBLIC_SYNC.md` first.
+1. **NEVER push directly to the `public` remote.** Always use the sync script.
 2. **Private-only files**: `HANDOFF.md`, `progress.json`, `CLAUDE.md`, `PROJECT.md`, `docs/DEVELOPER_QUESTIONS.md`, `docs/PROFESSIONAL_GAPS.md`, `docs/PRODUCTION_AUDIT_CHECKLIST.md`, `docs/PRODUCTION_CHECKLIST.md`, `docs/ROADMAP.md`, `.github/PUBLIC_SYNC.md`
-3. **Before any cross-repo operation**, verify the file is not in the private-only list.
-4. **Source code must be identical** in both repos — only documentation differs.
+3. **Source code must be identical** in both repos — only documentation differs.
+4. Always check `.github/PUBLIC_SYNC.md` for the authoritative private-only file list.
+
+### Sync Workflow
+
+```bash
+# 1. Push to private repo (normal workflow)
+git push origin main
+
+# 2. Sync to public repo (strips private files automatically)
+python tools/sync_public.py
+```
+
+- `tools/sync_public.py` creates a temp branch, removes private-only files, force-pushes to `public/main`, then cleans up.
+- Run it after every push to origin when you want public updated.
+- The script reads the private file list from its own `PRIVATE_ONLY_FILES` constant (kept in sync with `.github/PUBLIC_SYNC.md`).
+- **Never** use `git push public` directly — it will leak private files.
 
 ## Files to Keep Updated
 
