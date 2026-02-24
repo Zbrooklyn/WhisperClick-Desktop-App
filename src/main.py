@@ -499,6 +499,22 @@ class Win32HotkeyListener:
         self._thread_id = None
 
 
+# True when running from source (not a frozen PyInstaller build)
+_IS_DEV = not getattr(sys, "frozen", False)
+
+
+def _apply_dev_ribbon(img):
+    """Overlay a diagonal orange 'DEV' ribbon on the top-left corner of a 64x64 icon."""
+    icon = img.copy()
+    draw = ImageDraw.Draw(icon)
+    # Diagonal band polygon (top-left corner)
+    draw.polygon([(0, 0), (28, 0), (0, 28)], fill="#f97316")
+    # "D" text positioned on the ribbon
+    font = ImageDraw.Draw(icon).getfont()
+    draw.text((2, 1), "D", fill="white", font=font)
+    return icon
+
+
 def create_tray_icon_image(recording=False):
     """Create a simple microphone icon for the system tray."""
     img = Image.new("RGBA", (64, 64), color=(0, 0, 0, 0))
@@ -510,6 +526,8 @@ def create_tray_icon_image(recording=False):
     # Mic stand
     draw.arc([16, 36, 48, 56], start=0, end=180, fill=color, width=3)
     draw.line([32, 56, 32, 62], fill=color, width=3)
+    if _IS_DEV:
+        img = _apply_dev_ribbon(img)
     return img
 
 
@@ -527,11 +545,11 @@ def load_tray_icon_image(recording=False):
             base = Image.open(icon_path).convert("RGBA")
             base = base.resize((64, 64), Image.Resampling.LANCZOS)
             if not recording:
-                return base
+                return _apply_dev_ribbon(base) if _IS_DEV else base
             icon = base.copy()
             draw = ImageDraw.Draw(icon)
             draw.ellipse([44, 44, 60, 60], fill="#ef4444", outline=(255, 255, 255, 220), width=2)
-            return icon
+            return _apply_dev_ribbon(icon) if _IS_DEV else icon
         except Exception:
             _log.warning("Failed to load branded tray icon, using generated", exc_info=True)
     return create_tray_icon_image(recording=recording)
@@ -741,7 +759,8 @@ def main():
         nonlocal tray_icon
         icon_image = load_tray_icon_image()
         menu = pystray.Menu(lambda: _build_tray_menu_items())
-        tray_icon = pystray.Icon("whisperclick", icon_image, "WhisperClick", menu)
+        tray_label = "WhisperClick [DEV]" if _IS_DEV else "WhisperClick"
+        tray_icon = pystray.Icon("whisperclick", icon_image, tray_label, menu)
         tray_icon.run()
 
     # --- Global hotkey ---
@@ -863,7 +882,7 @@ def main():
 
     # Create main webview window (pywebview handles DPI scaling of defaults)
     win_kwargs = dict(
-        title="WhisperClick",
+        title="WhisperClick [DEV]" if _IS_DEV else "WhisperClick",
         url=window_url,
         js_api=api,
         width=default_w,
