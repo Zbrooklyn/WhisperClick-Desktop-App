@@ -38,33 +38,22 @@ The public repo (`Zbrooklyn/WhisperClick-Desktop-App`) contains:
 
 ## Sync Procedure
 
-Syncing is **automated** via GitHub Actions and also available manually.
-
-### Automatic (CI)
-
-The `.github/workflows/sync-public.yml` workflow runs on every push to `main` on
-the private repo. It strips all private-only files and force-pushes to the public
-repo. No manual action needed.
-
-**Required setup (one-time):**
-1. Create a GitHub Personal Access Token (classic) with `repo` scope.
-2. In the private repo (`whisperclick-dev`), go to Settings > Secrets and variables > Actions.
-3. Add a repository secret named `PUBLIC_REPO_TOKEN` with the token value.
-
-### Manual (fallback)
+After pushing to the private repo, run the sync script:
 
 ```bash
+git push origin main
 python tools/sync_public.py
 ```
 
-Creates a temp branch, removes private files, force-pushes to `public/main`, cleans up.
-Use this when CI is unavailable or for immediate one-off syncs.
+The script creates a temp branch from `main`, removes all private-only files listed
+above, force-pushes to `public/main`, and cleans up the temp branch.
+
+Use `--dry-run` to preview without pushing.
 
 ### Rules
 
 - **NEVER** run `git push public main` directly — it will leak private files.
-- The private file list is maintained in three places (keep in sync):
+- The private file list is maintained in two places (keep in sync):
   1. This file (`.github/PUBLIC_SYNC.md`) — authoritative reference
-  2. `.github/workflows/sync-public.yml` — CI automation
-  3. `tools/sync_public.py` — manual script
+  2. `tools/sync_public.py` — sync script
 - The public repo should have identical source code — only documentation differs.
