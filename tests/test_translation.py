@@ -55,9 +55,11 @@ class TestTranslateOpenAI(unittest.TestCase):
 
     def setUp(self):
         self.svc = TranscriptionService()
+        self.svc._openai_client = None
+        self.svc._openai_client_key = None
         self.svc.set_api_credentials("openai", "test-key")
 
-    @patch("openai.OpenAI")
+    @patch("src.backend.transcription.OpenAI")
     def test_calls_chat_completions(self, MockOpenAI):
         mock_client = MagicMock()
         MockOpenAI.return_value = mock_client
@@ -76,7 +78,7 @@ class TestTranslateOpenAI(unittest.TestCase):
         self.assertEqual(messages[1]["content"], "Hello world")
         self.assertEqual(result, "Hola mundo")
 
-    @patch("openai.OpenAI")
+    @patch("src.backend.transcription.OpenAI")
     def test_uses_custom_base_url(self, MockOpenAI):
         mock_client = MagicMock()
         MockOpenAI.return_value = mock_client
@@ -93,7 +95,7 @@ class TestTranslateOpenAI(unittest.TestCase):
             base_url="https://custom.api.com/v1",
         )
 
-    @patch("openai.OpenAI")
+    @patch("src.backend.transcription.OpenAI")
     def test_source_language_in_prompt(self, MockOpenAI):
         mock_client = MagicMock()
         MockOpenAI.return_value = mock_client
@@ -107,7 +109,7 @@ class TestTranslateOpenAI(unittest.TestCase):
         messages = mock_client.chat.completions.create.call_args.kwargs["messages"]
         self.assertIn("from English", messages[0]["content"])
 
-    @patch("openai.OpenAI")
+    @patch("src.backend.transcription.OpenAI")
     def test_auto_source_language_omitted_from_prompt(self, MockOpenAI):
         mock_client = MagicMock()
         MockOpenAI.return_value = mock_client
