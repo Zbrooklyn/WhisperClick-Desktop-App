@@ -647,16 +647,118 @@ def main():
 
         threading.Thread(target=_force_exit, daemon=True).start()
 
+    # --- Tray menu action handlers ---
+    def tray_sound_toggle(icon=None, item=None):
+        enabled = not api._settings.get("sound_enabled", True)
+        api.save_settings({"sound_enabled": enabled})
+
+    def tray_mode_toggle(icon=None, item=None):
+        current = api._settings.get("mode", "local")
+        api.save_settings({"mode": "api" if current == "local" else "local"})
+
+    def tray_paste_last(icon=None, item=None):
+        api.paste_last_transcript()
+
+    def tray_select_mic(mic_id):
+        def _handler(icon=None, item=None):
+            api.set_microphone(mic_id)
+            api.save_settings({"microphone": mic_id})
+
+        return _handler
+
+    def tray_copy_history(text):
+        def _handler(icon=None, item=None):
+            api.copy_to_clipboard(text)
+
+        return _handler
+
+    def _build_tray_menu_items():
+        """Build dynamic tray menu items (called each time the menu opens)."""
+        from src.backend.config import load_history as _load_hist
+
+        s = api._settings
+        items = []
+
+        # 1. Record / Stop / Processing
+        rec_state = api.get_recording_state()
+        if rec_state.get("is_recording"):
+            items.append(pystray.MenuItem("Stop Recording", tray_record))
+        elif rec_state.get("is_processing"):
+            items.append(pystray.MenuItem("Processing\u2026", None, enabled=False))
+        else:
+            items.append(pystray.MenuItem("Record", tray_record))
+
+        items.append(pystray.Menu.SEPARATOR)
+
+        # 3. Microphone submenu
+        mics = api.get_microphones()
+        mic_items = []
+        if mics:
+            for mic in mics:
+                mid = mic["id"]
+                mic_items.append(
+                    pystray.MenuItem(
+                        mic["name"],
+                        tray_select_mic(mid),
+                        checked=lambda item, m=mid: m == api._settings.get("microphone", -1),
+                    )
+                )
+        else:
+            mic_items.append(pystray.MenuItem("No microphones", None, enabled=False))
+        items.append(pystray.MenuItem("Microphone", pystray.Menu(*mic_items)))
+
+        # 4. Sound Effects toggle
+        items.append(
+            pystray.MenuItem(
+                "Sound Effects",
+                tray_sound_toggle,
+                checked=lambda item: api._settings.get("sound_enabled", True),
+            )
+        )
+
+        # 5. Mode toggle
+        mode = s.get("mode", "local")
+        mode_label = "Local" if mode == "local" else "API"
+        items.append(pystray.MenuItem(f"Mode: {mode_label}", tray_mode_toggle))
+
+        items.append(pystray.Menu.SEPARATOR)
+
+        # 7. Recent Transcriptions submenu
+        history = _load_hist()
+        if history:
+            hist_items = []
+            for entry in history[:10]:
+                text = entry.get("text", "")
+                disp = (text[:40] + "\u2026") if len(text) > 40 else (text or "(empty)")
+                hist_items.append(pystray.MenuItem(disp, tray_copy_history(text)))
+            items.append(pystray.MenuItem("Recent Transcriptions", pystray.Menu(*hist_items)))
+
+        # 8. Paste Last Transcript
+        items.append(pystray.MenuItem("Paste Last Transcript", tray_paste_last))
+
+        items.append(pystray.Menu.SEPARATOR)
+
+        # 10. Show WhisperClick (default action)
+        items.append(pystray.MenuItem("Show WhisperClick", tray_show, default=True))
+
+        # 11. Settings
+        items.append(pystray.MenuItem("Settings", tray_settings))
+
+        items.append(pystray.Menu.SEPARATOR)
+
+        # 13. Hotkey reminder
+        hotkey_label = s.get("hotkey", "Ctrl + Alt + R")
+        items.append(pystray.MenuItem(hotkey_label, None, enabled=False))
+
+        # 15. Quit
+        items.append(pystray.MenuItem("Quit", tray_quit))
+
+        return items
+
     def setup_tray():
         nonlocal tray_icon
         icon_image = load_tray_icon_image()
-        menu = pystray.Menu(
-            pystray.MenuItem("Show", tray_show, default=True),
-            pystray.MenuItem("Record", tray_record),
-            pystray.MenuItem("Settings", tray_settings),
-            pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Quit", tray_quit),
-        )
+        menu = pystray.Menu(lambda: _build_tray_menu_items())
         tray_icon = pystray.Icon("whisperclick", icon_image, "WhisperClick", menu)
         tray_icon.run()
 

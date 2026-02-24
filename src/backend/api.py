@@ -80,6 +80,9 @@ class Api:
         # Auto-paste: foreground window handle captured before hotkey fires
         self._paste_target_hwnd = None
 
+        # Processing flag for tray/pill menu state
+        self._is_processing = False
+
     def get_version(self):
         """Return app version for display in the UI."""
         return {"version": __version__}
@@ -409,6 +412,7 @@ class Api:
     def stop_recording(self) -> dict:
         try:
             self._recorder.stop()
+            self._is_processing = True
             self._play_tone(play_stop_tone)
             self._notify_pill("processing")
             duration = self._recorder.get_duration()
@@ -505,6 +509,7 @@ class Api:
                 except Exception:
                     _log.warning("Auto-paste failed after transcription", exc_info=True)
 
+            self._is_processing = False
             self._play_tone(play_success_tone)
             self._notify_pill("success")
             return {
@@ -516,9 +521,11 @@ class Api:
                 "transcription_time": transcription_time,
             }
         except TranscriptionCancelled:
+            self._is_processing = False
             self._notify_pill("dormant")
             return {"success": False, "cancelled": True, "error": "Transcription cancelled"}
         except Exception as e:
+            self._is_processing = False
             self._play_tone(play_error_tone)
             self._notify_pill("error")
             return {"success": False, "error": str(e)}
@@ -550,6 +557,7 @@ class Api:
         """Return authoritative backend recording/processing state."""
         return {
             "is_recording": self._recorder.is_recording(),
+            "is_processing": self._is_processing,
             "cancel_requested": self._transcription.is_cancel_requested(),
         }
 

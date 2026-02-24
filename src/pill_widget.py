@@ -24,14 +24,17 @@ _MENU_STYLE = """
     QMenu {
         background: #FAFAF9;
         border: 1px solid #E7E5E4;
-        border-radius: 10px;
+        border-radius: 8px;
         padding: 6px 0;
         font-family: 'Segoe UI', system-ui, sans-serif;
         font-size: 13px;
     }
     QMenu::item {
         padding: 8px 16px;
+        padding-right: 32px;
         color: #292524;
+        border-radius: 4px;
+        margin: 0 4px;
     }
     QMenu::item:selected {
         background: #F5F5F4;
@@ -42,7 +45,7 @@ _MENU_STYLE = """
     QMenu::separator {
         height: 1px;
         background: #E7E5E4;
-        margin: 4px 0;
+        margin: 4px 8px;
     }
     QMenu::indicator {
         width: 14px;
@@ -594,11 +597,32 @@ class PillWidget(QWidget):
                 if self._x_btn_rect().contains(pos):
                     self.cancel_requested.emit()
         elif event.button() == Qt.MouseButton.RightButton:
-            self._ctx_menu.exec(QCursor.pos())
+            self._show_context_menu()
 
     # ------------------------------------------------------------------
     # Context menu
     # ------------------------------------------------------------------
+
+    def _show_context_menu(self):
+        """Show context menu centered above the pill with screen-edge clamping."""
+        menu = self._ctx_menu
+        hint = menu.sizeHint()
+        pill_pos = self.mapToGlobal(QPoint(0, 0))
+
+        # Center horizontally over pill, position above with 8px gap
+        x = pill_pos.x() + (self.width() - hint.width()) // 2
+        y = pill_pos.y() - hint.height() - 8
+
+        # Clamp to screen edges
+        screen = QApplication.screenAt(pill_pos)
+        if not screen:
+            screen = QApplication.primaryScreen()
+        if screen:
+            geo = screen.availableGeometry()
+            x = max(geo.x(), min(x, geo.x() + geo.width() - hint.width()))
+            y = max(geo.y(), min(y, geo.y() + geo.height() - hint.height()))
+
+        menu.exec(QPoint(x, y))
 
     def set_menu_provider(self, provider):
         """Set a callable returning (settings, mics, history, active_mic)."""
