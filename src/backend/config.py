@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+import sys
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -21,7 +22,10 @@ def _get_log():
     return _log
 
 
-CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".config", "whisperclick")
+# Installed EXE (frozen) uses "whisperclick"; running from source uses "whisperclick-dev"
+# so dev/test runs never touch real user data.
+_CONFIG_FOLDER = "whisperclick" if getattr(sys, "frozen", False) else "whisperclick-dev"
+CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".config", _CONFIG_FOLDER)
 SETTINGS_FILE = os.path.join(CONFIG_DIR, "settings.json")
 HISTORY_FILE = os.path.join(CONFIG_DIR, "history.json")
 AUDIO_DIR = os.path.join(CONFIG_DIR, "audio")

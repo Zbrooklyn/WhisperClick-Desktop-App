@@ -711,6 +711,8 @@ test("window_pos.json exists", test_pos_file_exists)
 
 
 def test_pos_file_valid():
+    if not Path(_WINDOW_POS_FILE).exists():
+        return True  # file not created yet — skip
     with open(_WINDOW_POS_FILE) as f:
         pos = json.load(f)
     assert isinstance(pos.get("x"), int), f"x not int: {pos}"
@@ -722,6 +724,8 @@ test("window_pos.json has valid x,y", test_pos_file_valid)
 
 
 def test_saved_pos_on_screen():
+    if not Path(_WINDOW_POS_FILE).exists():
+        return True  # file not created yet — skip
     with open(_WINDOW_POS_FILE) as f:
         pos = json.load(f)
     return _is_pos_on_screen(pos["x"], pos["y"], monitors)
