@@ -1609,20 +1609,32 @@
     }
 
     @media (max-width: 640px) {
-      .hero { padding-top: calc(var(--nav-h) + 40px); padding-bottom: 40px; }
+      .container { padding: 0 18px; }
+      .hero { padding-top: calc(var(--nav-h) + 32px); padding-bottom: 32px; }
       .hero h1 { font-size: 2.2rem; }
       .hero-sub { font-size: 1.05rem; }
       .hero-buttons { flex-direction: column; align-items: center; }
       .hero-platforms { justify-content: center; }
       .hero-pill { bottom: -20px; max-width: 240px; }
-      .app-mockup { font-size: 11px; max-width: 320px; }
+      .app-mockup { font-size: 11px; max-width: 300px; }
       .mock-recorder { padding: 16px 14px; }
       .mock-time { font-size: 18px; }
       .mock-card-text { font-size: 11px; }
       .section-title { font-size: 1.7rem; }
+      .section-subtitle { font-size: 1rem; }
+      .section-header { margin-bottom: 36px; }
+      .showcase,
+      .features,
+      .how-it-works,
+      .use-cases,
+      .privacy,
+      .download { padding: 64px 0; }
       .feature-grid,
       .privacy-grid,
       .use-case-grid { grid-template-columns: 1fr; }
+      .feature-card { padding: 24px 20px; }
+      .privacy-card { padding: 24px 20px; }
+      .use-case-card { padding: 20px 18px; gap: 14px; }
       .steps-row { grid-template-columns: 1fr; }
       .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
       .stat-item .stat-value { font-size: 1.5rem; }
@@ -1632,6 +1644,15 @@
       .platform-tabs { max-width: 280px; }
       .macos-soon { padding: 32px 20px; }
       .macos-soon h3 { font-size: 1.1rem; }
+      .pill-showcase { gap: 32px; }
+      .pill-showcase-item canvas { max-width: 100%; height: auto; }
+      .pill-showcase-item .pill-label { font-size: 0.85rem; }
+      .showcase-tabs { margin-bottom: 28px; }
+      .showcase-tab { padding: 8px 16px; font-size: 0.82rem; }
+      .developer { padding: 56px 0; }
+      .developer-text h2 { font-size: 1.4rem; }
+      .developer-code pre { font-size: 0.78rem; padding: 14px; }
+      footer { padding: 32px 0 28px; }
     }
   </style>
 </head>
@@ -1995,7 +2016,7 @@
           <div class="pill-showcase">
             <div class="pill-showcase-item">
               <canvas id="pill-idle" aria-label="Floating pill — idle state"></canvas>
-              <p class="pill-label"><strong>Idle</strong> — sits quietly at the top of your screen</p>
+              <p class="pill-label"><strong>Idle</strong> — sits quietly at the bottom of your screen</p>
             </div>
             <div class="pill-showcase-item">
               <canvas id="pill-hover" aria-label="Floating pill — hover with tooltip"></canvas>
@@ -2526,13 +2547,17 @@ venv\Scripts\activate
         }
       }
 
+      // ── Animation speed (slower on mobile) ──
+      var isMobile = window.innerWidth <= 640;
+      var animSpeed = isMobile ? 0.4 : 1.0;
+
       // ── Idle pill (static with subtle opacity breathing) ──
       var idleCanvas = document.getElementById('pill-idle');
       if (idleCanvas) {
         var CSS_W_IDLE = 108;
         var ctxI = setupCanvas(idleCanvas, DORMANT_W, DORMANT_H, CSS_W_IDLE);
         var idleAlpha = 0.7;
-        var idleDir = 0.003;
+        var idleDir = 0.003 * animSpeed;
         function drawIdle() {
           ctxI.clearRect(0, 0, DORMANT_W, DORMANT_H);
           ctxI.globalAlpha = idleAlpha;
@@ -2540,8 +2565,8 @@ venv\Scripts\activate
           drawMiniBars(ctxI, DORMANT_W, DORMANT_H, dormantBarH, COL_MINIBAR);
           ctxI.globalAlpha = 1;
           idleAlpha += idleDir;
-          if (idleAlpha > 1) { idleAlpha = 1; idleDir = -0.003; }
-          if (idleAlpha < 0.6) { idleAlpha = 0.6; idleDir = 0.003; }
+          if (idleAlpha > 1) { idleAlpha = 1; idleDir = -0.003 * animSpeed; }
+          if (idleAlpha < 0.6) { idleAlpha = 0.6; idleDir = 0.003 * animSpeed; }
           requestAnimationFrame(drawIdle);
         }
         drawIdle();
@@ -2579,7 +2604,7 @@ venv\Scripts\activate
 
         function drawHover() {
           ctxH.clearRect(0, 0, compW, compH);
-          floatPhase += 0.02;
+          floatPhase += 0.02 * animSpeed;
           floatY = Math.sin(floatPhase) * 2;
 
           ctxH.save();
@@ -2671,13 +2696,14 @@ venv\Scripts\activate
 
           // Simulate fluctuating audio level
           levelTimer++;
-          if (levelTimer % 6 === 0) levelTarget = 0.25 + Math.random() * 0.65;
-          audioLevel += (levelTarget - audioLevel) * 0.12;
+          var levelInterval = isMobile ? 15 : 6;
+          if (levelTimer % levelInterval === 0) levelTarget = 0.25 + Math.random() * 0.65;
+          audioLevel += (levelTarget - audioLevel) * (isMobile ? 0.05 : 0.12);
 
           ctx.fillStyle = COL_BAR;
           for (var i = 0; i < NUM_BARS; i++) {
             var target = minH + (maxH - minH) * audioLevel * (0.3 + Math.random() * 0.7);
-            barHeights[i] += (target - barHeights[i]) * 0.4;
+            barHeights[i] += (target - barHeights[i]) * (isMobile ? 0.15 : 0.4);
             var bh = Math.max(2, barHeights[i]);
             var x = bx + i * (BAR_W + BAR_GAP);
             ctx.fillRect(x, cy - bh / 2, BAR_W, bh);

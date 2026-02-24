@@ -152,7 +152,7 @@ def _create_demo_history():
         },
         {
             "text": (
-                "Step 3: See that small pill at the top of your screen? That's your "
+                "Step 3: See that small pill at the bottom of your screen? That's your "
                 "recording indicator. It shows a live timer while you talk. "
                 "Right-click it to change your microphone, language, or view past transcriptions."
             ),

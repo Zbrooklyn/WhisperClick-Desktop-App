@@ -40,7 +40,7 @@ You pick the mode. You pick when it listens. There's no always-on microphone and
   <img src="docs/reference/ui-captures/app-dark.png" alt="WhisperClick — dark mode" width="500">
 </p>
 
-The floating pill sits at the top of your screen. When idle, it shows your hotkey. When recording, it shows live audio visualization with cancel and stop controls.
+The floating pill sits at the bottom of your screen. When idle, it shows your hotkey. When recording, it shows live audio visualization with cancel and stop controls.
 
 <p align="center">
   <img src="docs/reference/ui-captures/pill-tooltip.png" alt="WhisperClick pill — dormant with hotkey tooltip" width="400">
