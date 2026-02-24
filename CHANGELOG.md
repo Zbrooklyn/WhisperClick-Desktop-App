@@ -10,11 +10,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Local model transcription in installed EXE (missing PyInstaller hidden imports and native DLLs for faster-whisper, ctranslate2, tokenizers, huggingface_hub)
 - Explicit model cache path (`download_root`) for reliable model lookup in frozen builds
+- Installer now closes running WhisperClick before upgrading (prevents locked file errors)
+- Stale files from previous version cleaned before installing new files
+- Downgrade warning when installing an older version over a newer one
 - Window position tests now skip gracefully when config directory is fresh
 
 ### Added
 
 - Installer options: Start Menu shortcut, Pin to taskbar, Start with Windows (auto-removed on uninstall)
+- Version shown in Windows Add/Remove Programs, Windows 10 minimum enforced
 - Dev/production config isolation — running from source uses `~/.config/whisperclick-dev/`, installed EXE uses `~/.config/whisperclick/`
 - Dev ribbon overlay on tray icon and `[DEV]` in window title when running from source
 - macOS port roadmap with full platform abstraction design (Coming Soon)
