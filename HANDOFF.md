@@ -92,6 +92,7 @@
 3. Run full manual production audit matrix (hotkey, tray, pill, local/API modes, device edge cases).
 4. Rebuild release artifacts and validate on a second Windows machine.
 5. Prepare release decision using `docs/ROADMAP.md` + `docs/PRODUCTION_AUDIT_CHECKLIST.md` evidence.
+6. macOS port is planned and fully documented in `docs/ROADMAP.md` (platform abstraction via `src/platform/`, pyobjc dependencies, execution phases).
 
 ## Documentation Map
 
@@ -105,5 +106,5 @@
 
 ## Last Updated
 
-- Date: 2026-02-19
+- Date: 2026-02-23
 - Updated by: Claude Opus 4.6

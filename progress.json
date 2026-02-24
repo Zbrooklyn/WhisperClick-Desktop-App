@@ -1,6 +1,6 @@
 {
   "project": "WhisperClick V3",
-  "updated": "2026-02-22",
+  "updated": "2026-02-23",
   "features": {
     "release_build_pipeline": {
       "status": "complete",
@@ -73,6 +73,10 @@
     "second_machine_validation": {
       "status": "not-started",
       "description": "Rebuild and test on a second Windows machine"
+    },
+    "macos_port": {
+      "status": "planned",
+      "description": "macOS port via src/platform/ abstraction layer — detailed plan in docs/ROADMAP.md"
     }
   },
   "known_issues": {
