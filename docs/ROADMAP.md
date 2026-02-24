@@ -64,6 +64,10 @@ Last updated: 2026-02-23
 - [ ] Release hardening:
   - [ ] Code signing plan for release binaries.
   - [ ] Installer upgrade/uninstall data migration checks.
+  - [ ] Uninstall cleanup prompt — offer to remove `~/.config/whisperclick/` (settings, history, audio).
+- [ ] About / Help dialog:
+  - [ ] Dedicated modal with version, license, links to docs and GitHub.
+  - [ ] Currently version only shows in settings sidebar footer.
 
 ## Program and Release Governance
 

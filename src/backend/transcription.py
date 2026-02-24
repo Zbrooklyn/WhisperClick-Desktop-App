@@ -113,10 +113,13 @@ class TranscriptionService:
                 pass
 
             try:
+                from src.backend.models import HF_CACHE_DIR
+
                 self._local_model = WhisperModel(
                     self._model_name,
                     device=device,
                     compute_type=compute,
+                    download_root=HF_CACHE_DIR,
                 )
             except FileNotFoundError:
                 raise ValueError(f"Model '{self._model_name}' not found. Download it from Settings > Models.") from None

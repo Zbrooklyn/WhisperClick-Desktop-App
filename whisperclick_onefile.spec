@@ -1,7 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import os
 from pathlib import Path
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_dynamic_libs, collect_submodules
 
 project_dir = Path(SPEC).resolve().parent
 icon_path = project_dir / "assets" / "microphone_logo.ico"
@@ -11,16 +12,29 @@ datas = [
     (str(project_dir / "assets"), "assets"),
 ]
 
-hiddenimports = [
-    "pystray._win32",
-    "PIL._tkinter_finder",
-] + collect_submodules("webview.platforms")
+hiddenimports = (
+    [
+        "pystray._win32",
+        "PIL._tkinter_finder",
+        # Local transcription (faster-whisper + dependencies)
+        "faster_whisper",
+        "ctranslate2",
+        "tokenizers",
+        "huggingface_hub",
+    ]
+    + collect_submodules("webview.platforms")
+    + collect_submodules("faster_whisper")
+    + collect_submodules("ctranslate2")
+)
+
+# Collect native DLLs/pyd files for ctranslate2 and tokenizers
+binaries = collect_dynamic_libs("ctranslate2") + collect_dynamic_libs("tokenizers")
 
 
 a = Analysis(
     ["src/main.py"],
     pathex=[str(project_dir)],
-    binaries=[],
+    binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
