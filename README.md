@@ -11,6 +11,7 @@
 </p>
 
 <p align="center">
+  <a href="https://zbrooklyn.github.io/WhisperClick-Desktop-App/">Website</a> ·
   <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest">Download for Windows</a>
 </p>
 

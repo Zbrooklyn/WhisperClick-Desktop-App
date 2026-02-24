@@ -16,6 +16,7 @@ to the public repository (`Zbrooklyn/WhisperClick-Desktop-App`).
 | `docs/PRODUCTION_AUDIT_CHECKLIST.md` | Internal audit checklist |
 | `docs/PRODUCTION_CHECKLIST.md` | Internal production checklist |
 | `docs/ROADMAP.md` | Internal roadmap with dev priorities |
+| `docs/archive/` | Archived landing page iterations (v1, v2) |
 | `.github/PUBLIC_SYNC.md` | This file (private guard) |
 
 ## Public Repo Structure

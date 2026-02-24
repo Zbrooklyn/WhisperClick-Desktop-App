@@ -25,6 +25,7 @@ PRIVATE_ONLY_FILES = [
     "docs/PRODUCTION_AUDIT_CHECKLIST.md",
     "docs/PRODUCTION_CHECKLIST.md",
     "docs/ROADMAP.md",
+    "docs/archive",
     ".github/PUBLIC_SYNC.md",
 ]
 
@@ -77,7 +78,7 @@ def main():
 
         if existing:
             files_str = " ".join(f'"{f}"' for f in existing)
-            run(f"git rm -q {files_str}")
+            run(f"git rm -rq {files_str}")
             run(
                 'git commit -m "Remove private-only files for public release" '
                 '--author="sync-public <noreply@whisperclick.app>"'
