@@ -2,9 +2,9 @@
 
 ## Current State
 
-- Status: In progress
-- Date context: 2026-02-20
-- Summary: Desktop app is running with the IndexV3-based UI, secure API key persistence, API key verification, runtime hotkey rebinding, updated icon pipeline, and Windows build scripts for folder portable, one-file portable, and installer outputs.
+- Status: v1.1.0 released
+- Date context: 2026-02-23
+- Summary: Desktop app released as v1.1.0 with local model fix for frozen builds, dev/prod config isolation, dev ribbon overlay, improved installer options, and macOS port roadmap.
 
 ## Canonical Runtime Paths
 
@@ -19,9 +19,10 @@
   - `release_windows.ps1`
   - `build_windows_onefile.ps1`
   - `build_windows_installer.ps1`
-  - `whisperclick.spec`, `whisperclick_onefile.spec`
-  - `installer/WhisperClick.iss`
+  - `whisperclick.spec`, `whisperclick_onefile.spec` (includes faster-whisper/ctranslate2/tokenizers/huggingface_hub hidden imports + native DLLs)
+  - `installer/WhisperClick.iss` (desktop, Start Menu, taskbar pin, Start with Windows options)
   - launcher CMD files (`Build_Folder_Portable.cmd`, `Build_OneFile_Portable.cmd`, `Build_Installer_Only.cmd`, `Build_Release_All.cmd`)
+  - GitHub Actions `release.yml` builds all 3 artifacts on tag push
 - UI integration and bridge wiring:
   - local recording path via native bridge (`start_recording`, `stop_recording`)
   - settings persistence (`save_settings`) for system toggles and mode/model
@@ -49,6 +50,7 @@
 ## Known Issues / Open Gaps
 
 - ~~History search input is currently not working.~~ (Fixed — substring filter implemented)
+- ~~Local models not working in installed EXE.~~ (Fixed in v1.1.0 — PyInstaller hidden imports + DLLs)
 - Pill widget recording parity is incomplete:
   - pill recording path is not yet fully aligned with main UI provider/model/API-key pipeline behavior.
 - Full manual release validation is still pending:
@@ -60,16 +62,27 @@
 ## Verification Snapshot
 
 - V3 comprehensive test suite: `python tools/v3_full_test.py`
-  - Result: pass (`89 passed`, `0 failed`, `0 warnings`)
+  - Result: pass (`280 passed`, `0 failed`, `0 warnings`)
+  - 1 intermittent flake: `_save_audio creates OGG file` (recorder state-dependent, not a real bug)
   - Coverage: settings, models, mics, languages, history CRUD, clipboard, recording cycles,
     API key management, transcription service, audio recorder, config persistence,
     model manager, edge cases/stress, pywinauto UI window check
 - Legacy smoke test: `python tools/full_smoke_test.py --timeout 20`
   - Result: pass (`automated_passed: 9`, `automated_failed: 0`)
 - Python compile checks: all 22 `.py` files compile cleanly
-- Latest relaunch: process started successfully (2026-02-19)
+- Latest release: v1.1.0 (2026-02-23)
 
-## V3 Fixes Applied (This Session)
+## v1.1.0 Changes (2026-02-23)
+
+- Fixed local model transcription in frozen EXE (PyInstaller hidden imports + native DLLs)
+- Explicit `download_root` for WhisperModel so model lookup works in frozen builds
+- Dev/prod config isolation (`~/.config/whisperclick-dev/` vs `~/.config/whisperclick/`)
+- Dev ribbon overlay on tray icon + `[DEV]` in window title when running from source
+- Installer options: Start Menu shortcut, Pin to taskbar, Start with Windows
+- macOS port roadmap with full platform abstraction design
+- Platform support table in README
+
+## Prior Fixes (v1.0.0 cycle)
 
 - Deleted legacy dead code: `src/app.py`, `src/ui/`, duplicate top-level modules
 - Implemented history search (substring filter on text + title)
@@ -87,12 +100,11 @@
 
 ## Next Actions
 
-1. ~~Implement and verify history search filtering.~~ (Done)
+1. **Test v1.1.0 release EXE** — download from GitHub, verify local model transcription works in the installed build.
 2. Complete pill recording parity with main UI transcription pipeline.
 3. Run full manual production audit matrix (hotkey, tray, pill, local/API modes, device edge cases).
-4. Rebuild release artifacts and validate on a second Windows machine.
-5. Prepare release decision using `docs/ROADMAP.md` + `docs/PRODUCTION_AUDIT_CHECKLIST.md` evidence.
-6. macOS port is planned and fully documented in `docs/ROADMAP.md` (platform abstraction via `src/platform/`, pyobjc dependencies, execution phases).
+4. Validate on a second Windows machine.
+5. macOS port — planned and documented in `docs/ROADMAP.md`.
 
 ## Documentation Map
 

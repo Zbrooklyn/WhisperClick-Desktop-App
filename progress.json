@@ -4,7 +4,7 @@
   "features": {
     "release_build_pipeline": {
       "status": "complete",
-      "description": "Folder portable, one-file portable, installer builds"
+      "description": "Folder portable, one-file portable, installer builds; GitHub Actions release workflow"
     },
     "ui_bridge_wiring": {
       "status": "complete",
@@ -66,6 +66,18 @@
       "status": "in-progress",
       "description": "Pill widget recording path not fully aligned with main UI pipeline"
     },
+    "local_model_frozen_build": {
+      "status": "complete",
+      "description": "PyInstaller hidden imports + DLLs for faster-whisper, ctranslate2, tokenizers, huggingface_hub"
+    },
+    "dev_prod_isolation": {
+      "status": "complete",
+      "description": "Separate config dirs (whisperclick-dev vs whisperclick), dev ribbon on tray icon, [DEV] in window title"
+    },
+    "installer_options": {
+      "status": "complete",
+      "description": "Desktop shortcut, Start Menu, Pin to taskbar, Start with Windows"
+    },
     "full_release_validation": {
       "status": "not-started",
       "description": "Manual production audit matrix (tray, pill, local/API, device edge cases)"
@@ -93,8 +105,8 @@
   },
   "testing": {
     "v3_full_test": {
-      "count": 269,
-      "last_result": "269 passed, 0 failed",
+      "count": 280,
+      "last_result": "280 passed, 0 failed (1 intermittent audio flake)",
       "requires": "audio_hardware"
     },
     "pytest_tests": {
