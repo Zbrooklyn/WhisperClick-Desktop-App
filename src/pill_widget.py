@@ -715,39 +715,20 @@ class PillWidget(QWidget):
         act_show = menu.addAction("Show WhisperClick")
         act_show.triggered.connect(self.show_main_requested.emit)
 
-        act_settings = menu.addAction("Settings")
-        act_settings.triggered.connect(self.open_settings_requested.emit)
-
+        menu.addAction("Settings").triggered.connect(self.open_settings_requested.emit)
         menu.addSeparator()
-
-        # Hotkey reminder (from the settings already fetched)
-        hotkey_label = settings.get("hotkey", "Ctrl+Alt+R")
-        act_hotkey = menu.addAction(hotkey_label)
-        act_hotkey.setEnabled(False)
-
-        # Hide
-        act_hide = menu.addAction("Hide for Now")
-        act_hide.triggered.connect(self.hide_requested.emit)
+        menu.addAction(settings.get("hotkey", "Ctrl+Alt+R")).setEnabled(False)
+        menu.addAction("Hide for Now").triggered.connect(self.hide_requested.emit)
 
     def _build_static_menu(self):
         """Simple static menu for standalone use (no provider)."""
         menu = self._ctx_menu
-
-        act_show = menu.addAction("Show WhisperClick")
-        act_show.triggered.connect(self.show_main_requested.emit)
-
-        act_settings = menu.addAction("Go to settings")
-        act_settings.triggered.connect(self.open_settings_requested.emit)
-
+        menu.addAction("Show WhisperClick").triggered.connect(self.show_main_requested.emit)
+        menu.addAction("Go to settings").triggered.connect(self.open_settings_requested.emit)
         menu.addSeparator()
-
-        act_paste = menu.addAction("Paste last transcript")
-        act_paste.triggered.connect(self.paste_last_requested.emit)
-
+        menu.addAction("Paste last transcript").triggered.connect(self.paste_last_requested.emit)
         menu.addSeparator()
-
-        act_hide = menu.addAction("Hide for now")
-        act_hide.triggered.connect(self.hide_requested.emit)
+        menu.addAction("Hide for now").triggered.connect(self.hide_requested.emit)
 
 
 # ---------------------------------------------------------------------------

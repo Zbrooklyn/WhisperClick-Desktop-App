@@ -1037,8 +1037,7 @@ class Api:
                 if getattr(sys, "frozen", False):
                     launch_cmd = f'"{sys.executable}"'
                 else:
-                    pythonw = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
-                    python_exe = pythonw if os.path.exists(pythonw) else sys.executable
+                    python_exe = sys.executable
                     main_py = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "main.py"))
                     launch_cmd = f'"{python_exe}" "{main_py}"'
                 winreg.SetValueEx(key, "WhisperClick", 0, winreg.REG_SZ, launch_cmd)

@@ -678,8 +678,6 @@ def main():
 
         s = api._settings
         items = []
-
-        # 1. Record / Stop / Processing
         rec_state = api.get_recording_state()
         if rec_state.get("is_recording"):
             items.append(pystray.MenuItem("Stop Recording", tray_record))
@@ -687,10 +685,9 @@ def main():
             items.append(pystray.MenuItem("Processing\u2026", None, enabled=False))
         else:
             items.append(pystray.MenuItem("Record", tray_record))
-
         items.append(pystray.Menu.SEPARATOR)
 
-        # 3. Microphone submenu
+        # Microphone submenu
         mics = api.get_microphones()
         mic_items = []
         if mics:
@@ -707,7 +704,7 @@ def main():
             mic_items.append(pystray.MenuItem("No microphones", None, enabled=False))
         items.append(pystray.MenuItem("Microphone", pystray.Menu(*mic_items)))
 
-        # 4. Sound Effects toggle
+        # Sound Effects toggle
         items.append(
             pystray.MenuItem(
                 "Sound Effects",
@@ -716,14 +713,12 @@ def main():
             )
         )
 
-        # 5. Mode toggle
-        mode = s.get("mode", "local")
-        mode_label = "Local" if mode == "local" else "API"
+        # Mode toggle
+        mode_label = "Local" if s.get("mode", "local") == "local" else "API"
         items.append(pystray.MenuItem(f"Mode: {mode_label}", tray_mode_toggle))
-
         items.append(pystray.Menu.SEPARATOR)
 
-        # 7. Recent Transcriptions submenu
+        # Recent Transcriptions submenu
         history = _load_hist()
         if history:
             hist_items = []
@@ -732,27 +727,14 @@ def main():
                 disp = (text[:40] + "\u2026") if len(text) > 40 else (text or "(empty)")
                 hist_items.append(pystray.MenuItem(disp, tray_copy_history(text)))
             items.append(pystray.MenuItem("Recent Transcriptions", pystray.Menu(*hist_items)))
-
-        # 8. Paste Last Transcript
         items.append(pystray.MenuItem("Paste Last Transcript", tray_paste_last))
-
         items.append(pystray.Menu.SEPARATOR)
 
-        # 10. Show WhisperClick (default action)
         items.append(pystray.MenuItem("Show WhisperClick", tray_show, default=True))
-
-        # 11. Settings
         items.append(pystray.MenuItem("Settings", tray_settings))
-
         items.append(pystray.Menu.SEPARATOR)
-
-        # 13. Hotkey reminder
-        hotkey_label = s.get("hotkey", "Ctrl + Alt + R")
-        items.append(pystray.MenuItem(hotkey_label, None, enabled=False))
-
-        # 15. Quit
+        items.append(pystray.MenuItem(s.get("hotkey", "Ctrl + Alt + R"), None, enabled=False))
         items.append(pystray.MenuItem("Quit", tray_quit))
-
         return items
 
     def setup_tray():
@@ -871,7 +853,7 @@ def main():
 
             ctypes.windll.user32.MessageBoxW(0, msg, "WhisperClick Error", 0x10)
         except Exception:
-            print(msg)
+            _log.error(msg)
         sys.exit(1)
 
     window_url = html_path.resolve().as_uri()
