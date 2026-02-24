@@ -5,8 +5,9 @@
 <h1 align="center">WhisperClick</h1>
 
 <p align="center">
-  <strong>Talk instead of type. Anywhere on Windows.</strong><br>
-  One hotkey. Instant transcription. Pasted right where your cursor is.
+  <strong>Talk instead of type. Anywhere on your desktop.</strong><br>
+  One hotkey. Instant transcription. Pasted right where your cursor is.<br>
+  <em>Windows now · macOS coming soon</em>
 </p>
 
 <p align="center">
@@ -109,6 +110,16 @@ We don't collect anything. No telemetry, no analytics, no background network cal
 - **API mode**: Audio goes to OpenAI or Google only when you press the hotkey. Nothing is stored after transcription.
 
 Full details in [PRIVACY.md](PRIVACY.md).
+
+---
+
+## Platform Support
+
+| Platform | Status |
+|----------|--------|
+| **Windows 10/11** | Available now |
+| **macOS** | Coming soon — platform abstraction layer in progress |
+| **Linux** | Not currently planned |
 
 ---
 
