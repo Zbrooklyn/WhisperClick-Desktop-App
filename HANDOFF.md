@@ -2,9 +2,9 @@
 
 ## Current State
 
-- Status: v1.1.0 released
-- Date context: 2026-02-23
-- Summary: Desktop app released as v1.1.0 with local model fix for frozen builds, dev/prod config isolation, dev ribbon overlay, improved installer options, and macOS port roadmap.
+- Status: v1.1.0 released + maximize/snap feature complete
+- Date context: 2026-02-24
+- Summary: Desktop app released as v1.1.0. Post-release: added maximize button, Windows snap support (drag-to-edge, Win+Arrow, Snap Layouts), native title bar drag via WM_APP_DRAGSTART pattern, accent border removal, and UI fixes for onboarding/settings overlay visibility.
 
 ## Canonical Runtime Paths
 
@@ -46,6 +46,17 @@
 - Icon pipeline:
   - source of truth: `assets/microphone_logo.svg`
   - generated runtime/build assets: `assets/microphone_logo.png`, `assets/microphone_logo.ico`
+
+## Post-v1.1.0 Changes (2026-02-24)
+
+- Maximize button + toggle_maximize()/is_maximized() API
+- Windows snap support: drag-to-edge, Win+Arrow, Snap Layouts (Win+Z)
+- Native title bar drag via WM_APP_DRAGSTART → ReleaseCapture + SendMessage(WM_NCLBUTTONDOWN, HTCAPTION)
+- WndProc hook in main.py: WM_NCHITTEST (top-edge resize), WM_NCCALCSIZE (accent border removal), WM_APP_DRAGSTART (drag), WM_APP_NCRESIZE (top resize)
+- Double-click title bar to maximize (mousedown timing, 300ms threshold)
+- Maximize icon swap using is_maximized() API + Lucide `[data-lucide]` selector
+- Onboarding overlay and settings drawer now use `top-10` so title bar stays visible
+- Detailed changelog: `docs/maximize-snap-changelog.md`
 
 ## Known Issues / Open Gaps
 
@@ -100,11 +111,13 @@
 
 ## Next Actions
 
-1. **Test v1.1.0 release EXE** — download from GitHub, verify local model transcription works in the installed build.
-2. Complete pill recording parity with main UI transcription pipeline.
-3. Run full manual production audit matrix (hotkey, tray, pill, local/API modes, device edge cases).
-4. Validate on a second Windows machine.
-5. macOS port — planned and documented in `docs/ROADMAP.md`.
+1. Run full test suite (`tools/v3_full_test.py`) to verify no regressions from maximize/snap changes.
+2. Clean up unused `_install_drag_subclass()` function in main.py (superseded by WndProc hook).
+3. **Test v1.1.0 release EXE** — download from GitHub, verify local model transcription works in the installed build.
+4. Complete pill recording parity with main UI transcription pipeline.
+5. Run full manual production audit matrix (hotkey, tray, pill, local/API modes, device edge cases).
+6. Validate on a second Windows machine.
+7. macOS port — planned and documented in `docs/ROADMAP.md`.
 
 ## Documentation Map
 
@@ -115,8 +128,10 @@
 - UI design guardrails: `docs/UI_DESIGN_PLAYBOOK.md`
 - Testing strategy: `docs/TESTING.md`
 - Developer questions (V3): `docs/DEVELOPER_QUESTIONS.md`
+- Maximize/snap changelog + lessons learned: `docs/maximize-snap-changelog.md`
+- DPI drag fix spec (superseded): `docs/dpi-drag-fix-spec.md`
 
 ## Last Updated
 
-- Date: 2026-02-23
+- Date: 2026-02-24
 - Updated by: Claude Opus 4.6

@@ -30,6 +30,7 @@ from src.backend import models as model_manager
 from src.backend.audio_recorder import AudioRecorder
 from src.backend.config import (
     AUDIO_DIR,
+    IS_FROZEN,
     LANGUAGES,
     load_history,
     load_settings,
@@ -48,7 +49,7 @@ _log = get_logger("api")
 
 
 class Api:
-    _API_KEY_SERVICE = "WhisperClick"
+    _API_KEY_SERVICE = "WhisperClick" if IS_FROZEN else "WhisperClick-Dev"
     _API_KEY_ACCOUNT = {
         "openai": "openai_api_key",
         "gemini": "gemini_api_key",
@@ -142,60 +143,61 @@ class Api:
         if self._window:
             self._window.minimize()
 
+    def toggle_maximize(self):
+        """Toggle between maximized and restored window state."""
+        hwnd = self._find_hwnd()
+        if not hwnd:
+            return
+        SW_MAXIMIZE = 3
+        SW_RESTORE = 9
+        if ctypes.windll.user32.IsZoomed(hwnd):
+            ctypes.windll.user32.ShowWindow(hwnd, SW_RESTORE)
+        else:
+            ctypes.windll.user32.ShowWindow(hwnd, SW_MAXIMIZE)
+
     # ------------------------------------------------------------------
     # Window drag (physical-pixel approach — no DPI conversion needed)
     # ------------------------------------------------------------------
     _drag_state = {}
     _drag_lock = threading.Lock()
 
-    def drag_start(self):
-        """Called on mousedown in drag region. Stores physical positions."""
-        import ctypes
-        import ctypes.wintypes as wintypes
-
-        cursor = wintypes.POINT()
-        ctypes.windll.user32.GetCursorPos(ctypes.byref(cursor))
+    @staticmethod
+    def _find_hwnd():
+        """Find the WhisperClick window handle (works in both dev and production)."""
         hwnd = ctypes.windll.user32.FindWindowW(None, "WhisperClick")
         if not hwnd:
+            hwnd = ctypes.windll.user32.FindWindowW(None, "WhisperClick [DEV]")
+        return hwnd
+
+    def drag_start(self):
+        """Post WM_APP_DRAGSTART so the UI-thread WndProc hook can call
+        ReleaseCapture + SendMessage(WM_NCLBUTTONDOWN, HTCAPTION) for
+        native drag with snap support."""
+        hwnd = self._find_hwnd()
+        if not hwnd:
             return
-        rect = wintypes.RECT()
-        ctypes.windll.user32.GetWindowRect(hwnd, ctypes.byref(rect))
-        with self._drag_lock:
-            self._drag_state = {
-                "cursor_x": cursor.x,
-                "cursor_y": cursor.y,
-                "win_x": rect.left,
-                "win_y": rect.top,
-                "hwnd": hwnd,
-                "active": True,
-            }
+        ctypes.windll.user32.PostMessageW(hwnd, 0x8001, 0, 0)  # WM_APP_DRAGSTART
+
+    def is_maximized(self):
+        """Return True if the window is currently maximized."""
+        hwnd = self._find_hwnd()
+        if not hwnd:
+            return False
+        return bool(ctypes.windll.user32.IsZoomed(hwnd))
+
+    def nc_resize_start(self, hit_code=12):
+        """Start native resize from a non-client edge. hit_code is a WM_NCHITTEST constant
+        (HTTOP=12, HTTOPLEFT=13, HTTOPRIGHT=14)."""
+        hwnd = self._find_hwnd()
+        if not hwnd:
+            return
+        ctypes.windll.user32.PostMessageW(hwnd, 0x8002, int(hit_code), 0)
 
     def drag_move(self):
-        """Called on mousemove during drag. Uses physical pixel deltas only."""
-        with self._drag_lock:
-            if not self._drag_state.get("active"):
-                return
-            state = self._drag_state.copy()
-        import ctypes
-        import ctypes.wintypes as wintypes
-
-        cursor = wintypes.POINT()
-        ctypes.windll.user32.GetCursorPos(ctypes.byref(cursor))
-        dx = cursor.x - state["cursor_x"]
-        dy = cursor.y - state["cursor_y"]
-        new_x = state["win_x"] + dx
-        new_y = state["win_y"] + dy
-        SWP_NOSIZE = 0x0001
-        SWP_NOZORDER = 0x0004
-        SWP_NOACTIVATE = 0x0010
-        ctypes.windll.user32.SetWindowPos(
-            state["hwnd"], 0, new_x, new_y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
-        )
+        """No-op — native drag handles movement."""
 
     def drag_end(self):
-        """Called on mouseup to end drag."""
-        with self._drag_lock:
-            self._drag_state["active"] = False
+        """No-op — native drag handles release."""
 
     def resize_window(self, width, height):
         """Resize the main window."""
@@ -1140,7 +1142,7 @@ class Api:
             from pynput.keyboard import Key
 
             # Find WhisperClick's own window handle
-            wc_hwnd = ctypes.windll.user32.FindWindowW(None, "WhisperClick")
+            wc_hwnd = self._find_hwnd()
             current_fg = ctypes.windll.user32.GetForegroundWindow()
 
             # Pick the paste target

@@ -140,7 +140,7 @@ src/platform/
 | Error dialogs | `main.py` | `ctypes.windll.user32.MessageBoxW` | `NSAlert` or pywebview fallback |
 | App identity (mutex) | `main.py` | `CreateMutexW` | `fcntl.flock` (already implemented) |
 | Config directory | `config.py` | `~/.config/whisperclick/` | `~/Library/Application Support/WhisperClick/` |
-| Window drag | `main.py`, `api.py` | Win32 `GetCursorPos` + `SetWindowPos` | `easy_drag=True` (works on macOS — no multi-monitor DPI bug) |
+| Window drag | `main.py`, `api.py` | WM_APP_DRAGSTART → ReleaseCapture + WM_NCLBUTTONDOWN (native drag with snap) | `easy_drag=True` (works on macOS — no multi-monitor DPI bug) |
 
 ### macOS-Specific Implementation Details
 
@@ -175,7 +175,7 @@ src/platform/
 
 **DPI** — No-op on macOS. Retina scaling is handled automatically by the OS and pywebview's WebKit backend. No manual DPI awareness calls needed.
 
-**Window drag** — `easy_drag=True` works correctly on macOS (the multi-monitor DPI bug is Windows-specific). No custom drag implementation needed.
+**Window drag** — `easy_drag=True` works correctly on macOS (the multi-monitor DPI bug is Windows-specific). No custom drag implementation needed. On Windows, drag now uses the WM_APP_DRAGSTART pattern (native drag with snap support) — see `docs/maximize-snap-changelog.md`.
 
 ### New Dependencies (macOS only)
 
@@ -194,7 +194,7 @@ These are macOS-only extras — added via `requirements-macos.txt` or a `[macos]
 | Global hotkey | `RegisterHotKey` Win32 | Carbon `RegisterEventHotKey` (pyobjc) | Medium |
 | DPI / window sizing | `ctypes.windll.shcore` | No-op (Retina is automatic) | Low |
 | Window positioning | `GetWindowRect` / `SetWindowPos` | `NSWindow.setFrame:display:` | Medium |
-| Window drag | Win32 `GetCursorPos` physical-pixel | `easy_drag=True` (works on macOS) | Low |
+| Window drag | WM_APP_DRAGSTART native drag (with snap) | `easy_drag=True` (works on macOS) | Low |
 | Multi-monitor | `EnumDisplayMonitors` | `NSScreen.screens()` | Low |
 | Single-instance lock | `msvcrt.locking` / `CreateMutexW` | `fcntl.flock` (already done) | Done |
 | Webview backend | WebView2 | WebKit (pywebview auto-selects) | None |

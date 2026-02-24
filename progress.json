@@ -1,6 +1,6 @@
 {
   "project": "WhisperClick V3",
-  "updated": "2026-02-23",
+  "updated": "2026-02-24",
   "features": {
     "release_build_pipeline": {
       "status": "complete",
@@ -56,11 +56,35 @@
     },
     "dpi_awareness": {
       "status": "complete",
-      "description": "Per-Monitor V2 DPI with Win32 physical-pixel drag"
+      "description": "Per-Monitor V2 DPI awareness; drag now uses native WM_APP_DRAGSTART pattern"
     },
     "clipboard_integration": {
       "status": "complete",
       "description": "Auto-copy with configurable target"
+    },
+    "maximize_button": {
+      "status": "complete",
+      "description": "Maximize/restore toggle button in title bar with icon swap (square/copy)"
+    },
+    "windows_snap_support": {
+      "status": "complete",
+      "description": "Drag-to-edge snap, Win+Arrow, Snap Layouts (Win+Z) via WS_THICKFRAME + WS_MAXIMIZEBOX + native drag"
+    },
+    "native_title_bar_drag": {
+      "status": "complete",
+      "description": "WM_APP_DRAGSTART pattern: PostMessage -> ReleaseCapture + SendMessage(WM_NCLBUTTONDOWN, HTCAPTION) on UI thread"
+    },
+    "wndproc_hook": {
+      "status": "complete",
+      "description": "WndProc subclass in main.py handling WM_NCHITTEST, WM_NCCALCSIZE, WM_APP_DRAGSTART, WM_APP_NCRESIZE"
+    },
+    "accent_border_removal": {
+      "status": "complete",
+      "description": "WM_NCCALCSIZE removes top NC area (with IsZoomed check for maximize)"
+    },
+    "overlay_title_bar_visibility": {
+      "status": "complete",
+      "description": "Onboarding and settings overlays use top-10 so title bar stays accessible"
     },
     "pill_recording_parity": {
       "status": "in-progress",
@@ -94,12 +118,22 @@
   "known_issues": {
     "api_py_size": {
       "status": "acknowledged",
-      "description": "api.py at 1274 lines exceeds 800-line limit",
+      "description": "api.py at 1304 lines exceeds 800-line limit",
+      "type": "tech_debt"
+    },
+    "main_py_size": {
+      "status": "acknowledged",
+      "description": "main.py at 1173 lines exceeds 800-line limit (grew with WndProc hook for maximize/snap/drag)",
       "type": "tech_debt"
     },
     "stop_recording_size": {
       "status": "acknowledged",
       "description": "api.py:stop_recording() ~120 lines exceeds 80-line limit",
+      "type": "tech_debt"
+    },
+    "install_drag_subclass_dead_code": {
+      "status": "acknowledged",
+      "description": "_install_drag_subclass() in main.py is dead code — superseded by WndProc hook, should be removed",
       "type": "tech_debt"
     }
   },

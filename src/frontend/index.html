@@ -110,7 +110,7 @@
         <div id="banner-container" class="absolute top-0 left-0 right-0 z-[100] pointer-events-none"></div>
 
         <!-- Onboarding Overlay -->
-        <div id="onboarding-overlay" class="absolute inset-0 z-[200] bg-stone-50 dark:bg-stone-850 flex items-center justify-center">
+        <div id="onboarding-overlay" class="hidden absolute inset-0 top-10 z-[200] bg-stone-50 dark:bg-stone-850 flex items-center justify-center">
             <div id="onboarding-local-step" class="w-full p-8 text-center animate-fade-in">
                 <div class="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-6 text-accent">
                     <i data-lucide="mic" class="w-8 h-8"></i>
@@ -288,7 +288,7 @@
         </div>
 
         <!-- Settings Drawer -->
-        <aside id="settings-drawer" class="absolute inset-0 z-50 bg-stone-100 dark:bg-stone-850 transform translate-x-full transition-transform duration-300 flex flex-col">
+        <aside id="settings-drawer" class="absolute inset-0 top-10 z-50 bg-stone-100 dark:bg-stone-850 transform translate-x-full transition-transform duration-300 flex flex-col">
             <div class="p-4 border-b border-stone-200 dark:border-stone-700 flex justify-between items-center bg-stone-100 dark:bg-stone-850 shrink-0">
                 <h2 class="font-semibold text-lg dark:text-stone-200">Settings</h2>
                 <button onclick="toggleSettings()" class="p-1 hover:bg-stone-200 dark:hover:bg-stone-700 rounded text-stone-600 dark:text-stone-400"><i data-lucide="x" class="w-5 h-5"></i></button>
@@ -544,7 +544,7 @@
 
                 <div class="pt-6 mt-4 border-t border-stone-200 dark:border-stone-700 text-center">
                     <p class="font-semibold text-sm dark:text-stone-200">WhisperClick</p>
-                    <p id="app-version" class="text-xs text-stone-500">v1.1.0</p>
+                    <p id="app-version" class="text-xs text-stone-500">v1.2.0</p>
                 </div>
             </div>
         </aside>
@@ -559,10 +559,13 @@
                 <button onclick="toggleSettings()" class="p-1.5 text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200 hover:bg-stone-200 dark:hover:bg-stone-700 rounded transition-colors" data-tooltip="Settings">
                     <i data-lucide="settings" class="w-4 h-4"></i>
                 </button>
+                <div class="h-4 w-px bg-stone-300 dark:bg-stone-600 mx-1"></div>
                 <button onclick="minimizeApp()" class="p-1.5 text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200 hover:bg-stone-200 dark:hover:bg-stone-700 rounded transition-colors" data-tooltip="Minimize">
                     <i data-lucide="minus" class="w-3 h-3"></i>
                 </button>
-                <div class="h-4 w-px bg-stone-300 dark:bg-stone-600 mx-1"></div>
+                <button id="maximize-btn" onclick="toggleMaximize()" class="p-1.5 text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200 hover:bg-stone-200 dark:hover:bg-stone-700 rounded transition-colors" data-tooltip="Maximize">
+                    <i data-lucide="square" class="w-3 h-3"></i>
+                </button>
                 <button onclick="closeApp()" class="p-1.5 text-stone-500 hover:bg-red-500 hover:text-white dark:text-stone-400 rounded transition-colors" data-tooltip="Quit">
                     <i data-lucide="x" class="w-3 h-3"></i>
                 </button>
@@ -2471,6 +2474,11 @@
             } catch { /* version display is non-critical */ }
             await hydrateApiKeysFromBackend();
 
+            // Show onboarding only on first run (no model downloaded AND no API key)
+            if (!localModelReady && !openAiApiKeyMemory && !geminiApiKeyMemory) {
+                if (onboardingOverlay) onboardingOverlay.classList.remove('hidden');
+            }
+
             // After keys are loaded, ensure the active provider actually has a key.
             // If not, auto-switch to a provider that does (e.g. stored=gemini but
             // only openai key exists).
@@ -4090,6 +4098,38 @@
             }
         }
 
+        async function toggleMaximize() {
+            if (nativeBridgeReady) {
+                await callNativeApi('toggle_maximize');
+                setTimeout(updateMaximizeIcon, 150);
+            }
+        }
+
+        async function updateMaximizeIcon() {
+            const btn = document.getElementById('maximize-btn');
+            if (!btn) return;
+            // Lucide replaces <i> with <svg> after first render, so check both
+            const icon = btn.querySelector('[data-lucide]');
+            if (!icon) return;
+            let isMax = false;
+            if (nativeBridgeReady) {
+                try { isMax = await callNativeApi('is_maximized'); } catch (_) {}
+            }
+            const newIcon = isMax ? 'copy' : 'square';
+            const newTooltip = isMax ? 'Restore' : 'Maximize';
+            if (icon.getAttribute('data-lucide') !== newIcon) {
+                icon.setAttribute('data-lucide', newIcon);
+                btn.setAttribute('data-tooltip', newTooltip);
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+        }
+
+        // Track window resize to keep maximize icon in sync (snap, Win+Arrow, etc.)
+        window.addEventListener('resize', () => {
+            clearTimeout(window._maxIconTimer);
+            window._maxIconTimer = setTimeout(updateMaximizeIcon, 150);
+        });
+
         async function closeApp() {
             if (nativeBridgeReady) {
                 await callNativeApi('close');
@@ -4098,36 +4138,52 @@
             window.close();
         }
 
-        // --- Custom window drag (Win32 physical pixels, no DPI math) ---
+        // --- Title bar drag (native via WM_APP_DRAGSTART) ---
         (function initTitleBarDrag() {
-            let dragging = false;
             const titleBar = document.getElementById('title-bar');
             if (!titleBar) return;
 
+            const RESIZE_GRIP = 6;
+            let lastTitleDown = 0;
+
             titleBar.addEventListener('mousedown', (e) => {
-                // Don't drag when clicking buttons or interactive elements
                 if (e.target.closest('button, a, input, select')) return;
-                dragging = true;
-                if (window.pywebview && window.pywebview.api) {
+                if (e.button !== 0) return;
+                e.preventDefault();
+                if (!window.pywebview || !window.pywebview.api) return;
+                const r = titleBar.getBoundingClientRect();
+                // Top-edge resize zone
+                if (e.clientY - r.top < RESIZE_GRIP) {
+                    let hit = 12; // HTTOP
+                    if (e.clientX - r.left < RESIZE_GRIP) hit = 13;
+                    else if (r.right - e.clientX < RESIZE_GRIP) hit = 14;
+                    window.pywebview.api.nc_resize_start(hit);
+                    return;
+                }
+                // Double-click detection (native dblclick unreliable with modal drag)
+                const now = Date.now();
+                if (now - lastTitleDown < 300) {
+                    lastTitleDown = 0;
+                    toggleMaximize();
+                } else {
+                    lastTitleDown = now;
                     window.pywebview.api.drag_start();
                 }
-                e.preventDefault();
             });
 
-            window.addEventListener('mousemove', (e) => {
-                if (!dragging) return;
-                if (window.pywebview && window.pywebview.api) {
-                    window.pywebview.api.drag_move();
+            titleBar.addEventListener('mousemove', (e) => {
+                const r = titleBar.getBoundingClientRect();
+                if (e.clientY - r.top < RESIZE_GRIP) {
+                    if (e.clientX - r.left < RESIZE_GRIP) titleBar.style.cursor = 'nwse-resize';
+                    else if (r.right - e.clientX < RESIZE_GRIP) titleBar.style.cursor = 'nesw-resize';
+                    else titleBar.style.cursor = 'ns-resize';
+                } else {
+                    titleBar.style.cursor = '';
                 }
             });
 
-            window.addEventListener('mouseup', () => {
-                if (dragging) {
-                    dragging = false;
-                    if (window.pywebview && window.pywebview.api) {
-                        window.pywebview.api.drag_end();
-                    }
-                }
+            titleBar.addEventListener('mouseleave', () => {
+                titleBar.style.cursor = '';
             });
         })();
 

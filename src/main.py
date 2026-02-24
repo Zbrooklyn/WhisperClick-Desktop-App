@@ -46,6 +46,8 @@ from src.pill_manager import PillManager
 _log = get_logger("main")
 
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
 # Window position persistence
 # ---------------------------------------------------------------------------
 _WINDOW_POS_FILE = os.path.join(CONFIG_DIR, "window_pos.json")
@@ -132,6 +134,8 @@ def _find_hwnd():
             return _cached_hwnd
         _cached_hwnd = None
     hwnd = ctypes.windll.user32.FindWindowW(None, "WhisperClick")
+    if not hwnd:
+        hwnd = ctypes.windll.user32.FindWindowW(None, "WhisperClick [DEV]")
     if hwnd:
         _cached_hwnd = hwnd
     return hwnd
@@ -188,6 +192,133 @@ def _is_pos_on_screen(x, y):
     # Consider visible if the top-left corner is within any monitor
     # with a small margin so the title bar is reachable
     return any(left <= x < right - 50 and top <= y < bottom - 50 for left, top, right, bottom in monitors)
+
+
+# ---------------------------------------------------------------------------
+# WM_NCHITTEST WndProc hook — enables native title-bar drag + Windows snap
+# ---------------------------------------------------------------------------
+# Must be kept at module level so the callback is never garbage-collected.
+_wndproc_ref = None
+
+
+def _install_nchittest_hook(hwnd):
+    """Subclass *hwnd* so WM_NCHITTEST returns HTCAPTION for the title bar.
+
+    This makes Windows treat the custom title bar as a real caption area,
+    enabling drag-to-edge snap, snap layouts, and Win+Arrow shortcuts.
+    """
+    global _wndproc_ref
+
+    import ctypes.wintypes as _wt
+
+    user32 = ctypes.windll.user32
+
+    # Proper 64-bit function signatures
+    user32.GetWindowLongPtrW.restype = ctypes.c_ssize_t
+    user32.GetWindowLongPtrW.argtypes = [_wt.HWND, ctypes.c_int]
+    user32.SetWindowLongPtrW.restype = ctypes.c_ssize_t
+    user32.SetWindowLongPtrW.argtypes = [_wt.HWND, ctypes.c_int, ctypes.c_ssize_t]
+    user32.CallWindowProcW.restype = ctypes.c_ssize_t
+    user32.CallWindowProcW.argtypes = [
+        ctypes.c_ssize_t,
+        _wt.HWND,
+        ctypes.c_uint,
+        _wt.WPARAM,
+        _wt.LPARAM,
+    ]
+
+    GWLP_WNDPROC = -4
+    WM_NCHITTEST = 0x0084
+    HTCLIENT = 1
+    HTCAPTION = 2
+
+    old_proc = user32.GetWindowLongPtrW(hwnd, GWLP_WNDPROC)
+
+    # Title-bar geometry (CSS pixels → physical via DPI).
+    TITLE_BAR_CSS_HEIGHT = 40  # h-10 in Tailwind
+    BUTTON_ZONE_CSS_WIDTH = 160  # settings + min + max + divider + close
+
+    try:
+        dpi = user32.GetDpiForWindow(hwnd) or 96
+    except Exception:
+        dpi = 96
+    scale = dpi / 96.0
+    title_h = int(TITLE_BAR_CSS_HEIGHT * scale)
+    btn_w = int(BUTTON_ZONE_CSS_WIDTH * scale)
+
+    WNDPROC = ctypes.WINFUNCTYPE(
+        ctypes.c_ssize_t,
+        _wt.HWND,
+        ctypes.c_uint,
+        _wt.WPARAM,
+        _wt.LPARAM,
+    )
+
+    WM_APP_DRAGSTART = 0x8001  # posted by api.py drag_start()
+    WM_NCCALCSIZE = 0x0083
+
+    HTTOP = 12
+    HTTOPLEFT = 13
+    HTTOPRIGHT = 14
+    border = max(int(6 * scale), 6)  # resize grip width in physical px
+
+    def _hook(h, msg, wp, lp):
+        if msg == WM_NCHITTEST:
+            result = user32.CallWindowProcW(old_proc, h, msg, wp, lp)
+            if result == HTCLIENT:
+                x = lp & 0xFFFF
+                y = (lp >> 16) & 0xFFFF
+                if x > 32767:
+                    x -= 65536
+                if y > 32767:
+                    y -= 65536
+                rect = _wt.RECT()
+                user32.GetWindowRect(h, ctypes.byref(rect))
+                at_top = (y - rect.top) < border
+                at_left = (x - rect.left) < border
+                at_right = (rect.right - x) < border
+                # Top-edge resize (NC area removed by WM_NCCALCSIZE)
+                if at_top and at_left:
+                    return HTTOPLEFT
+                if at_top and at_right:
+                    return HTTOPRIGHT
+                if at_top:
+                    return HTTOP
+                # Title bar drag (below resize grip)
+                in_title = (y - rect.top) < title_h
+                in_buttons = (rect.right - x) < btn_w
+                if in_title and not in_buttons:
+                    return HTCAPTION
+            return result
+        if msg == WM_NCCALCSIZE and wp:
+            # rgrc[0] is the PROPOSED new window rect. Save its top
+            # before the default handler converts it to a client rect.
+            rect_ptr = ctypes.cast(lp, ctypes.POINTER(_wt.RECT))
+            proposed_top = rect_ptr[0].top
+            user32.CallWindowProcW(old_proc, h, msg, wp, lp)
+            # When maximized, Windows oversizes the window beyond the
+            # screen — the accent line is off-screen, so skip override.
+            # When restored or snapped-half, extend client to window
+            # top to hide the accent line.
+            if not user32.IsZoomed(h):
+                rect_ptr[0].top = proposed_top
+            return 0
+        if msg == WM_APP_DRAGSTART:
+            user32.ReleaseCapture()
+            user32.SendMessageW(h, 0x00A1, HTCAPTION, 0)  # WM_NCLBUTTONDOWN
+            return 0
+        WM_APP_NCRESIZE = 0x8002
+        if msg == WM_APP_NCRESIZE:
+            # wParam carries the hit-test code (HTTOP, HTTOPLEFT, etc.)
+            user32.ReleaseCapture()
+            user32.SendMessageW(h, 0x00A1, wp, 0)  # WM_NCLBUTTONDOWN
+            return 0
+        return user32.CallWindowProcW(old_proc, h, msg, wp, lp)
+
+    _wndproc_ref = WNDPROC(_hook)
+    proc_ptr = ctypes.cast(_wndproc_ref, ctypes.c_void_p).value
+    user32.SetWindowLongPtrW(hwnd, GWLP_WNDPROC, proc_ptr)
+    _log.info("WM_NCHITTEST hook installed (title_h=%d, btn_w=%d, dpi=%d)", title_h, btn_w, dpi)
 
 
 SRC_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -561,8 +692,6 @@ def main():
     if not _acquire_instance_lock():
         # Another instance is already running
         try:
-            import ctypes
-
             ctypes.windll.user32.MessageBoxW(
                 0,
                 "WhisperClick is already running.\nCheck the system tray.",
@@ -868,8 +997,6 @@ def main():
     if not html_path.exists():
         msg = f"Frontend file not found: {html_path}"
         try:
-            import ctypes
-
             ctypes.windll.user32.MessageBoxW(0, msg, "WhisperClick Error", 0x10)
         except Exception:
             _log.error(msg)
@@ -924,6 +1051,62 @@ def main():
                     saved_pos["y"],
                     saved_pos.get("w"),
                     saved_pos.get("h"),
+                )
+
+            # 2. Enable Windows snap support (Win+Arrow, drag-to-edge)
+            # Must run AFTER pywebview's WinForms init finishes setting
+            # FormBorderStyle.None, otherwise it strips WS_THICKFRAME.
+            if hwnd:
+                time.sleep(2)
+                GWL_STYLE = -16
+                WS_THICKFRAME = 0x00040000
+                WS_MAXIMIZEBOX = 0x00010000
+                style = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_STYLE)
+                style |= WS_THICKFRAME | WS_MAXIMIZEBOX
+                ctypes.windll.user32.SetWindowLongW(hwnd, GWL_STYLE, style)
+                SWP_FRAMECHANGED = 0x0020
+                SWP_NOMOVE = 0x0002
+                SWP_NOSIZE = 0x0001
+                SWP_NOZORDER = 0x0004
+                ctypes.windll.user32.SetWindowPos(
+                    hwnd,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER,
+                )
+                # Remove the thin Windows 11 DWM accent border.
+                # DWMWA_BORDER_COLOR (34) with DWMWA_COLOR_NONE disables it.
+                DWMWA_COLOR_NONE = ctypes.c_uint32(0xFFFFFFFE)
+                ctypes.windll.dwmapi.DwmSetWindowAttribute.restype = ctypes.c_long
+                hr = ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                    hwnd,
+                    34,
+                    ctypes.byref(DWMWA_COLOR_NONE),
+                    ctypes.sizeof(DWMWA_COLOR_NONE),
+                )
+                if hr != 0:
+                    _log.warning("DwmSetWindowAttribute DWMWA_BORDER_COLOR failed: 0x%08X", hr & 0xFFFFFFFF)
+                else:
+                    _log.info("DWM border color set to DWMWA_COLOR_NONE")
+
+                # 2b. Subclass WndProc to handle WM_NCHITTEST for native
+                # title-bar drag + snap.  Returning HTCAPTION for the title
+                # bar area makes Windows treat it as a real caption, enabling
+                # drag-to-edge snap, snap layouts, and Win+Arrow.
+                _install_nchittest_hook(hwnd)
+
+                # Re-trigger NC recalculation now that the hook is active.
+                ctypes.windll.user32.SetWindowPos(
+                    hwnd,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER,
                 )
 
             # 3. Start periodic position+size saver (survives force-kill)

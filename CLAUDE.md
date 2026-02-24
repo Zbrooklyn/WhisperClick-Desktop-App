@@ -14,7 +14,7 @@ Golden principles for AI-assisted development. Every agent session must follow t
 
 ```
 src/
-  main.py              # Entrypoint: pywebview + pystray + hotkey + tray
+  main.py              # Entrypoint: pywebview + pystray + hotkey + tray + WndProc hook
   pill_manager.py      # PySide6 pill lifecycle (spawn, position, IPC)
   pill_widget.py       # PySide6 pill UI widget
   backend/
@@ -84,12 +84,12 @@ Exception: `config.py` uses lazy import to avoid circular dependency.
 | Line length | 120 chars | `black` + `ruff` |
 
 **Known exceptions:**
-- `api.py` (1274 lines) — legacy monolith, exempted from file-size check. Refactor is future work.
+- `api.py` (1304 lines) — legacy monolith, exempted from file-size check. Refactor is future work.
+- `main.py` (1173 lines) — grew with WndProc hook for maximize/snap/drag support. Refactor candidate.
 - `api.py:stop_recording()` (~120 lines) — exempted from function-size check. Tech debt.
 
 **Near-limit files** (watch for growth):
 - `pill_widget.py` (782 lines)
-- `main.py` (750 lines)
 
 ## Forbidden Patterns
 
@@ -103,10 +103,13 @@ These must never appear in new code:
 | `print()` in `src/` | Use `_log` instead; print breaks structured logging |
 | `-webkit-app-region: drag` | Not supported by pywebview's WebView2 backend |
 | `import *` | Breaks static analysis and makes dependencies opaque |
+| `SendMessageW` for drag from JS thread | Deadlocks — modal drag loop blocks calling thread |
+| `GetWindowRect` in `WM_NCCALCSIZE` | Returns OLD position during snap; read NCCALCSIZE_PARAMS instead |
+| `querySelector('i')` for Lucide icons | Lucide replaces `<i>` with `<svg>`; use `[data-lucide]` selector |
 
 ## Testing
 
-- **Primary suite:** `python tools/v3_full_test.py` (269 test cases, requires audio hardware)
+- **Primary suite:** `python tools/v3_full_test.py` (280 test cases, requires audio hardware)
 - **Pytest tests:** `python -m pytest tests/` (unit tests, no hardware required)
 - **Smoke test:** `python tools/full_smoke_test.py --timeout 20`
 - **After every code change**, run `tools/v3_full_test.py` and confirm no regressions.
@@ -127,7 +130,7 @@ These must never appear in new code:
 - GUI processes: use `run_in_background: true`, never `pythonw.exe` or `&`
 - Lock file: `~/.config/whisperclick/whisperclick.lock`
 - DPI: Per-Monitor V2 awareness set in `main.py` before any UI imports
-- Drag: Win32 physical-pixel approach (see `docs/dpi-drag-fix-spec.md`)
+- Drag: WM_APP_DRAGSTART native drag with snap (see `docs/maximize-snap-changelog.md`; old SetWindowPos approach in `docs/dpi-drag-fix-spec.md` is superseded)
 - Build: PyInstaller specs in project root, Inno Setup in `installer/`
 
 ## Public/Private Repo Safety

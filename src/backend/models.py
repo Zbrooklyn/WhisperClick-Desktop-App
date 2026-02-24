@@ -2,8 +2,11 @@ import fnmatch
 import os
 import shutil
 
-# faster-whisper models are stored in HuggingFace cache
-HF_CACHE_DIR = os.path.join(os.path.expanduser("~"), ".cache", "huggingface", "hub")
+from src.backend.config import MODELS_DIR
+
+# Models are stored per-environment under CONFIG_DIR/models/
+# (dev and prod are fully isolated)
+HF_CACHE_DIR = MODELS_DIR
 
 # Map model names to their HuggingFace repo IDs (used by faster-whisper)
 MODEL_INFO = {
@@ -99,7 +102,8 @@ def download_model(model_name, progress_callback=None):
     if progress_callback:
         progress_callback(0, total)
 
+    os.makedirs(HF_CACHE_DIR, exist_ok=True)
     for idx, filename in enumerate(files, start=1):
-        hf_hub_download(repo_id=repo_id, filename=filename, repo_type="model")
+        hf_hub_download(repo_id=repo_id, filename=filename, repo_type="model", cache_dir=HF_CACHE_DIR)
         if progress_callback:
             progress_callback(idx, total)

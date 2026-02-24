@@ -70,6 +70,17 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
 [Code]
+procedure KillRunningInstance();
+var
+  ResultCode: Integer;
+begin
+  { WhisperClick minimizes to system tray on close, so the Restart Manager
+    cannot shut it down gracefully. Force-kill the process before installing. }
+  Exec('taskkill.exe', '/F /IM {#MyAppExeName}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  { Brief pause to let the OS release file locks }
+  Sleep(500);
+end;
+
 function InitializeSetup(): Boolean;
 var
   InstalledVersion: String;
@@ -85,4 +96,11 @@ begin
         'Continue anyway?', mbConfirmation, MB_YESNO) = IDYES);
     end;
   end;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  Result := '';
+  NeedsRestart := False;
+  KillRunningInstance();
 end;

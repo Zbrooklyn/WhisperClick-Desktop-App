@@ -46,4 +46,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Settings panel: provider, model, hotkey, language, microphone, sound toggles
 - Windows build pipeline: folder portable, single-file portable, installer (Inno Setup)
 - Pre-commit hooks for black + ruff formatting/linting
-- Comprehensive test suite (269 test cases)
+- Comprehensive test suite (280 test cases)

@@ -1,5 +1,13 @@
 # DPI-Aware Window Dragging — Fix Specification
 
+> **SUPERSEDED (2026-02-24):** The SetWindowPos-based drag approach documented below
+> has been replaced by the **WM_APP_DRAGSTART pattern** — JS mousedown posts a custom
+> Win32 message, WndProc on the UI thread calls `ReleaseCapture()` +
+> `SendMessage(WM_NCLBUTTONDOWN, HTCAPTION)`, which gives native drag with full
+> Windows snap support. `drag_move()` and `drag_end()` are now no-ops. The DPI
+> awareness setup (Per-Monitor V2) is still active and correct.
+> See `docs/maximize-snap-changelog.md` for the full story.
+
 ## Problem
 
 Pywebview 6.1 frameless window drag breaks on multi-monitor setups with

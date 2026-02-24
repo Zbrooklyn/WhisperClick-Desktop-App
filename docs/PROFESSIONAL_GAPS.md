@@ -14,7 +14,7 @@ Identified: 2026-02-22
 No GitHub Actions or similar automation. Tests only run when someone remembers to run them, or when the release script forces it. Professional teams run tests on every push and every PR automatically. A failing test should block the merge, not get discovered after release.
 
 ### Code Coverage Tracking
-We have 269 tests, but no way to know what percentage of code they actually exercise. Entire code paths could be untested. Tools like `coverage.py` or `pytest-cov` generate reports showing exactly which lines and branches are hit.
+We have 280 tests, but no way to know what percentage of code they actually exercise. Entire code paths could be untested. Tools like `coverage.py` or `pytest-cov` generate reports showing exactly which lines and branches are hit.
 
 ### Dependency Vulnerability Scanning
 No Dependabot, Snyk, or similar. If `faster-whisper`, `PySide6`, or any other dependency ships a CVE, we won't know until something breaks. Automated scanning flags vulnerable packages and can auto-open PRs with the fix.

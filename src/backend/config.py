@@ -24,11 +24,13 @@ def _get_log():
 
 # Installed EXE (frozen) uses "whisperclick"; running from source uses "whisperclick-dev"
 # so dev/test runs never touch real user data.
-_CONFIG_FOLDER = "whisperclick" if getattr(sys, "frozen", False) else "whisperclick-dev"
+IS_FROZEN = getattr(sys, "frozen", False)
+_CONFIG_FOLDER = "whisperclick" if IS_FROZEN else "whisperclick-dev"
 CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".config", _CONFIG_FOLDER)
 SETTINGS_FILE = os.path.join(CONFIG_DIR, "settings.json")
 HISTORY_FILE = os.path.join(CONFIG_DIR, "history.json")
 AUDIO_DIR = os.path.join(CONFIG_DIR, "audio")
+MODELS_DIR = os.path.join(CONFIG_DIR, "models")
 
 _OLD_CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".config", "whisper-stt")
 
