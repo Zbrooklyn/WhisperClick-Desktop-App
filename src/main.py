@@ -570,7 +570,7 @@ def main():
                 0x40,
             )
         except Exception:
-            print("WhisperClick is already running.")
+            _log.warning("WhisperClick is already running.")
         sys.exit(0)
 
     api = Api()
