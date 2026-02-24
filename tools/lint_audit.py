@@ -35,6 +35,9 @@ FILE_SIZE_EXEMPTIONS = {
 FUNCTION_SIZE_EXEMPTIONS = {
     ("src/backend/api.py", "stop_recording"),  # ~120 lines, complex cleanup logic
     ("src/main.py", "main"),  # app entrypoint, inherently large
+    ("src/main.py", "_install_nchittest_hook"),  # 118 lines, WndProc subclass with snap/maximize/drag
+    ("src/main.py", "_on_webview_started"),  # 91 lines, HWND setup with style patching
+    ("src/main.py", "_restore_and_save"),  # 86 lines, window state persistence on close
     ("src/pill_widget.py", "_build_dynamic_menu"),  # 81 lines, 1 over limit
 }
 
