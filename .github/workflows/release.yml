@@ -11,6 +11,8 @@ permissions:
 jobs:
   build-windows:
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.ver }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -70,3 +72,45 @@ jobs:
             --title "WhisperClick ${{ steps.version.outputs.ver }}" ^
             --generate-notes
         shell: cmd
+
+  sync-public:
+    needs: build-windows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Private-only files — keep in sync with .github/PUBLIC_SYNC.md
+      - name: Remove private-only files
+        run: |
+          rm -f HANDOFF.md progress.json CLAUDE.md PROJECT.md
+          rm -f docs/DEVELOPER_QUESTIONS.md docs/PROFESSIONAL_GAPS.md
+          rm -f docs/PRODUCTION_AUDIT_CHECKLIST.md docs/PRODUCTION_CHECKLIST.md
+          rm -f docs/ROADMAP.md .github/PUBLIC_SYNC.md
+          rm -rf docs/archive
+          git config user.name "sync-public"
+          git config user.email "noreply@whisperclick.app"
+          git add -A
+          git diff --cached --quiet || git commit -m "Remove private-only files for public release"
+
+      - name: Push to public repo
+        run: |
+          git remote add public https://x-access-token:${{ secrets.PUBLIC_REPO_TOKEN }}@github.com/Zbrooklyn/WhisperClick-Desktop-App.git
+          git push --force public HEAD:main
+
+      - name: Download release assets from private repo
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p assets
+          gh release download "${{ github.ref_name }}" --dir assets
+
+      - name: Create release on public repo
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            assets/* \
+            --repo Zbrooklyn/WhisperClick-Desktop-App \
+            --title "WhisperClick ${{ needs.build-windows.outputs.version }}" \
+            --generate-notes
