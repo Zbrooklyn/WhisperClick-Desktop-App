@@ -2,9 +2,9 @@
 
 ## Current State
 
-- Status: v1.1.0 released + maximize/snap feature complete
+- Status: v1.2.0 released (private + public), all features complete
 - Date context: 2026-02-24
-- Summary: Desktop app released as v1.1.0. Post-release: added maximize button, Windows snap support (drag-to-edge, Win+Arrow, Snap Layouts), native title bar drag via WM_APP_DRAGSTART pattern, accent border removal, and UI fixes for onboarding/settings overlay visibility.
+- Summary: Desktop app released as v1.2.0 with maximize/snap, WndProc guard, complete dev/prod isolation, onboarding fix, and website launch page.
 
 ## Canonical Runtime Paths
 
@@ -47,7 +47,7 @@
   - source of truth: `assets/microphone_logo.svg`
   - generated runtime/build assets: `assets/microphone_logo.png`, `assets/microphone_logo.ico`
 
-## Post-v1.1.0 Changes (2026-02-24)
+## v1.2.0 Changes (2026-02-24)
 
 - Maximize button + toggle_maximize()/is_maximized() API
 - Windows snap support: drag-to-edge, Win+Arrow, Snap Layouts (Win+Z)
@@ -56,14 +56,19 @@
 - Double-click title bar to maximize (mousedown timing, 300ms threshold)
 - Maximize icon swap using is_maximized() API + Lucide `[data-lucide]` selector
 - Onboarding overlay and settings drawer now use `top-10` so title bar stays visible
+- WndProc guard loop: detects and reinstalls hook if WebView2 overwrites WndProc during late init
+- Complete dev/prod isolation: AppUserModelID, registry autostart key, hotkey ID now separated
+- Onboarding fix: skip onboarding when backend settings indicate prior configuration; show toast instead
+- Onboarding UI fix: progress bar starts at 0% (was 100%), shows "Checking..." instead of "Ready"
+- Website: product launch page with SEO keywords, direct download via GitHub API, download notification
+- README: rewritten as product launch page
 - Detailed changelog: `docs/maximize-snap-changelog.md`
 
 ## Known Issues / Open Gaps
 
 - ~~History search input is currently not working.~~ (Fixed — substring filter implemented)
 - ~~Local models not working in installed EXE.~~ (Fixed in v1.1.0 — PyInstaller hidden imports + DLLs)
-- Pill widget recording parity is incomplete:
-  - pill recording path is not yet fully aligned with main UI provider/model/API-key pipeline behavior.
+- ~~Pill widget recording parity is incomplete.~~ (Resolved — `_inject_api_credentials()` in `stop_recording()` reads fresh `self._settings` + keyring for all paths: pill, tray, main UI. Frontend pushes every setting change to backend immediately.)
 - Full manual release validation is still pending:
   - tray/menu behavior matrix
   - pill behavior matrix
@@ -81,7 +86,7 @@
 - Legacy smoke test: `python tools/full_smoke_test.py --timeout 20`
   - Result: pass (`automated_passed: 9`, `automated_failed: 0`)
 - Python compile checks: all 22 `.py` files compile cleanly
-- Latest release: v1.1.0 (2026-02-23)
+- Latest release: v1.2.0 (2026-02-24)
 
 ## v1.1.0 Changes (2026-02-23)
 
@@ -111,13 +116,9 @@
 
 ## Next Actions
 
-1. Run full test suite (`tools/v3_full_test.py`) to verify no regressions from maximize/snap changes.
-2. Clean up unused `_install_drag_subclass()` function in main.py (superseded by WndProc hook).
-3. **Test v1.1.0 release EXE** — download from GitHub, verify local model transcription works in the installed build.
-4. Complete pill recording parity with main UI transcription pipeline.
-5. Run full manual production audit matrix (hotkey, tray, pill, local/API modes, device edge cases).
-6. Validate on a second Windows machine.
-7. macOS port — planned and documented in `docs/ROADMAP.md`.
+1. Run full manual production audit matrix (hotkey, tray, pill, local/API modes, device edge cases).
+2. Validate on a second Windows machine.
+3. macOS port — planned and documented in `docs/ROADMAP.md`.
 
 ## Documentation Map
 

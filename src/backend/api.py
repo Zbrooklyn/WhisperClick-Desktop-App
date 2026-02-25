@@ -85,8 +85,8 @@ class Api:
         self._is_processing = False
 
     def get_version(self):
-        """Return app version for display in the UI."""
-        return {"version": __version__}
+        """Return app version and environment for display in the UI."""
+        return {"version": __version__, "dev": not IS_FROZEN}
 
     @classmethod
     def _normalize_provider(cls, provider: str) -> str | None:
@@ -163,10 +163,15 @@ class Api:
 
     @staticmethod
     def _find_hwnd():
-        """Find the WhisperClick window handle (works in both dev and production)."""
-        hwnd = ctypes.windll.user32.FindWindowW(None, "WhisperClick")
-        if not hwnd:
+        """Find the WhisperClick window handle (searches own title first)."""
+        if IS_FROZEN:
+            hwnd = ctypes.windll.user32.FindWindowW(None, "WhisperClick")
+            if not hwnd:
+                hwnd = ctypes.windll.user32.FindWindowW(None, "WhisperClick [DEV]")
+        else:
             hwnd = ctypes.windll.user32.FindWindowW(None, "WhisperClick [DEV]")
+            if not hwnd:
+                hwnd = ctypes.windll.user32.FindWindowW(None, "WhisperClick")
         return hwnd
 
     def drag_start(self):
@@ -1042,10 +1047,12 @@ class Api:
                     python_exe = sys.executable
                     main_py = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "main.py"))
                     launch_cmd = f'"{python_exe}" "{main_py}"'
-                winreg.SetValueEx(key, "WhisperClick", 0, winreg.REG_SZ, launch_cmd)
+                _reg_name = "WhisperClick" if IS_FROZEN else "WhisperClick-Dev"
+                winreg.SetValueEx(key, _reg_name, 0, winreg.REG_SZ, launch_cmd)
             else:
                 try:
-                    winreg.DeleteValue(key, "WhisperClick")
+                    _reg_name = "WhisperClick" if IS_FROZEN else "WhisperClick-Dev"
+                    winreg.DeleteValue(key, _reg_name)
                 except FileNotFoundError:
                     pass
             winreg.CloseKey(key)

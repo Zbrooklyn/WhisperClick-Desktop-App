@@ -126,16 +126,22 @@ def _calc_default_window_size():
 
 
 def _find_hwnd():
-    """Find and cache the WhisperClick HWND."""
+    """Find and cache the WhisperClick HWND (searches own title first)."""
     global _cached_hwnd
     if _cached_hwnd:
         # Verify it's still valid
         if ctypes.windll.user32.IsWindow(_cached_hwnd):
             return _cached_hwnd
         _cached_hwnd = None
-    hwnd = ctypes.windll.user32.FindWindowW(None, "WhisperClick")
-    if not hwnd:
+    _is_dev = not getattr(sys, "frozen", False)
+    if _is_dev:
         hwnd = ctypes.windll.user32.FindWindowW(None, "WhisperClick [DEV]")
+        if not hwnd:
+            hwnd = ctypes.windll.user32.FindWindowW(None, "WhisperClick")
+    else:
+        hwnd = ctypes.windll.user32.FindWindowW(None, "WhisperClick")
+        if not hwnd:
+            hwnd = ctypes.windll.user32.FindWindowW(None, "WhisperClick [DEV]")
     if hwnd:
         _cached_hwnd = hwnd
     return hwnd
@@ -199,6 +205,7 @@ def _is_pos_on_screen(x, y):
 # ---------------------------------------------------------------------------
 # Must be kept at module level so the callback is never garbage-collected.
 _wndproc_ref = None
+_wndproc_expected_ptr = None  # the pointer value we set; used to detect overwrites
 
 
 def _install_nchittest_hook(hwnd):
@@ -315,9 +322,11 @@ def _install_nchittest_hook(hwnd):
             return 0
         return user32.CallWindowProcW(old_proc, h, msg, wp, lp)
 
+    global _wndproc_expected_ptr
     _wndproc_ref = WNDPROC(_hook)
     proc_ptr = ctypes.cast(_wndproc_ref, ctypes.c_void_p).value
     user32.SetWindowLongPtrW(hwnd, GWLP_WNDPROC, proc_ptr)
+    _wndproc_expected_ptr = proc_ptr
     _log.info("WM_NCHITTEST hook installed (title_h=%d, btn_w=%d, dpi=%d)", title_h, btn_w, dpi)
 
 
@@ -361,7 +370,8 @@ def _set_windows_app_id():
     try:
         import ctypes
 
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_USER_MODEL_ID)
+        app_id = APP_USER_MODEL_ID + ".dev" if _IS_DEV else APP_USER_MODEL_ID
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
     except Exception:
         _log.warning("Failed to set AppUserModelID", exc_info=True)
 
@@ -445,7 +455,7 @@ _MOD_SHIFT = 0x0004
 _MOD_WIN = 0x0008
 _MOD_NOREPEAT = 0x4000
 _WM_HOTKEY = 0x0312
-_HOTKEY_ID = 1  # single global hotkey
+_HOTKEY_ID = 2 if not getattr(sys, "frozen", False) else 1  # distinct IDs so dev + prod don't collide
 
 _VK_MAP = {
     "space": 0x20,
@@ -1096,7 +1106,10 @@ def main():
                 # title-bar drag + snap.  Returning HTCAPTION for the title
                 # bar area makes Windows treat it as a real caption, enabling
                 # drag-to-edge snap, snap layouts, and Win+Arrow.
-                _install_nchittest_hook(hwnd)
+                try:
+                    _install_nchittest_hook(hwnd)
+                except Exception:
+                    _log.error("WndProc hook install failed", exc_info=True)
 
                 # Re-trigger NC recalculation now that the hook is active.
                 ctypes.windll.user32.SetWindowPos(
@@ -1109,7 +1122,53 @@ def main():
                     SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER,
                 )
 
-            # 3. Start periodic position+size saver (survives force-kill)
+            # 3. Guard against WebView2 overwriting our WndProc during
+            #    late initialization (common on first cold launch of EXE).
+            #    Poll for 30s; reinstall if our hook gets replaced.
+            import ctypes.wintypes as _guard_wt
+
+            ctypes.windll.user32.GetWindowLongPtrW.restype = ctypes.c_ssize_t
+            ctypes.windll.user32.GetWindowLongPtrW.argtypes = [
+                _guard_wt.HWND,
+                ctypes.c_int,
+            ]
+            GWLP_WNDPROC = -4
+            _hwnd_handle = _guard_wt.HWND(hwnd)
+            guard_end = time.monotonic() + 30
+            reinstall_count = 0
+            while hwnd and time.monotonic() < guard_end:
+                time.sleep(0.5)
+                try:
+                    current = ctypes.windll.user32.GetWindowLongPtrW(_hwnd_handle, GWLP_WNDPROC)
+                    # 0 means GetWindowLongPtrW failed — skip, don't reinstall
+                    if not current or not _wndproc_expected_ptr:
+                        continue
+                    if current != _wndproc_expected_ptr:
+                        reinstall_count += 1
+                        _log.warning(
+                            "WndProc overwritten (expected %#x, got %#x) — reinstalling (#%d)",
+                            _wndproc_expected_ptr,
+                            current,
+                            reinstall_count,
+                        )
+                        _install_nchittest_hook(hwnd)
+                        ctypes.windll.user32.SetWindowPos(
+                            hwnd,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER,
+                        )
+                except Exception:
+                    _log.debug("WndProc guard check failed", exc_info=True)
+            if reinstall_count:
+                _log.info("WndProc guard finished — reinstalled %d time(s)", reinstall_count)
+            else:
+                _log.info("WndProc guard finished — no overwrites detected")
+
+            # 4. Start periodic position+size saver (survives force-kill)
             last_state = None
             while True:
                 time.sleep(3)

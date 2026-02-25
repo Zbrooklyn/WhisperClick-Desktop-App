@@ -86,9 +86,21 @@
       "status": "complete",
       "description": "Onboarding and settings overlays use top-10 so title bar stays accessible"
     },
+    "wndproc_guard": {
+      "status": "complete",
+      "description": "Guard loop detects and reinstalls WndProc hook if WebView2 overwrites it during late init"
+    },
+    "onboarding_smart_detection": {
+      "status": "complete",
+      "description": "Onboarding skips when backend settings indicate prior config; shows toast for missing API key instead"
+    },
+    "website_launch_page": {
+      "status": "complete",
+      "description": "Product launch page with SEO, direct download via GitHub API, download notification"
+    },
     "pill_recording_parity": {
-      "status": "in-progress",
-      "description": "Pill widget recording path not fully aligned with main UI pipeline"
+      "status": "complete",
+      "description": "Pill uses same stop_recording() path with _inject_api_credentials() reading fresh self._settings + keyring"
     },
     "local_model_frozen_build": {
       "status": "complete",
@@ -96,7 +108,7 @@
     },
     "dev_prod_isolation": {
       "status": "complete",
-      "description": "Separate config dirs (whisperclick-dev vs whisperclick), dev ribbon on tray icon, [DEV] in window title"
+      "description": "Config dirs, keyring, window title, tray icon, AppUserModelID, registry autostart, hotkey ID all isolated"
     },
     "installer_options": {
       "status": "complete",
@@ -132,8 +144,8 @@
       "type": "tech_debt"
     },
     "install_drag_subclass_dead_code": {
-      "status": "acknowledged",
-      "description": "_install_drag_subclass() in main.py is dead code — superseded by WndProc hook, should be removed",
+      "status": "resolved",
+      "description": "_install_drag_subclass() already removed — no longer in codebase",
       "type": "tech_debt"
     }
   },
@@ -145,7 +157,7 @@
     },
     "pytest_tests": {
       "count": 19,
-      "last_result": "15 passed, 4 failed (pre-existing mock patching issue in TestTranslateOpenAI)",
+      "last_result": "19 passed, 0 failed",
       "location": "tests/",
       "requires": "none"
     },

@@ -124,9 +124,9 @@
                         <span id="onboarding-local-caption" class="text-xs text-stone-500">Checking model...</span>
                     </div>
                     <div class="h-2 bg-stone-200 dark:bg-stone-700 rounded-full overflow-hidden">
-                        <div id="onboarding-progress" class="h-full bg-accent w-full transition-all duration-300"></div>
+                        <div id="onboarding-progress" class="h-full bg-accent w-0 transition-all duration-300"></div>
                     </div>
-                    <div class="mt-2 text-xs text-stone-500 text-right" id="onboarding-status">Ready</div>
+                    <div class="mt-2 text-xs text-stone-500 text-right" id="onboarding-status">Checking...</div>
                 </div>
 
                 <button id="onboarding-btn" onclick="startOnboarding()" class="w-full py-3 bg-accent hover:bg-accent-hover text-white font-medium rounded-lg shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer relative z-50">
@@ -543,7 +543,7 @@
                 </div>
 
                 <div class="pt-6 mt-4 border-t border-stone-200 dark:border-stone-700 text-center">
-                    <p class="font-semibold text-sm dark:text-stone-200">WhisperClick</p>
+                    <p class="font-semibold text-sm dark:text-stone-200" data-app-name>WhisperClick</p>
                     <p id="app-version" class="text-xs text-stone-500">v1.2.0</p>
                 </div>
             </div>
@@ -553,7 +553,7 @@
         <header id="title-bar" data-drag="true" class="h-10 bg-stone-100 dark:bg-stone-850 flex items-center justify-between px-3 border-b border-stone-200 dark:border-stone-700 shrink-0 cursor-default select-none">
             <div class="flex items-center gap-2">
                 <i data-lucide="mic" class="w-4 h-4 text-accent"></i>
-                <span class="font-semibold text-sm tracking-wide dark:text-stone-200">WhisperClick</span>
+                <span class="font-semibold text-sm tracking-wide dark:text-stone-200" data-app-name>WhisperClick</span>
             </div>
             <div class="flex items-center gap-1">
                 <button onclick="toggleSettings()" class="p-1.5 text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200 hover:bg-stone-200 dark:hover:bg-stone-700 rounded transition-colors" data-tooltip="Settings">
@@ -710,6 +710,7 @@
         let seconds = 0;
         let historyData = [];
         let localModelReady = false;
+        let _backendConfigured = false; // true when backend settings show prior configuration
         let currentMode = 'local';
         let localToolbarModel = 'Local Capture';
         let pendingText = "";
@@ -2317,10 +2318,12 @@
                 renderModelManager();
                 if (localModelReady) {
                     if (onboardingLocalCaption) onboardingLocalCaption.textContent = 'Ready';
+                    if (onboardingProgress) { onboardingProgress.classList.remove('w-0'); onboardingProgress.classList.add('w-full'); }
                     if (onboardingStatus) onboardingStatus.textContent = `${getLocalModelDisplayName(getLocalNameFromLabel(localToolbarModel))} is ready.`;
                     dismissOnboarding();
                 } else if (onboardingStatus) {
                     if (onboardingLocalCaption) onboardingLocalCaption.textContent = 'Download needed';
+                    if (onboardingProgress) { onboardingProgress.classList.remove('w-full'); onboardingProgress.classList.add('w-0'); }
                     onboardingStatus.textContent = `${localToolbarModel} model is not downloaded yet.`;
                 }
             } catch {
@@ -2445,6 +2448,11 @@
                         sourceLanguage: settings.source_language || undefined,
                         targetLanguage: settings.target_language || undefined
                     });
+
+                    // If backend has mode/provider configured, this isn't a first run
+                    if (settings.mode || settings.api_provider) {
+                        _backendConfigured = true;
+                    }
                 }
             } catch {
                 // Continue with local storage defaults when backend settings are unavailable.
@@ -2471,12 +2479,21 @@
                     const el = document.getElementById('app-version');
                     if (el) el.textContent = 'v' + ver.version;
                 }
+                if (ver && ver.dev) {
+                    document.querySelectorAll('[data-app-name]').forEach(el => {
+                        el.textContent = 'WhisperClick [DEV]';
+                    });
+                }
             } catch { /* version display is non-critical */ }
             await hydrateApiKeysFromBackend();
 
-            // Show onboarding only on first run (no model downloaded AND no API key)
-            if (!localModelReady && !openAiApiKeyMemory && !geminiApiKeyMemory) {
+            // Show onboarding only on genuine first run:
+            // no model downloaded AND no API key AND backend has no prior configuration
+            if (!localModelReady && !openAiApiKeyMemory && !geminiApiKeyMemory && !_backendConfigured) {
                 if (onboardingOverlay) onboardingOverlay.classList.remove('hidden');
+            } else if (_backendConfigured && !openAiApiKeyMemory && !geminiApiKeyMemory && !localModelReady) {
+                // Previously configured but keys are missing (e.g. dev/prod isolation)
+                showToast("API key not found — add your key in Settings", "info");
             }
 
             // After keys are loaded, ensure the active provider actually has a key.
