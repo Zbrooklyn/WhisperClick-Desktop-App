@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Sync non-private files from private repo to public repo.
 
-Usage: python tools/sync_public.py [--dry-run]
+Usage: python tools/sync_public.py [--dry-run] [--force]
 
-Creates a temporary branch from main, removes private-only files listed
-in .github/PUBLIC_SYNC.md, force-pushes to the 'public' remote's main
-branch, then cleans up the temporary branch.
+Builds a clean tree from main (minus private-only files), commits it
+on top of public/main, and pushes — a normal fast-forward push that
+does NOT reset GitHub Pages settings (custom domain, HTTPS, DNS).
 
-The private repo (origin) is never affected.
+Use --force to fall back to force-push if the normal push fails.
 """
 
 import subprocess
@@ -32,6 +32,7 @@ PRIVATE_ONLY_FILES = [
 TEMP_BRANCH = "_public_sync"
 PUBLIC_REMOTE = "public"
 TARGET_BRANCH = "main"
+SYNC_AUTHOR = "sync-public <noreply@whisperclick.app>"
 
 
 def run(cmd, check=True, capture=False):
@@ -49,8 +50,9 @@ def run(cmd, check=True, capture=False):
 
 def main():
     dry_run = "--dry-run" in sys.argv
+    allow_force = "--force" in sys.argv
 
-    # 1. Ensure we're on main and it's clean
+    # 1. Ensure working tree is clean
     result = run("git branch --show-current", capture=True)
     current_branch = result.stdout.strip()
 
@@ -62,12 +64,20 @@ def main():
     # 2. Delete temp branch if it exists from a previous failed run
     run(f"git branch -D {TEMP_BRANCH}", check=False, capture=True)
 
-    # 3. Create temp branch from main
-    print(f"\n=== Creating temp branch '{TEMP_BRANCH}' from {TARGET_BRANCH} ===")
-    run(f"git checkout -b {TEMP_BRANCH} {TARGET_BRANCH}")
+    # 3. Fetch latest public/main
+    print(f"\n=== Fetching {PUBLIC_REMOTE}/{TARGET_BRANCH} ===")
+    run(f"git fetch {PUBLIC_REMOTE} {TARGET_BRANCH}", check=False)
+
+    # 4. Create temp branch from public/main (to build on top of it)
+    print(f"\n=== Creating temp branch from {PUBLIC_REMOTE}/{TARGET_BRANCH} ===")
+    run(f"git checkout -b {TEMP_BRANCH} {PUBLIC_REMOTE}/{TARGET_BRANCH}")
 
     try:
-        # 4. Remove private-only files
+        # 5. Replace entire working tree with private main's content
+        print("\n=== Overlaying private main content ===")
+        run(f"git checkout {TARGET_BRANCH} -- .")
+
+        # 6. Remove private-only files
         print("\n=== Removing private-only files ===")
         existing = []
         for f in PRIVATE_ONLY_FILES:
@@ -78,32 +88,50 @@ def main():
 
         if existing:
             files_str = " ".join(f'"{f}"' for f in existing)
-            run(f"git rm -rq {files_str}")
-            run(
-                'git commit -m "Remove private-only files for public release" '
-                '--author="sync-public <noreply@whisperclick.app>"'
-            )
-        else:
-            print("  No private files found to remove.")
+            run(f"git rm -rfq {files_str}")
 
-        # 5. Push to public remote
-        if dry_run:
-            print(f"\n=== DRY RUN: would force-push to {PUBLIC_REMOTE}/{TARGET_BRANCH} ===")
-        else:
-            print(f"\n=== Force-pushing to {PUBLIC_REMOTE}/{TARGET_BRANCH} ===")
-            run(f"git push --force {PUBLIC_REMOTE} {TEMP_BRANCH}:{TARGET_BRANCH}")
-            print("\nPublic repo updated successfully.")
+        # 7. Stage everything and check if there are changes
+        run("git add -A")
+        diff_result = run("git diff --cached --quiet", check=False, capture=True)
 
-            # Re-enable HTTPS enforcement (force push resets GitHub Pages settings)
-            print("\n=== Re-enabling HTTPS enforcement ===")
-            run(
-                "gh api -X PUT repos/Zbrooklyn/WhisperClick-Desktop-App/pages "
-                "--input - --silent <<< '{\"https_enforced\":true}'",
-                check=False,
-            )
+        if diff_result.returncode == 0:
+            print("\nNo changes to sync — public repo is already up to date.")
+        else:
+            # Commit the changes
+            run(f'git commit -m "Sync from private repo" ' f'--author="{SYNC_AUTHOR}"')
+
+            # 8. Push to public remote (normal push, not force)
+            if dry_run:
+                print(f"\n=== DRY RUN: would push to {PUBLIC_REMOTE}/{TARGET_BRANCH} ===")
+            else:
+                print(f"\n=== Pushing to {PUBLIC_REMOTE}/{TARGET_BRANCH} ===")
+                push_result = run(
+                    f"git push {PUBLIC_REMOTE} {TEMP_BRANCH}:{TARGET_BRANCH}",
+                    check=False,
+                    capture=True,
+                )
+
+                if push_result.returncode != 0:
+                    if allow_force:
+                        print("\nNormal push failed — falling back to force push (--force).")
+                        run(f"git push --force {PUBLIC_REMOTE} {TEMP_BRANCH}:{TARGET_BRANCH}")
+
+                        # Force push resets Pages settings — re-enable HTTPS
+                        print("\n=== Re-enabling HTTPS enforcement ===")
+                        run(
+                            "gh api -X PUT repos/Zbrooklyn/WhisperClick-Desktop-App/pages "
+                            "--input - --silent <<< '{\"https_enforced\":true}'",
+                            check=False,
+                        )
+                    else:
+                        print("\nERROR: Push failed. Run with --force to force-push, " "or resolve manually.")
+                        print(push_result.stderr)
+                        sys.exit(1)
+                else:
+                    print("\nPublic repo updated successfully (fast-forward).")
 
     finally:
-        # 6. Clean up: switch back and delete temp branch
+        # 9. Clean up: switch back and delete temp branch
         print(f"\n=== Cleaning up: switching back to '{current_branch}' ===")
         run(f"git checkout {current_branch}")
         run(f"git branch -D {TEMP_BRANCH}")
