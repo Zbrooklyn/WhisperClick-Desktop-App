@@ -94,6 +94,14 @@ def main():
             run(f"git push --force {PUBLIC_REMOTE} {TEMP_BRANCH}:{TARGET_BRANCH}")
             print("\nPublic repo updated successfully.")
 
+            # Re-enable HTTPS enforcement (force push resets GitHub Pages settings)
+            print("\n=== Re-enabling HTTPS enforcement ===")
+            run(
+                "gh api -X PUT repos/Zbrooklyn/WhisperClick-Desktop-App/pages "
+                "--input - --silent <<< '{\"https_enforced\":true}'",
+                check=False,
+            )
+
     finally:
         # 6. Clean up: switch back and delete temp branch
         print(f"\n=== Cleaning up: switching back to '{current_branch}' ===")
