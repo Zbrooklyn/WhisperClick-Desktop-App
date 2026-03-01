@@ -16,14 +16,32 @@ class Sidecar extends EventEmitter {
   start() {
     if (this.proc) return;
 
-    // Find Python — prefer venv if it exists alongside engine
+    const fs = require('fs');
     const engineDir = path.dirname(this.enginePath);
-    const venvPython = path.join(engineDir, '..', 'venv', 'Scripts', 'python.exe');
-    const pythonCmd = require('fs').existsSync(venvPython) ? venvPython : 'python';
+    let cmd, args, cwd;
 
-    this.proc = spawn(pythonCmd, ['-u', this.enginePath], {
+    // Production: use bundled PyInstaller binary
+    if (process.resourcesPath) {
+      const bin = process.platform === 'win32' ? 'engine.exe' : 'engine';
+      const bundled = path.join(process.resourcesPath, 'engine-bin', bin);
+      if (fs.existsSync(bundled)) {
+        cmd = bundled;
+        args = [];
+        cwd = path.dirname(bundled);
+      }
+    }
+
+    // Development: use Python
+    if (!cmd) {
+      const venvPython = path.join(engineDir, '..', 'venv', 'Scripts', 'python.exe');
+      cmd = fs.existsSync(venvPython) ? venvPython : 'python';
+      args = ['-u', this.enginePath];
+      cwd = engineDir;
+    }
+
+    this.proc = spawn(cmd, args, {
       stdio: ['pipe', 'pipe', 'pipe'],
-      cwd: engineDir,
+      cwd,
     });
 
     this.rl = readline.createInterface({ input: this.proc.stdout });
