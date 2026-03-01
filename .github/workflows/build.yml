@@ -122,8 +122,56 @@ jobs:
             release/*.dmg
           if-no-files-found: error
 
+  build-linux:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- Python engine build ---
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libportaudio2 libsndfile1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python dependencies
+        run: |
+          pip install pyinstaller
+          pip install -r engine/requirements.txt
+      - name: Build engine binary
+        run: pyinstaller engine/engine.spec --noconfirm
+      - name: Stage engine binary for electron-builder
+        run: |
+          mkdir -p engine-dist
+          mv dist/engine engine-dist/engine
+
+      # --- Electron build ---
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Patch package.json for bundled engine
+        run: |
+          node -e "
+            const pkg = require('./package.json');
+            const fs = require('fs');
+            pkg.build.extraResources = [
+              { from: 'engine-dist/engine/', to: 'engine-bin/' }
+            ];
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+      - name: Build Linux AppImage
+        run: npx electron-builder --linux --publish never
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-release
+          path: |
+            release/*.AppImage
+          if-no-files-found: error
+
   release:
-    needs: [build-windows, build-macos]
+    needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -146,3 +194,4 @@ jobs:
           files: |
             artifacts/windows-release/*
             artifacts/macos-release/*
+            artifacts/linux-release/*
