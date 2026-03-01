@@ -1,0 +1,9 @@
+# Core dependencies for WhisperClick sidecar engine
+numpy
+sounddevice
+soundfile
+openai
+
+# Local model support (optional but recommended)
+faster-whisper
+huggingface_hub

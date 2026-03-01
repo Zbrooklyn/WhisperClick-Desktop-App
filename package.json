@@ -1,0 +1,101 @@
+{
+  "name": "whisperclick",
+  "version": "2.1.0-beta.1",
+  "description": "WhisperClick — Voice-to-text desktop app",
+  "author": "Edward Shamosh",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "pack": "electron-builder --dir",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux",
+    "test": "jest --forceExit",
+    "test:unit": "jest tests/unit/",
+    "test:integration": "jest tests/integration/",
+    "test:e2e": "node tests/e2e/app.e2e.test.js"
+  },
+  "build": {
+    "appId": "com.whisperclick.app",
+    "productName": "WhisperClick",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**",
+      "src/frontend/**",
+      "src/pill/**",
+      "engine/**"
+    ],
+    "extraResources": [
+      {
+        "from": "engine/",
+        "to": "engine/",
+        "filter": [
+          "**/*.py"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "portable": {
+      "artifactName": "WhisperClick-Portable-${version}.${ext}"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Utility"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "Zbrooklyn",
+      "repo": "WhisperClick-Desktop-App"
+    }
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "electron": "^40.6.1",
+    "electron-builder": "^26.0.12",
+    "jest": "^30.2.0",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.19"
+  }
+}

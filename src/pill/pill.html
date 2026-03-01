@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WhisperClick Pill</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      background: transparent;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+      font-family: 'Segoe UI', -apple-system, system-ui, Roboto, sans-serif;
+      width: 100%;
+      height: 100%;
+    }
+    body {
+      position: relative;
+    }
+
+    /* Capsule Container — bottom-anchored so tooltip has room above */
+    .capsule {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #292524;
+      border: 1px solid rgba(255,255,255,0.07);
+      cursor: pointer;
+      transition: width 250ms cubic-bezier(0.4, 0, 0.2, 1),
+                  height 250ms cubic-bezier(0.4, 0, 0.2, 1),
+                  border-color 300ms ease;
+      overflow: hidden;
+      /* Dormant size */
+      width: 72px;
+      height: 14px;
+      border-radius: 7px;
+    }
+    .capsule:hover {
+      border-color: rgba(255,255,255,0.15);
+    }
+
+    /* Dormant: mini-bars */
+    .dormant-bars {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5px;
+      padding: 0 4px;
+      transition: opacity 200ms;
+    }
+    .dormant-bars .mini-bar {
+      width: 1.5px;
+      border-radius: 1px;
+      background: rgba(255,255,255,0.15);
+      transition: background 200ms ease, height 200ms ease;
+    }
+    .capsule:hover .mini-bar {
+      background: rgba(207, 150, 115, 0.85);
+    }
+
+    /* Tooltip — positioned within window bounds above capsule */
+    .tooltip {
+      display: none;
+      position: absolute;
+      bottom: 34px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #292524;
+      color: #A8A29E;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: 6px;
+      white-space: nowrap;
+      pointer-events: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      border: 1px solid #44403C;
+    }
+    .tooltip kbd {
+      font-family: inherit;
+      font-weight: 700;
+      color: #CF9673;
+    }
+    .capsule:hover ~ .tooltip,
+    .capsule.hovered ~ .tooltip { display: block; }
+
+    /* Recording UI */
+    .recording-ui {
+      display: none;
+      align-items: center;
+      width: 100%;
+      height: 100%;
+      padding: 0 6px;
+      gap: 4px;
+    }
+
+    /* Cancel (X) button */
+    .btn-cancel {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255,255,255,0.08);
+      color: #A8A29E;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 150ms, color 150ms;
+    }
+    .btn-cancel:hover { background: rgba(255,255,255,0.18); color: #E7E5E4; }
+
+    /* Voice bars */
+    .voice-bars {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      height: 100%;
+      padding: 5px 0;
+    }
+    .vbar {
+      width: 3px;
+      min-height: 3px;
+      border-radius: 1.5px;
+      background: #CF9673;
+      transition: height 80ms ease;
+      opacity: 0.85;
+    }
+
+    /* Stop button (red) */
+    .btn-stop {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: none;
+      background: #DC6450;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 150ms;
+    }
+    .btn-stop:hover { background: #E87A68; }
+    .btn-stop .stop-icon {
+      width: 9px;
+      height: 9px;
+      background: #fff;
+      border-radius: 2px;
+    }
+
+    /* State: Recording */
+    .capsule.recording {
+      width: 200px;
+      height: 40px;
+      border-radius: 20px;
+      cursor: default;
+    }
+    .capsule.recording .dormant-bars { display: none; }
+    .capsule.recording .recording-ui { display: flex; }
+    .capsule.recording ~ .tooltip { display: none !important; }
+
+    /* State: Processing */
+    .capsule.processing {
+      width: 200px;
+      height: 40px;
+      border-radius: 20px;
+      cursor: default;
+      border-color: rgba(207, 150, 115, 0.3);
+    }
+    .capsule.processing .dormant-bars { display: none; }
+    .capsule.processing .recording-ui { display: flex; }
+    .capsule.processing .btn-stop { visibility: hidden; width: 0; padding: 0; margin: 0; overflow: hidden; }
+    .capsule.processing ~ .tooltip { display: none !important; }
+    .capsule.processing .vbar {
+      background: rgba(207, 150, 115, 0.7);
+      animation: proc-wave 1.2s ease-in-out infinite alternate;
+    }
+
+    @keyframes proc-wave {
+      0% { opacity: 0.3; transform: scaleY(0.4); }
+      100% { opacity: 1; transform: scaleY(1); }
+    }
+
+    /* State: Success */
+    .capsule.success {
+      border-color: rgba(163, 177, 138, 0.8);
+      box-shadow: 0 0 8px rgba(163, 177, 138, 0.3);
+    }
+    .capsule.success .recording-ui { display: none; }
+    .capsule.success .dormant-bars { display: flex; }
+
+    /* State: Error */
+    .capsule.error {
+      border-color: rgba(220, 100, 80, 0.8);
+      box-shadow: 0 0 8px rgba(220, 100, 80, 0.3);
+    }
+    .capsule.error .recording-ui { display: none; }
+    .capsule.error .dormant-bars { display: flex; }
+  </style>
+</head>
+<body>
+  <div class="capsule" id="capsule">
+    <!-- Dormant: 14 mini-bars -->
+    <div class="dormant-bars" id="dormant-bars"></div>
+
+    <!-- Recording / Processing UI -->
+    <div class="recording-ui" id="recording-ui">
+      <button class="btn-cancel" id="btn-cancel" title="Cancel">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+      <div class="voice-bars" id="voice-bars"></div>
+      <button class="btn-stop" id="btn-stop" title="Stop recording">
+        <div class="stop-icon"></div>
+      </button>
+    </div>
+  </div>
+
+  <!-- Tooltip -->
+  <div class="tooltip" id="tooltip">
+    Click or press <kbd id="tooltip-hotkey">Ctrl+Alt+R</kbd> to record
+  </div>
+
+  <script>
+    (function() {
+      'use strict';
+
+      const capsule = document.getElementById('capsule');
+      const dormantBars = document.getElementById('dormant-bars');
+      const voiceBars = document.getElementById('voice-bars');
+
+      // Generate dormant mini-bars (14 bars, seeded random heights)
+      const NUM_DORMANT = 14;
+      const SEED_HEIGHTS = [4, 6, 3, 8, 5, 7, 4, 9, 6, 3, 7, 5, 8, 4];
+      for (let i = 0; i < NUM_DORMANT; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'mini-bar';
+        bar.style.height = SEED_HEIGHTS[i] + 'px';
+        dormantBars.appendChild(bar);
+      }
+
+      // Generate voice bars (22 bars for recording)
+      const NUM_BARS = 22;
+      const barEls = [];
+      for (let i = 0; i < NUM_BARS; i++) {
+        const b = document.createElement('div');
+        b.className = 'vbar';
+        b.style.height = '3px';
+        voiceBars.appendChild(b);
+        barEls.push(b);
+      }
+
+      // State
+      let currentState = 'dormant';
+      let shrinkTimeout = null;
+
+      function setState(state) {
+        currentState = state;
+        capsule.className = 'capsule ' + state;
+
+        // Processing: stagger bar animation delays
+        if (state === 'processing') {
+          for (let i = 0; i < NUM_BARS; i++) {
+            barEls[i].style.height = '6px';
+            barEls[i].style.animationDelay = (i * 0.06) + 's';
+          }
+        }
+
+        // Success/error: flash then shrink back
+        if (state === 'success' || state === 'error') {
+          if (shrinkTimeout) clearTimeout(shrinkTimeout);
+          shrinkTimeout = setTimeout(() => {
+            setState('dormant');
+          }, 2000);
+        }
+      }
+
+      function visualizeBars(level) {
+        if (currentState !== 'recording') return;
+        const l = Math.min(Math.max(level || 0, 0), 1);
+        const maxH = 28;
+        const minH = 3;
+        for (let i = 0; i < NUM_BARS; i++) {
+          const rand = 0.3 + Math.random() * 0.7;
+          const h = minH + (maxH - minH) * l * rand;
+          barEls[i].style.height = Math.round(h) + 'px';
+        }
+      }
+
+      // IPC listeners
+      window.electronAPI.onStateUpdate((data) => {
+        if (shrinkTimeout) { clearTimeout(shrinkTimeout); shrinkTimeout = null; }
+        setState(data.state);
+      });
+
+      window.electronAPI.onLevelUpdate((val) => {
+        visualizeBars(val);
+      });
+
+      // Click handling
+      capsule.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-cancel') || e.target.closest('.btn-stop')) return;
+        window.electronAPI.toggleRecording();
+      });
+
+      document.getElementById('btn-stop').addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.electronAPI.toggleRecording(); // stop -> processing
+      });
+
+      // Cancel button: discard audio, go dormant (NOT transcribe)
+      document.getElementById('btn-cancel').addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.electronAPI.cancelRecording();
+      });
+
+      // Right-click: native OS context menu via Electron Menu.popup()
+      capsule.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        window.electronAPI.showContextMenu();
+      });
+
+      // Init
+      (async () => {
+        const { state } = await window.electronAPI.getState();
+        setState(state);
+      })();
+    })();
+  </script>
+</body>
+</html>
