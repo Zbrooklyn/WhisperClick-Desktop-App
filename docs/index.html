@@ -1705,7 +1705,13 @@
       .hero h1 { font-size: 2.2rem; }
       .hero-sub { font-size: 1.05rem; }
       .hero-buttons { flex-direction: column; align-items: center; }
-      .hero-dl-menu { min-width: 260px; }
+      .hero-dl-group .btn-primary { font-size: 0.9rem; padding: 11px 20px; }
+      .hero-dl-label-full { display: none !important; }
+      .hero-dl-label-short { display: inline !important; }
+      .hero-dl-toggle { width: 36px; }
+      .hero-dl-toggle svg { width: 14px; height: 14px; }
+      .hero-dl-menu { min-width: 230px; left: 50%; transform: translateX(-50%); }
+      .hero-dl-item { padding: 10px 14px; font-size: 0.82rem; gap: 8px; }
       .hero-platforms { justify-content: center; }
       .hero-pill { bottom: -20px; max-width: 240px; }
       .app-mockup { font-size: 10px; max-width: 300px; }
@@ -1913,7 +1919,8 @@
             <div class="hero-dl-group">
               <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest" class="btn btn-primary" id="hero-dl-btn">
                 <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="width:16px;height:16px;"><path d="M3 5.5l7.5-1v7.25H3V5.5zm0 13l7.5 1v-7.25H3V18.5zm8.5 1.13L21 21V11.75H11.5v7.88zm0-15.13v7.25H21V3L11.5 4.5z"/></svg>
-                Download for Windows
+                <span class="hero-dl-label-full">Download for Windows</span>
+                <span class="hero-dl-label-short" style="display:none;">Download</span>
               </a>
               <button class="hero-dl-toggle" id="hero-dl-toggle" aria-label="More download options">
                 <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"/></svg>
@@ -3153,7 +3160,11 @@ venv\Scripts\activate
               if (heroWinItem) heroWinItem.href = installerAsset.browser_download_url;
             }
             if (version) {
-              heroBtn.innerHTML = heroBtn.innerHTML.replace('Download for Windows', 'Download for Windows <span style="opacity:0.7;font-weight:400;font-size:0.85em;">' + version + '</span>');
+              var vSpan = ' <span style="opacity:0.7;font-weight:400;font-size:0.85em;">' + version + '</span>';
+              var fullLabel = heroBtn.querySelector('.hero-dl-label-full');
+              var shortLabel = heroBtn.querySelector('.hero-dl-label-short');
+              if (fullLabel) fullLabel.innerHTML = 'Download for Windows' + vSpan;
+              if (shortLabel) shortLabel.innerHTML = 'Download' + vSpan;
             }
           }
         })
