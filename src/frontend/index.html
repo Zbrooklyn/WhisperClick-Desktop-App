@@ -251,6 +251,12 @@
                         </button>
                     </div>
                     <div class="flex items-center justify-between">
+                        <span class="text-sm dark:text-stone-300">Pill Widget</span>
+                        <button id="pill-widget-toggle" onclick="toggleSwitch(this)" class="w-10 h-5 bg-stone-300 dark:bg-stone-600 rounded-full relative transition-colors focus:outline-none" data-checked="false">
+                            <div class="w-3 h-3 bg-white rounded-full absolute top-1 left-1 transition-transform"></div>
+                        </button>
+                    </div>
+                    <div class="flex items-center justify-between">
                         <span class="text-sm dark:text-stone-300">Visualizer Style</span>
                         <select id="viz-style-select" class="bg-stone-200 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-md px-2 py-1 text-xs dark:text-stone-200 focus:outline-none focus:ring-2 focus:ring-accent">
                             <option value="classic">Classic Bars</option>
@@ -270,12 +276,6 @@
                             <option value="balanced" selected>Balanced</option>
                             <option value="energetic">Energetic</option>
                         </select>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm dark:text-stone-300">Pill Widget</span>
-                        <button id="pill-widget-toggle" onclick="toggleSwitch(this)" class="w-10 h-5 bg-stone-300 dark:bg-stone-600 rounded-full relative transition-colors focus:outline-none" data-checked="false">
-                            <div class="w-3 h-3 bg-white rounded-full absolute top-1 left-1 transition-transform"></div>
-                        </button>
                     </div>
                     <div id="pill-monitor-row" class="flex items-center justify-between" style="display:none">
                         <span class="text-sm dark:text-stone-300">Pill Display</span>
@@ -343,13 +343,6 @@
                         </div>
                     </div>
 
-                    <div id="model-status-card" class="bg-stone-200 dark:bg-stone-800 rounded-lg p-3 text-sm flex justify-between items-center border border-stone-200 dark:border-stone-700">
-                        <div>
-                            <div id="model-status-name" class="font-medium dark:text-stone-200">Checking local model...</div>
-                            <div id="model-status-meta" class="text-xs text-stone-500">Loading current model status.</div>
-                        </div>
-                        <i id="model-status-icon" data-lucide="loader-2" class="w-4 h-4 text-stone-500 animate-spin"></i>
-                    </div>
                     <div class="bg-stone-200 dark:bg-stone-800 rounded-lg p-3 border border-stone-200 dark:border-stone-700 space-y-2">
                         <div class="flex items-center justify-between">
                             <div class="text-xs font-semibold dark:text-stone-200">Local Model Manager</div>
@@ -363,6 +356,12 @@
                 <!-- Output -->
                 <div class="space-y-3 pb-5 border-b border-stone-200 dark:border-stone-700">
                     <h3 class="text-xs font-bold text-stone-500 uppercase tracking-wider">Output</h3>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm dark:text-stone-300">Auto-Paste</span>
+                        <button id="auto-paste-toggle" onclick="toggleSwitch(this)" class="w-10 h-5 bg-stone-300 dark:bg-stone-600 rounded-full relative transition-colors focus:outline-none" data-checked="false">
+                            <div class="w-3 h-3 bg-white rounded-full absolute top-1 left-1 transition-transform"></div>
+                        </button>
+                    </div>
                     <div class="flex items-center justify-between gap-3">
                         <span class="text-sm dark:text-stone-300">Text Output</span>
                         <select id="speech-task-select" class="bg-stone-200 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-md px-2 py-1 text-xs dark:text-stone-200 focus:outline-none focus:ring-2 focus:ring-accent">
@@ -405,12 +404,6 @@
                         </select>
                     </div>
                     <p id="speech-language-support-note" class="text-[11px] text-stone-500">Controls what gets saved to each card after recording. Translation uses Target Language. If transcript and translation are effectively the same, only transcript is shown.</p>
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm dark:text-stone-300">Auto-Paste</span>
-                        <button id="auto-paste-toggle" onclick="toggleSwitch(this)" class="w-10 h-5 bg-stone-300 dark:bg-stone-600 rounded-full relative transition-colors focus:outline-none" data-checked="false">
-                            <div class="w-3 h-3 bg-white rounded-full absolute top-1 left-1 transition-transform"></div>
-                        </button>
-                    </div>
                     <div class="flex items-center justify-between gap-3">
                         <span class="text-sm dark:text-stone-300">Runtime</span>
                         <select id="speech-runtime-select" class="bg-stone-200 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-md px-2 py-1 text-xs dark:text-stone-200 focus:outline-none focus:ring-2 focus:ring-accent">
@@ -465,6 +458,18 @@
                             <div class="w-3 h-3 bg-white rounded-full absolute top-1 left-1 transition-transform"></div>
                         </button>
                     </div>
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-sm dark:text-stone-300">Audio Retention</span>
+                        <select id="audio-retention-select" class="bg-stone-200 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-md px-2 py-1 text-xs dark:text-stone-200 focus:outline-none focus:ring-2 focus:ring-accent">
+                            <option value="1">1 Day</option>
+                            <option value="7">1 Week</option>
+                            <option value="30" selected>30 Days</option>
+                            <option value="90">3 Months</option>
+                            <option value="180">6 Months</option>
+                            <option value="365">1 Year</option>
+                            <option value="0">Forever</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- Planned Features -->
@@ -496,7 +501,7 @@
         </aside>
 
         <!-- Header -->
-        <header id="title-bar" class="h-10 bg-stone-100 dark:bg-stone-850 flex items-center justify-between px-3 shrink-0 cursor-default select-none">
+        <header id="title-bar" class="h-10 bg-stone-100 dark:bg-stone-850 flex items-center justify-between px-3 shrink-0 cursor-default select-none border-b border-stone-200 dark:border-stone-700">
             <div class="flex items-center gap-2">
                 <i data-lucide="mic" class="w-4 h-4 text-accent"></i>
                 <span class="font-semibold text-sm tracking-wide dark:text-stone-200" data-app-name>WhisperClick</span>
@@ -518,7 +523,6 @@
                 </button>
             </div>
         </header>
-        <div class="h-px bg-stone-200 dark:bg-stone-700 shrink-0"></div>
 
         <!-- Toolbar (Expanding) -->
         <div class="relative z-30 flex flex-col">
@@ -804,6 +808,7 @@
         const speechLanguageSupportNote = document.getElementById('speech-language-support-note');
         const vizStyleSelect = document.getElementById('viz-style-select');
         const vizMotionSelect = document.getElementById('viz-motion-select');
+        const audioRetentionSelect = document.getElementById('audio-retention-select');
         const hotkeyDisplay = document.getElementById('hotkey-display');
         const hotkeyInput = document.getElementById('hotkey-input');
         const footerHotkeyDisplay = document.getElementById('footer-hotkey-display');
@@ -814,8 +819,6 @@
         const hotkeyGuideBackdrop = document.getElementById('hotkey-guide-backdrop');
         const hotkeyGuideCard = document.getElementById('hotkey-guide-card');
         const recordingSurface = document.getElementById('recording-surface');
-        const modelStatusName = document.getElementById('model-status-name');
-        const modelStatusMeta = document.getElementById('model-status-meta');
         const modelManagerList = document.getElementById('model-manager-list');
         const modelManagerProgress = document.getElementById('model-manager-progress');
         const modelManagerRefreshBtn = document.getElementById('model-manager-refresh-btn');
@@ -1193,56 +1196,6 @@
             if (!normalizedEventHotkey) return false;
             const normalizedTargetHotkey = normalizeHotkeyInput(hotkeyText);
             return normalizedEventHotkey === normalizedTargetHotkey;
-        }
-
-        function setModelStatusIcon(iconName, className) {
-            const iconEl = document.getElementById('model-status-icon');
-            if (!iconEl) return;
-            iconEl.setAttribute('data-lucide', iconName);
-            iconEl.className = className;
-            lucide.createIcons();
-        }
-
-        function updateModelStatusCard() {
-            if (!modelStatusName || !modelStatusMeta) return;
-
-            if (!nativeBridgeReady) {
-                modelStatusName.textContent = "Local Capture";
-                modelStatusMeta.textContent = "Standalone browser mode.";
-                setModelStatusIcon('circle', 'w-4 h-4 text-stone-500');
-                return;
-            }
-
-            if (!availableLocalModels.length) {
-                modelStatusName.textContent = "No local models detected";
-                modelStatusMeta.textContent = "Open model selector to choose/download a model.";
-                setModelStatusIcon('alert-circle', 'w-4 h-4 text-amber-500');
-                return;
-            }
-
-            const selectedName = getLocalNameFromLabel(localToolbarModel);
-            const selected = availableLocalModels.find((entry) => entry.name === selectedName)
-                || availableLocalModels.find((entry) => entry.name === 'base')
-                || availableLocalModels[0];
-
-            if (!selected) {
-                modelStatusName.textContent = "Model status unavailable";
-                modelStatusMeta.textContent = "Could not resolve selected model.";
-                setModelStatusIcon('alert-circle', 'w-4 h-4 text-amber-500');
-                return;
-            }
-
-            modelStatusName.textContent = getLocalModelDisplayName(selected.name);
-            const sizeSuffix = Number.isFinite(Number(selected.sizeMb))
-                ? ` • ${Math.round(Number(selected.sizeMb))}MB`
-                : '';
-            if (selected.downloaded) {
-                modelStatusMeta.textContent = `Downloaded${sizeSuffix}`;
-                setModelStatusIcon('check-circle', 'w-4 h-4 text-accent');
-            } else {
-                modelStatusMeta.textContent = `Not downloaded${sizeSuffix}`;
-                setModelStatusIcon('cloud-download', 'w-4 h-4 text-amber-500');
-            }
         }
 
         function formatModelSize(sizeMb) {
@@ -2224,7 +2177,7 @@
             if (!nativeBridgeReady) {
                 localModelReady = true;
                 syncToolbarModelLabel();
-                updateModelStatusCard();
+
                 renderModelManager();
                 return;
             }
@@ -2236,7 +2189,7 @@
                     if (onboardingLocalCaption) onboardingLocalCaption.textContent = 'Model unavailable';
                     if (onboardingStatus) onboardingStatus.textContent = 'Unable to load available local models.';
                     syncToolbarModelLabel();
-                    updateModelStatusCard();
+    
                     renderModelManager();
                     return;
                 }
@@ -2262,7 +2215,7 @@
                     localModelReady = false;
                 }
                 syncToolbarModelLabel();
-                updateModelStatusCard();
+
                 renderModelManager();
                 if (localModelReady) {
                     if (onboardingLocalCaption) onboardingLocalCaption.textContent = 'Ready';
@@ -2276,7 +2229,7 @@
                 }
             } catch {
                 localModelReady = false;
-                updateModelStatusCard();
+
                 renderModelManager();
                 if (onboardingLocalCaption) onboardingLocalCaption.textContent = 'Status unavailable';
                 if (onboardingStatus) onboardingStatus.textContent = 'Unable to load local model status.';
@@ -2325,7 +2278,7 @@
             nativeBridgeReady = await waitForNativeBridge();
             if (!nativeBridgeReady) {
                 localModelReady = true;
-                updateModelStatusCard();
+
                 return;
             }
 
@@ -2379,6 +2332,10 @@
                     if (settings.source_language && speechSourceLanguageSelect) {
                         speechSourceLanguageSelect.value = settings.source_language;
                     }
+                    if (audioRetentionSelect && settings.audioRetentionDays !== undefined) {
+                        audioRetentionSelect.value = String(settings.audioRetentionDays);
+                    }
+
                     syncSpeechSettingsUi();
                     syncToolbarModelLabel();
 
@@ -2418,7 +2375,6 @@
             syncSpeechSettingsUi();
             syncSpeechRuntimeUi();
             syncToolbarModelLabel();
-            updateModelStatusCard();
             renderModelManager();
             await initializeNativeBridgeState();
             try {
@@ -2583,6 +2539,12 @@
             speechRuntimeSelect.addEventListener('change', () => {
                 syncSpeechRuntimeUi();
                 persistApiSettings();
+            });
+        }
+
+        if (audioRetentionSelect) {
+            audioRetentionSelect.addEventListener('change', () => {
+                callNativeApi('save_settings', { audio_retention_days: parseInt(audioRetentionSelect.value, 10) }).catch(() => {});
             });
         }
 
@@ -2850,7 +2812,6 @@
         async function selectModel(m) {
             localToolbarModel = m;
             syncToolbarModelLabel();
-            updateModelStatusCard();
             writeSettingsToStorage({ localModel: getLocalNameFromLabel(localToolbarModel) });
             if (nativeBridgeReady) {
                 const modelName = getLocalNameFromLabel(localToolbarModel);

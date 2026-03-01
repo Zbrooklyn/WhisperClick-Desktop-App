@@ -1216,7 +1216,7 @@ describe('toggle-pill lifecycle', () => {
 // ── configureSidecar field completeness ──────────────────────────────────
 
 describe('configureSidecar sends all settings fields', () => {
-  test('ready event sends all 10 configure fields with correct values', async () => {
+  test('ready event sends all configure fields with correct values', async () => {
     // Set specific settings so we can verify they reach the sidecar
     await ipcMain._invoke('save-settings', {
       mode: 'local',
@@ -1231,6 +1231,7 @@ describe('configureSidecar sends all settings fields', () => {
       outputMode: 'translate',
       targetLanguage: 'es',
       sourceLanguage: 'ja',
+      audioRetentionDays: 7,
     });
 
     const stdinCapture = [];
@@ -1265,6 +1266,7 @@ describe('configureSidecar sends all settings fields', () => {
     expect(parsed.output_mode).toBe('translate');
     expect(parsed.target_language).toBe('es');
     expect(parsed.source_language).toBe('ja');
+    expect(parsed.audio_retention_days).toBe(7);
 
     // Reset settings
     await ipcMain._invoke('save-settings', {
@@ -1272,6 +1274,7 @@ describe('configureSidecar sends all settings fields', () => {
       localModel: '', customBaseUrl: '', apiModel: 'whisper-1',
       soundEnabled: true, outputMode: 'transcribe',
       targetLanguage: 'en', sourceLanguage: 'auto',
+      audioRetentionDays: 30,
     });
   });
 });

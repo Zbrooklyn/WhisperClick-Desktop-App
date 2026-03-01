@@ -7,7 +7,7 @@ Commands:
   configure, set_mode, set_language, set_model, set_api_credentials,
   set_sound_enabled, set_output_mode, set_target_language, set_source_language,
   list_models, download_model, delete_model, get_languages, translate,
-  verify_key
+  verify_key, capture_fg, paste
 
 Events (sidecar -> Electron):
   ready, level, transcription, translation, cancelled, error,
@@ -30,7 +30,7 @@ sys.stderr = open(os.path.join(_log_dir, "engine.log"), "a")
 
 # Now import backend modules (they log to file, not stdout)
 from backend.audio_recorder import AudioRecorder
-from backend.config import LANGUAGES
+from backend.config import AUDIO_DIR, LANGUAGES
 from backend.logger import get as get_logger
 from backend.transcription import TranscriptionCancelled, TranscriptionService
 from backend import models
@@ -87,6 +87,8 @@ _sound_enabled = True
 _output_mode = "transcribe"  # transcribe | translate | both
 _target_language = "en"
 _source_language = "auto"
+_audio_retention_days = 30
+_paste_target_hwnd = None  # Foreground window captured before recording
 
 
 def _level_poll_loop():
@@ -95,6 +97,25 @@ def _level_poll_loop():
         level = recorder.get_level()
         send_event("level", {"level": round(level, 3)})
         time.sleep(0.05)
+
+
+def _cleanup_expired_audio():
+    """Delete audio files older than the configured retention period."""
+    if _audio_retention_days == 0:
+        return  # "Forever" — never delete
+    if not os.path.isdir(AUDIO_DIR):
+        return
+    cutoff = time.time() - (_audio_retention_days * 86400)
+    for fname in os.listdir(AUDIO_DIR):
+        fpath = os.path.join(AUDIO_DIR, fname)
+        if not os.path.isfile(fpath):
+            continue
+        try:
+            if os.path.getmtime(fpath) < cutoff:
+                os.remove(fpath)
+                _log.info("Deleted expired audio: %s", fname)
+        except OSError:
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -128,6 +149,22 @@ def _do_transcribe(duration):
         provider = transcriber._api_provider if transcriber.mode == "api" else "local"
         model = transcriber._api_model if transcriber.mode == "api" else transcriber._model_name
 
+        # Save audio for playback
+        audio_file = None
+        try:
+            wav_bytes = recorder.get_wav_bytes()
+            if wav_bytes is not None:
+                import soundfile as sf
+
+                os.makedirs(AUDIO_DIR, exist_ok=True)
+                audio_id = f"{int(time.time() * 1000)}"
+                out_path = os.path.join(AUDIO_DIR, f"{audio_id}.ogg")
+                data, sr = sf.read(wav_bytes, dtype="float32")
+                sf.write(out_path, data, sr, format="OGG", subtype="OPUS")
+                audio_file = out_path
+        except Exception:
+            _log.debug("Failed to save audio recording", exc_info=True)
+
         send_event("transcription", {
             "text": text,
             "duration": round(duration, 1),
@@ -135,6 +172,7 @@ def _do_transcribe(duration):
             "provider": provider,
             "model": model,
             "language": transcriber.detected_language or "auto",
+            "audio_file": audio_file,
         })
 
         # Translation if output_mode includes it
@@ -170,6 +208,34 @@ def _do_transcribe(duration):
         send_event("error", {"message": str(e)})
 
 
+def _do_paste(msg_id, wc_focused):
+    """Restore focus to the saved target window and simulate Ctrl+V.
+
+    Mirrors V3's _auto_paste strategy:
+    - If WhisperClick is focused and a target was captured → SetForegroundWindow + Ctrl+V
+    - If WhisperClick is focused and no target → skip (clipboard only)
+    - If a target app is already focused → just Ctrl+V
+    """
+    try:
+        import ctypes
+
+        if wc_focused:
+            if not _paste_target_hwnd:
+                send_ok(msg_id)
+                return
+            ctypes.windll.user32.SetForegroundWindow(_paste_target_hwnd)
+            time.sleep(0.08)
+
+        VK_CONTROL, VK_V, KEYEVENTF_KEYUP = 0x11, 0x56, 0x02
+        ctypes.windll.user32.keybd_event(VK_CONTROL, 0, 0, 0)
+        ctypes.windll.user32.keybd_event(VK_V, 0, 0, 0)
+        ctypes.windll.user32.keybd_event(VK_V, 0, KEYEVENTF_KEYUP, 0)
+        ctypes.windll.user32.keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0)
+    except Exception:
+        _log.debug("paste failed", exc_info=True)
+    send_ok(msg_id)
+
+
 def _do_download_model(msg_id, model_name):
     """Download model with progress events."""
     def progress_cb(current, total):
@@ -194,7 +260,7 @@ def _do_download_model(msg_id, model_name):
 
 def handle_command(msg):
     global _recording, _level_thread, _sound_enabled
-    global _output_mode, _target_language, _source_language
+    global _output_mode, _target_language, _source_language, _audio_retention_days
 
     cmd = msg.get("command")
     msg_id = msg.get("id", 0)
@@ -241,6 +307,9 @@ def handle_command(msg):
             _target_language = msg["target_language"]
         if "source_language" in msg:
             _source_language = msg["source_language"]
+        if "audio_retention_days" in msg:
+            _audio_retention_days = msg["audio_retention_days"]
+        _cleanup_expired_audio()
         send_ok(msg_id)
 
     # --- Individual config commands ---
@@ -400,6 +469,21 @@ def handle_command(msg):
 
     elif cmd == "get_languages":
         send_ok(msg_id, languages=LANGUAGES)
+
+    # --- Auto-paste focus management (mirrors V3 api._auto_paste) ---
+
+    elif cmd == "capture_fg":
+        global _paste_target_hwnd
+        try:
+            import ctypes
+            hwnd = ctypes.windll.user32.GetForegroundWindow()
+            _paste_target_hwnd = hwnd if hwnd else None
+        except Exception:
+            _log.debug("capture_fg failed", exc_info=True)
+        send_ok(msg_id)
+
+    elif cmd == "paste":
+        _do_paste(msg_id, msg.get("wc_focused", False))
 
     # --- API key verification (HTTP) ---
 

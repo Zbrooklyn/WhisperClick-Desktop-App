@@ -28,6 +28,7 @@ const V3_TO_ELECTRON = {
   source_language: 'sourceLanguage',
   api_base_url: 'customBaseUrl',
   pill_monitor: 'pillMonitor',
+  audio_retention_days: 'audioRetentionDays',
 };
 
 const ELECTRON_TO_V3 = {};

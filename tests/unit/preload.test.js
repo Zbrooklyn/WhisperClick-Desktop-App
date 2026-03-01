@@ -95,6 +95,12 @@ describe('snake_case → camelCase translation', () => {
     expect(call[1]).toEqual(expect.objectContaining({ customBaseUrl: 'http://localhost:8080' }));
   });
 
+  test('audio_retention_days maps to audioRetentionDays', async () => {
+    await api.save_settings({ audio_retention_days: 7 });
+    const call = ipcRenderer.invoke.mock.calls.find(c => c[0] === 'save-settings');
+    expect(call[1]).toEqual(expect.objectContaining({ audioRetentionDays: 7 }));
+  });
+
   test('unmapped keys pass through unchanged', async () => {
     await api.save_settings({ theme: 'light' });
     const call = ipcRenderer.invoke.mock.calls.find(c => c[0] === 'save-settings');

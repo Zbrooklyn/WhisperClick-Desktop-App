@@ -31,9 +31,16 @@ const configDir = path.join(
 function createMainWindow() {
   const settings = store.getSettings();
 
+  // Responsive sizing: 22% of primary monitor width, clamped to [480, 650], matching V3
+  const display = screen.getPrimaryDisplay();
+  const effectiveWidth = display.workAreaSize.width;
+  const targetWidth = Math.round(effectiveWidth * 0.22);
+  const winWidth = Math.max(480, Math.min(650, targetWidth));
+  const winHeight = Math.max(620, Math.round(winWidth * 1.58));
+
   mainWindow = new BrowserWindow({
-    width: 520,
-    height: 720,
+    width: winWidth,
+    height: winHeight,
     minWidth: 480,
     minHeight: 620,
     backgroundColor: settings.theme === 'dark' ? '#1C1917' : '#FAFAF9',
@@ -87,7 +94,7 @@ function createPillWindow() {
     alwaysOnTop: true,
     resizable: false,
     skipTaskbar: true,
-    focusable: true,
+    focusable: false,  // V3 uses WA_ShowWithoutActivating — pill must not steal focus
     hasShadow: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload-pill.js'),
@@ -130,6 +137,10 @@ function registerHotkey(accelerator) {
   }
   try {
     const success = globalShortcut.register(normalized, () => {
+      // Capture the foreground window *before* toggling — mirrors V3's
+      // capture_paste_target() so auto-paste can restore focus later.
+      if (sidecar && sidecar.isRunning) sidecar.send('capture_fg').catch(() => {});
+
       // Route hotkey through the V3 frontend so it handles validation,
       // mode checks, API key checks, etc. — mirrors V3's evaluate_js pattern.
       if (mainWindow && !mainWindow.isDestroyed()) {
@@ -188,6 +199,7 @@ function configureSidecar() {
     output_mode: s.outputMode || 'transcribe',
     target_language: s.targetLanguage || 'en',
     source_language: s.sourceLanguage || 'auto',
+    audio_retention_days: s.audioRetentionDays ?? 30,
   }).catch(() => {});
 }
 
@@ -232,7 +244,7 @@ ipcMain.handle('save-settings', (_, patch) => {
   // Push relevant changes to sidecar
   const sidecarFields = ['mode', 'language', 'localModel', 'provider', 'apiModel',
     'openaiApiKey', 'geminiApiKey', 'customBaseUrl', 'soundEnabled',
-    'outputMode', 'targetLanguage', 'sourceLanguage'];
+    'outputMode', 'targetLanguage', 'sourceLanguage', 'audioRetentionDays'];
   const changed = sidecarFields.some(k => settings[k] !== prev[k]);
   if (changed) {
     configureSidecar();
@@ -249,6 +261,9 @@ ipcMain.handle('get-state', () => ({ state: appState }));
 
 // Pill recording — routes through the V3 frontend so both share one state machine
 ipcMain.handle('pill-toggle-recording', () => {
+  // Capture foreground before toggle — pill is non-focusable so target app is still fg
+  if (sidecar && sidecar.isRunning) sidecar.send('capture_fg').catch(() => {});
+
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.executeJavaScript('triggerTrustedHotkeyToggle()').catch(() => {});
   } else {
@@ -573,14 +588,16 @@ ipcMain.handle('get-app-info', () => ({
 }));
 
 // --- Auto-paste helper ---
+// Mirrors V3's _auto_paste: captures the foreground window before recording starts
+// (via capture_fg), then restores focus and simulates Ctrl+V via the sidecar's
+// native Win32 keybd_event — no PowerShell subprocess needed.
 
 function simulatePaste() {
-  // Use PowerShell to simulate Ctrl+V on Windows
-  // On macOS would use osascript, on Linux xdotool
   if (process.platform === 'win32') {
-    const { exec } = require('child_process');
-    exec('powershell -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'^v\')"',
-      { windowsHide: true });
+    if (sidecar && sidecar.isRunning) {
+      const wcFocused = !!mainWindow?.isFocused?.();
+      sidecar.send('paste', { wc_focused: wcFocused }).catch(() => {});
+    }
   } else if (process.platform === 'darwin') {
     const { exec } = require('child_process');
     exec('osascript -e \'tell application "System Events" to keystroke "v" using command down\'');
@@ -608,6 +625,7 @@ app.whenReady().then(() => {
   tray = createTray({
     onShow: () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } },
     onStartStop: () => {
+      if (sidecar && sidecar.isRunning) sidecar.send('capture_fg').catch(() => {});
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.executeJavaScript('triggerTrustedHotkeyToggle()').catch(() => {});
       } else {
