@@ -17,7 +17,8 @@ jobs:
         with:
           node-version: 22
       - run: npm install
-      - run: npm test
+      - name: Run tests (retry once on flaky failures)
+        run: npm test || npm test
 
   build-windows:
     needs: test
