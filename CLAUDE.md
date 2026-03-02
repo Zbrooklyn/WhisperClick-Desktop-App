@@ -213,7 +213,8 @@ atomic write (`.tmp` → rename) + encrypt API keys via `safeStorage`.
 | Environment | Config Directory |
 |-------------|-----------------|
 | Dev (`!app.isPackaged`) | `AppData/Roaming/Electron/whisperclick-dev/` |
-| Production | `AppData/Roaming/Electron/whisperclick/` |
+| Beta (version contains "beta") | `AppData/Roaming/Electron/whisperclick-beta/` |
+| Stable (production) | `AppData/Roaming/Electron/whisperclick/` |
 
 Files: `settings.json`, `settings.json.bak`, `history.json`, `history.json.bak`
 

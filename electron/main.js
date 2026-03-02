@@ -22,9 +22,10 @@ let appState = 'dormant'; // dormant | recording | processing | success | error
 let isQuitting = false;
 
 const isDev = !app.isPackaged;
+const isBeta = app.getVersion().includes('beta');
 const configDir = path.join(
   app.getPath('userData'),
-  isDev ? 'whisperclick-dev' : 'whisperclick'
+  isDev ? 'whisperclick-dev' : isBeta ? 'whisperclick-beta' : 'whisperclick'
 );
 
 // --- Window creation ---
