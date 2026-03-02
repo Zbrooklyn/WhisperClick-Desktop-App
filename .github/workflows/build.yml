@@ -69,6 +69,7 @@ jobs:
           name: windows-release
           path: |
             release/*.exe
+            release/*.yml
           if-no-files-found: error
 
   build-macos:
@@ -120,6 +121,8 @@ jobs:
           name: macos-release
           path: |
             release/*.dmg
+            release/*.yml
+            release/*.zip
           if-no-files-found: error
 
   build-linux:
@@ -168,6 +171,7 @@ jobs:
           name: linux-release
           path: |
             release/*.AppImage
+            release/*.yml
           if-no-files-found: error
 
   release:
@@ -187,7 +191,7 @@ jobs:
       - name: Create GitHub pre-release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.version }}+${{ github.sha }}
+          tag_name: v${{ steps.version.outputs.version }}
           name: v${{ steps.version.outputs.version }} (beta)
           prerelease: true
           generate_release_notes: true

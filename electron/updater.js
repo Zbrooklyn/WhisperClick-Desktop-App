@@ -31,9 +31,11 @@ function initUpdater(mainWindow, store) {
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
 
-  // Set channel from stored preference
+  // Set channel from stored preference (or auto-detect from version string)
   const settings = store.getSettings();
-  autoUpdater.allowPrerelease = (settings.updateChannel || 'beta') === 'beta';
+  const channel = settings.updateChannel || (app.getVersion().includes('beta') ? 'beta' : 'stable');
+  autoUpdater.channel = channel; // tells electron-updater to look for beta.yml vs latest.yml
+  autoUpdater.allowPrerelease = channel === 'beta';
 
   // --- Events → renderer ---
   autoUpdater.on('checking-for-update', () => {
@@ -103,6 +105,7 @@ function initUpdater(mainWindow, store) {
     const valid = channel === 'stable' ? 'stable' : 'beta';
     const settings = _store.getSettings();
     _store.saveSettings({ ...settings, updateChannel: valid });
+    autoUpdater.channel = valid;
     autoUpdater.allowPrerelease = valid === 'beta';
     return { success: true, channel: valid };
   });
