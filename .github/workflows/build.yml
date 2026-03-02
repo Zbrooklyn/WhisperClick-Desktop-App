@@ -69,7 +69,7 @@ jobs:
           name: windows-release
           path: |
             release/*.exe
-            release/*.yml
+            release/latest.yml
           if-no-files-found: error
 
   build-macos:
@@ -121,8 +121,8 @@ jobs:
           name: macos-release
           path: |
             release/*.dmg
-            release/*.yml
             release/*.zip
+            release/latest-mac.yml
           if-no-files-found: error
 
   build-linux:
@@ -171,7 +171,7 @@ jobs:
           name: linux-release
           path: |
             release/*.AppImage
-            release/*.yml
+            release/latest-linux.yml
           if-no-files-found: error
 
   release:
