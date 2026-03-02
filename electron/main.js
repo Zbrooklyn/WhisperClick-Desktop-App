@@ -3,6 +3,7 @@ const path = require('path');
 const Store = require('./store');
 const Sidecar = require('./sidecar');
 const { createTray, updateTrayIcon } = require('./tray');
+const { initUpdater, checkForUpdatesQuietly } = require('./updater');
 
 // --- Single instance lock ---
 const gotLock = app.requestSingleInstanceLock();
@@ -42,7 +43,7 @@ function createMainWindow() {
     width: winWidth,
     height: winHeight,
     minWidth: 480,
-    minHeight: 620,
+    minHeight: 218,
     backgroundColor: settings.theme === 'dark' ? '#1C1917' : '#FAFAF9',
     titleBarStyle: 'hidden',
     titleBarOverlay: {
@@ -251,6 +252,13 @@ ipcMain.handle('save-settings', (_, patch) => {
   }
   return { success: true };
 });
+// Factory reset
+ipcMain.handle('reset-settings', () => {
+  if (pillWindow) pillWindow.close();
+  store.resetAll();
+  return { success: true };
+});
+
 // History
 ipcMain.handle('get-history', () => store.getHistory());
 ipcMain.handle('delete-history', (_, id) => store.deleteHistory(id));
@@ -492,23 +500,105 @@ ipcMain.handle('hide-pill', () => {
     // Update settings to reflect pill hidden
     const settings = store.getSettings();
     store.saveSettings({ ...settings, showPill: false });
+    // Notify renderer so settings drawer toggle stays in sync
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('pill-hidden');
+    }
   }
 });
 
-// Native context menu for pill (replaces HTML-based menu that gets clipped)
-ipcMain.handle('pill-context-menu', () => {
-  if (!pillWindow) return;
+// ---------------------------------------------------------------------------
+// Shared rich context menu template (used by pill right-click AND tray)
+// ---------------------------------------------------------------------------
+async function buildRichMenuTemplate({ includePillItems = false, includeQuit = false } = {}) {
   const isRecording = appState === 'recording';
   const isProcessing = appState === 'processing';
-  const menu = Menu.buildFromTemplate([
+  const settings = store.getSettings();
+  const history = store.getHistory();
+
+  // Build microphone submenu (with timeout so menu doesn't hang)
+  let micSubmenu = [{ label: 'Unavailable', enabled: false }];
+  try {
+    if (sidecar && sidecar.isRunning) {
+      const mics = await Promise.race([
+        sidecar.send('list_mics'),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
+      ]);
+      if (Array.isArray(mics) && mics.length) {
+        micSubmenu = mics.map(m => ({
+          label: m.name || `Mic ${m.id}`,
+          type: 'radio',
+          checked: !!m.is_default,
+          click: () => {
+            if (sidecar && sidecar.isRunning) sidecar.send('set_mic', { device_id: m.id }).catch(() => {});
+          },
+        }));
+      }
+    }
+  } catch {}
+
+  // Build recent transcriptions submenu (up to 3)
+  const recentItems = history.slice(0, 3).map(h => {
+    const text = h.text || '';
+    const label = text.length > 40 ? text.slice(0, 40) + '…' : text;
+    return {
+      label: label || '(empty)',
+      click: () => { clipboard.writeText(text); },
+    };
+  });
+
+  const template = [
     {
-      label: isRecording ? 'Stop Recording' : 'Start Recording',
+      label: isRecording ? 'Stop Recording' : (isProcessing ? 'Processing…' : 'Start Recording'),
       enabled: !isProcessing,
       click: () => {
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.executeJavaScript('triggerTrustedHotkeyToggle()').catch(() => {});
         } else {
           toggleRecording();
+        }
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Microphone',
+      submenu: micSubmenu,
+    },
+    {
+      label: `Sound Effects`,
+      type: 'checkbox',
+      checked: settings.soundEnabled !== false,
+      click: (item) => {
+        const updated = store.getSettings();
+        store.saveSettings({ ...updated, soundEnabled: item.checked });
+        configureSidecar();
+      },
+    },
+    {
+      label: `Mode: ${settings.mode === 'local' ? 'Local' : 'API'}`,
+      click: () => {
+        const cur = store.getSettings();
+        const nextMode = cur.mode === 'local' ? 'api' : 'local';
+        store.saveSettings({ ...cur, mode: nextMode });
+        configureSidecar();
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.executeJavaScript(`setMode('${nextMode}')`).catch(() => {});
+        }
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Recent Transcriptions',
+      submenu: recentItems.length ? recentItems : [{ label: 'No transcriptions yet', enabled: false }],
+    },
+    {
+      label: 'Paste Last Transcript',
+      enabled: history.length > 0,
+      click: () => {
+        const text = history[0]?.text || '';
+        if (text) {
+          clipboard.writeText(text);
+          setTimeout(() => simulatePaste(), 150);
         }
       },
     },
@@ -529,17 +619,60 @@ ipcMain.handle('pill-context-menu', () => {
     },
     { type: 'separator' },
     {
+      label: settings.hotkey || 'Ctrl+Alt+R',
+      enabled: false,
+    },
+  ];
+
+  // Pill-specific: Hide Pill
+  if (includePillItems) {
+    template.push({
       label: 'Hide Pill',
       click: () => {
         if (pillWindow) {
           pillWindow.close();
-          const settings = store.getSettings();
-          store.saveSettings({ ...settings, showPill: false });
+          const s = store.getSettings();
+          store.saveSettings({ ...s, showPill: false });
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('pill-hidden');
+          }
         }
       },
-    },
-  ]);
-  menu.popup({ window: pillWindow });
+    });
+  }
+
+  // Tray-specific: Quit
+  if (includeQuit) {
+    template.push({ type: 'separator' });
+    template.push({
+      label: 'Quit',
+      click: () => {
+        isQuitting = true;
+        if (pillWindow) pillWindow.close();
+        if (mainWindow) mainWindow.destroy();
+        if (sidecar) sidecar.stop();
+        app.quit();
+      },
+    });
+  }
+
+  return template;
+}
+
+// Native context menu for pill (replaces HTML-based menu that gets clipped)
+ipcMain.handle('pill-context-menu', async () => {
+  if (!pillWindow) return;
+  const template = await buildRichMenuTemplate({ includePillItems: true });
+  const menu = Menu.buildFromTemplate(template);
+  // Position menu centered above the pill with ~20px gap.
+  // menu.popup x/y are content-area-relative to the specified window.
+  // Electron converts them to screen coords via ConvertPointToScreen internally.
+  const pillBounds = pillWindow.getBounds();
+  const estimatedMenuWidth = 220;
+  const estimatedMenuHeight = 300; // ~14 items + separators
+  const x = Math.round(pillBounds.width / 2) - Math.round(estimatedMenuWidth / 2);
+  const y = -(estimatedMenuHeight + 20);
+  menu.popup({ window: pillWindow, x, y });
 });
 
 // Window controls (frameless)
@@ -621,31 +754,14 @@ app.whenReady().then(() => {
   createMainWindow();
   if (settings.showPill) createPillWindow();
 
-  // System tray
+  // Auto-updater
+  initUpdater(mainWindow, store);
+  setTimeout(() => checkForUpdatesQuietly(), 10_000);
+
+  // System tray — dynamic menu rebuilt on each right-click
   tray = createTray({
     onShow: () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } },
-    onStartStop: () => {
-      if (sidecar && sidecar.isRunning) sidecar.send('capture_fg').catch(() => {});
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.executeJavaScript('triggerTrustedHotkeyToggle()').catch(() => {});
-      } else {
-        toggleRecording();
-      }
-    },
-    onSettings: () => {
-      if (mainWindow) {
-        mainWindow.show();
-        mainWindow.focus();
-        mainWindow.webContents.executeJavaScript('openSettingsDrawer()').catch(() => {});
-      }
-    },
-    onQuit: () => {
-      isQuitting = true;
-      if (pillWindow) pillWindow.close();
-      if (mainWindow) mainWindow.destroy();
-      if (sidecar) sidecar.stop();
-      app.quit();
-    },
+    onBuildMenu: () => buildRichMenuTemplate({ includeQuit: true }),
     isDev,
   });
 

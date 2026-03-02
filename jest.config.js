@@ -2,6 +2,7 @@ module.exports = {
   testEnvironment: 'node',
   moduleNameMapper: {
     '^electron$': '<rootDir>/tests/mocks/electron.js',
+    '^electron-updater$': '<rootDir>/tests/mocks/electron-updater.js',
   },
   testPathIgnorePatterns: ['/node_modules/', '/tests/e2e/'],
   testTimeout: 10000,

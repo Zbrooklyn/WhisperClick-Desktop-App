@@ -165,6 +165,24 @@ describe('settings handlers', () => {
 
 // ── History handlers ────────────────────────────────────────────────────
 
+describe('factory reset handler', () => {
+  test('reset-settings clears settings and history', async () => {
+    // Add some data first
+    await ipcMain._invoke('save-settings', { theme: 'light' });
+    const result = await ipcMain._invoke('reset-settings');
+    expect(result).toEqual({ success: true });
+
+    // Verify settings are back to defaults
+    const settings = await ipcMain._invoke('get-settings');
+    expect(settings.theme).toBe('dark');
+    expect(settings.onboardingComplete).toBe(false);
+
+    // Verify history is cleared
+    const history = await ipcMain._invoke('get-history');
+    expect(history).toEqual([]);
+  });
+});
+
 describe('history handlers', () => {
   beforeAll(async () => {
     await ipcMain._invoke('clear-history');
@@ -643,6 +661,14 @@ describe('pill-toggle-recording', () => {
 // ── pill-context-menu ───────────────────────────────────────────────────
 
 describe('pill-context-menu', () => {
+  let cleanupSidecar;
+  beforeAll(() => {
+    cleanupSidecar = autoRespondSidecar(initialFakeProc, {
+      list_mics: [{ id: 0, name: 'Default Mic', is_default: true }],
+    });
+  });
+  afterAll(() => { if (cleanupSidecar) cleanupSidecar(); });
+
   test('builds menu with correct items', async () => {
     Menu.buildFromTemplate.mockClear();
     await ipcMain._invoke('pill-context-menu');
@@ -652,6 +678,9 @@ describe('pill-context-menu', () => {
     expect(labels).toContain('Show WhisperClick');
     expect(labels).toContain('Settings');
     expect(labels).toContain('Hide Pill');
+    expect(labels).toContain('Microphone');
+    expect(labels).toContain('Sound Effects');
+    expect(labels).toContain('Paste Last Transcript');
     // Should have Start/Stop Recording as first item
     expect(labels[0]).toMatch(/Recording/);
   });
@@ -993,9 +1022,12 @@ describe('hotkey and toggleRecording', () => {
   });
 
   test('hotkey falls back to toggleRecording when mainWindow destroyed', async () => {
+    // Drain any pending success→dormant timers from earlier transcription tests
+    await new Promise(r => setTimeout(r, 2000));
+
     // First ensure dormant state
     pushSidecarEvent(initialFakeProc, 'cancelled', {});
-    await tick(30);
+    await tick(100);
 
     mainWin._destroyed = true;
     mainWin.webContents.executeJavaScript.mockClear();
@@ -1006,7 +1038,7 @@ describe('hotkey and toggleRecording', () => {
 
     const hotkeyCallback = globalShortcut._shortcuts['Ctrl+Alt+R'];
     hotkeyCallback();
-    await tick(50);
+    await tick(200);
     cleanup();
 
     // executeJavaScript should NOT have been called (mainWindow.isDestroyed() = true)
@@ -1066,6 +1098,14 @@ describe('hotkey and toggleRecording', () => {
 // ── pill-context-menu click handlers ────────────────────────────────────
 
 describe('pill-context-menu click handlers', () => {
+  let cleanupSidecar;
+  beforeAll(() => {
+    cleanupSidecar = autoRespondSidecar(initialFakeProc, {
+      list_mics: [{ id: 0, name: 'Default Mic', is_default: true }],
+    });
+  });
+  afterAll(() => { if (cleanupSidecar) cleanupSidecar(); });
+
   test('Start Recording click routes through mainWindow', async () => {
     mainWin._destroyed = false;
     mainWin.webContents.executeJavaScript.mockClear();
@@ -1339,18 +1379,23 @@ describe('broadcasts reach pillWindow', () => {
 
 // ── tray callbacks ──────────────────────────────────────────────────────
 
-describe('tray callbacks', () => {
+describe('tray callbacks (dynamic menu)', () => {
   let trayTemplate;
+  let cleanupSidecar;
 
-  beforeAll(() => {
-    // Get the tray's context menu template from the Tray instance
-    // (can't use Menu.buildFromTemplate.mock.calls because earlier tests clear it)
+  beforeAll(async () => {
+    cleanupSidecar = autoRespondSidecar(initialFakeProc, {
+      list_mics: [{ id: 0, name: 'Default Mic', is_default: true }],
+    });
+    // Tray now uses dynamic right-click menu — simulate right-click to get the template
     const trayInstance = Tray._instances[0];
     expect(trayInstance).toBeDefined();
-    expect(trayInstance.contextMenu).toBeDefined();
-    trayTemplate = trayInstance.contextMenu._template;
+    await trayInstance.emit('right-click');
+    expect(trayInstance.lastPopupMenu).toBeDefined();
+    trayTemplate = trayInstance.lastPopupMenu._template;
     expect(trayTemplate).toBeDefined();
   });
+  afterAll(() => { if (cleanupSidecar) cleanupSidecar(); });
 
   test('onShow callback shows and focuses mainWindow', () => {
     mainWin._destroyed = false;
@@ -1365,11 +1410,11 @@ describe('tray callbacks', () => {
     expect(mainWin.focus).toHaveBeenCalled();
   });
 
-  test('onStartStop callback routes through mainWindow JS', () => {
+  test('Start Recording item routes through mainWindow JS', () => {
     mainWin._destroyed = false;
     mainWin.webContents.executeJavaScript.mockClear();
 
-    const recItem = trayTemplate.find(i => i.id === 'rec');
+    const recItem = trayTemplate.find(i => /start recording/i.test(i.label));
     expect(recItem).toBeDefined();
     recItem.click();
 
@@ -1378,7 +1423,7 @@ describe('tray callbacks', () => {
     );
   });
 
-  test('onSettings callback shows window and opens settings drawer', () => {
+  test('Settings item shows window and opens settings drawer', () => {
     mainWin._destroyed = false;
     mainWin.show.mockClear();
     mainWin.focus.mockClear();
@@ -1393,6 +1438,13 @@ describe('tray callbacks', () => {
     expect(mainWin.webContents.executeJavaScript).toHaveBeenCalledWith(
       'openSettingsDrawer()'
     );
+  });
+
+  test('tray menu includes rich items (Microphone, Sound Effects, Mode)', () => {
+    const labels = trayTemplate.filter(i => i.label).map(i => i.label);
+    expect(labels).toContain('Microphone');
+    expect(labels).toContain('Sound Effects');
+    expect(labels.some(l => /^Mode:/.test(l))).toBe(true);
   });
 
 });
@@ -1491,10 +1543,12 @@ describe('sidecar not running guards', () => {
 // ── tray onQuit — ABSOLUTE LAST (sets isQuitting=true) ──────────────────
 
 describe('tray onQuit', () => {
-  test('onQuit callback calls app.quit', () => {
+  test('onQuit callback calls app.quit', async () => {
     app.quit.mockClear();
     const trayInstance = Tray._instances[0];
-    const trayTemplate = trayInstance.contextMenu._template;
+    // Simulate right-click to get fresh dynamic menu with Quit item
+    await trayInstance.emit('right-click');
+    const trayTemplate = trayInstance.lastPopupMenu._template;
     const quitItem = trayTemplate.find(i => i.label === 'Quit');
     expect(quitItem).toBeDefined();
     quitItem.click();

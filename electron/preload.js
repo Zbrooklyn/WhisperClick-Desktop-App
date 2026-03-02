@@ -57,9 +57,27 @@ function settingsToV3(settings) {
 // ---------------------------------------------------------------------------
 
 let latestDownloadProgress = null;
+let latestUpdateStatus = null;
 
 ipcRenderer.on('model-download-progress', (_e, data) => {
-  latestDownloadProgress = data;
+  const { current, total, model } = data || {};
+  const prog = total > 0 ? current / total : 0;
+  latestDownloadProgress = {
+    status: prog >= 0.999 ? 'complete' : 'downloading',
+    progress: prog,
+    model,
+    current,
+    total,
+  };
+});
+
+ipcRenderer.on('update-status', (_e, data) => {
+  latestUpdateStatus = data;
+});
+
+ipcRenderer.on('pill-hidden', () => {
+  // Dispatch a custom event so the frontend can sync the pill toggle
+  window.dispatchEvent(new CustomEvent('pill-hidden'));
 });
 
 // ---------------------------------------------------------------------------
@@ -84,6 +102,11 @@ contextBridge.exposeInMainWorld('pywebview', {
       const electronPatch = patchToElectron(patch);
       await ipcRenderer.invoke('save-settings', electronPatch);
       return { success: true };
+    },
+
+    // ── Factory reset ──────────────────────────────────────────────────────
+    async reset_settings() {
+      return await ipcRenderer.invoke('reset-settings');
     },
 
     // ── Recording ─────────────────────────────────────────────────────────
@@ -254,6 +277,26 @@ contextBridge.exposeInMainWorld('pywebview', {
     // ── Export ─────────────────────────────────────────────────────────────
     async export_transcription(text, format) {
       return await ipcRenderer.invoke('export-transcription', text, format);
+    },
+
+    // ── Auto-updater ─────────────────────────────────────────────────────
+    async check_for_updates() {
+      return await ipcRenderer.invoke('check-for-updates');
+    },
+    async download_update() {
+      return await ipcRenderer.invoke('download-update');
+    },
+    async install_update() {
+      return await ipcRenderer.invoke('install-update');
+    },
+    async set_update_channel(channel) {
+      return await ipcRenderer.invoke('set-update-channel', channel);
+    },
+    async get_update_channel() {
+      return await ipcRenderer.invoke('get-update-channel');
+    },
+    async get_update_status() {
+      return latestUpdateStatus || { status: 'idle' };
     },
   },
 });

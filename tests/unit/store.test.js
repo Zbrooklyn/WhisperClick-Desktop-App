@@ -186,6 +186,21 @@ describe('settings', () => {
     expect(onDisk.theme).toBe('dark');
   });
 
+  test('resetAll clears settings and history', () => {
+    store.saveSettings({ ...DEFAULT_SETTINGS, theme: 'light', mode: 'local' });
+    store.addHistory({ text: 'entry1' });
+    store.addHistory({ text: 'entry2' });
+    expect(store.getHistory()).toHaveLength(2);
+
+    store.resetAll();
+
+    const settings = store.getSettings();
+    expect(settings.theme).toBe('dark');
+    expect(settings.mode).toBe('api');
+    expect(settings.onboardingComplete).toBe(false);
+    expect(store.getHistory()).toEqual([]);
+  });
+
   test('full settings round-trip preserves all fields', () => {
     const custom = {
       ...DEFAULT_SETTINGS,

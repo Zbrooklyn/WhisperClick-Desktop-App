@@ -20,6 +20,9 @@
         #title-bar [onclick] { -webkit-app-region: no-drag; }
         /* Hide custom window controls — native title bar overlay handles min/max/close */
         .electron-hide { display: none !important; }
+        /* Electron: remove frame border so content fills window edge-to-edge */
+        #app-frame { border: none; box-shadow: none; }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         [data-tooltip]:hover::after {
             content: attr(data-tooltip);
@@ -50,13 +53,13 @@
 <body class="bg-stone-200 dark:bg-stone-900 h-screen flex items-center justify-center overflow-hidden transition-colors duration-300">
 
     <!-- App Frame -->
-    <div id="app-frame" class="w-full h-full bg-stone-50 dark:bg-stone-850 shadow-2xl flex flex-col overflow-hidden relative border border-stone-300 dark:border-stone-800">
+    <div id="app-frame" class="w-full h-full bg-stone-50 dark:bg-stone-850 flex flex-col overflow-hidden relative" style="border: none; box-shadow: none;">
 
         <!-- Top Banner Notification -->
         <div id="banner-container" class="absolute top-0 left-0 right-0 z-[100] pointer-events-none"></div>
 
         <!-- Onboarding Overlay -->
-        <div id="onboarding-overlay" class="hidden absolute inset-0 top-10 z-[200] bg-stone-50 dark:bg-stone-850 flex items-center justify-center">
+        <div id="onboarding-overlay" class="hidden absolute inset-0 z-[200] bg-stone-50 dark:bg-stone-850 flex items-center justify-center" style="top: 41px;">
             <div id="onboarding-local-step" class="w-full p-8 text-center animate-fade-in">
                 <div class="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-6 text-accent">
                     <i data-lucide="mic" class="w-8 h-8"></i>
@@ -64,23 +67,47 @@
                 <h1 class="text-2xl font-bold mb-2 text-stone-800 dark:text-stone-100">WhisperClick</h1>
                 <p class="text-stone-500 dark:text-stone-400 mb-8 text-sm">Local capture is available right away.<br>Add an API key for transcription and translation.</p>
 
-                <div class="bg-stone-100 dark:bg-stone-800 rounded-xl p-4 mb-6 border border-stone-200 dark:border-stone-700 text-left">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="font-medium text-sm dark:text-stone-200">Local Capture Mode</span>
-                        <span id="onboarding-local-caption" class="text-xs text-stone-500">Checking model...</span>
+                <div class="bg-stone-100 dark:bg-stone-800 rounded-xl mb-6 border border-stone-200 dark:border-stone-700 text-left overflow-hidden">
+                    <div class="p-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <button type="button" onclick="toggleOnboardingModelDropdown()" id="onboarding-model-trigger"
+                                class="inline-flex items-center gap-1 font-medium text-sm dark:text-stone-200 hover:text-accent dark:hover:text-accent transition-colors cursor-pointer">
+                                <span id="onboarding-model-label">Base (English) — 139 MB</span>
+                                <i data-lucide="chevron-down" id="onboarding-model-chevron" class="w-3.5 h-3.5 opacity-50 transition-transform duration-200"></i>
+                            </button>
+                            <input type="hidden" id="onboarding-model-select" value="base">
+                            <span id="onboarding-local-caption" class="text-xs text-stone-500">Checking model...</span>
+                        </div>
+                        <div class="h-2 bg-stone-200 dark:bg-stone-700 rounded-full overflow-hidden">
+                            <div id="onboarding-progress" class="h-full bg-accent w-0 transition-all duration-300"></div>
+                        </div>
+                        <div class="mt-2 text-xs text-stone-500 text-right" id="onboarding-status">Checking...</div>
                     </div>
-                    <div class="h-2 bg-stone-200 dark:bg-stone-700 rounded-full overflow-hidden">
-                        <div id="onboarding-progress" class="h-full bg-accent w-0 transition-all duration-300"></div>
+                    <div id="onboarding-model-menu" class="hidden border-t border-stone-200 dark:border-stone-700">
+                        <div class="py-1">
+                            <button type="button" data-value="tiny" onclick="selectOnboardingModel('tiny','Tiny — 75 MB')" class="w-full text-left px-4 py-2 text-sm text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700 hover:pl-5 transition-all duration-150 flex justify-between items-center">Tiny<span class="text-xs text-stone-400">75 MB</span></button>
+                            <button type="button" data-value="base" onclick="selectOnboardingModel('base','Base (English) — 139 MB')" class="w-full text-left px-4 py-2 text-sm text-accent font-medium hover:bg-stone-200 dark:hover:bg-stone-700 hover:pl-5 transition-all duration-150 flex justify-between items-center">Base (English)<span class="text-xs text-stone-400">139 MB</span></button>
+                            <button type="button" data-value="small" onclick="selectOnboardingModel('small','Small — 461 MB')" class="w-full text-left px-4 py-2 text-sm text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700 hover:pl-5 transition-all duration-150 flex justify-between items-center">Small<span class="text-xs text-stone-400">461 MB</span></button>
+                            <button type="button" data-value="medium" onclick="selectOnboardingModel('medium','Medium — 1.4 GB')" class="w-full text-left px-4 py-2 text-sm text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700 hover:pl-5 transition-all duration-150 flex justify-between items-center">Medium<span class="text-xs text-stone-400">1.4 GB</span></button>
+                            <button type="button" data-value="large" onclick="selectOnboardingModel('large','Large — 2.9 GB')" class="w-full text-left px-4 py-2 text-sm text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700 hover:pl-5 transition-all duration-150 flex justify-between items-center">Large<span class="text-xs text-stone-400">2.9 GB</span></button>
+                            <button type="button" data-value="turbo" onclick="selectOnboardingModel('turbo','Turbo — 1.5 GB')" class="w-full text-left px-4 py-2 text-sm text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700 hover:pl-5 transition-all duration-150 flex justify-between items-center">Turbo<span class="text-xs text-stone-400">1.5 GB</span></button>
+                        </div>
                     </div>
-                    <div class="mt-2 text-xs text-stone-500 text-right" id="onboarding-status">Checking...</div>
                 </div>
 
                 <button id="onboarding-btn" onclick="startOnboarding()" class="w-full py-3 bg-accent hover:bg-accent-hover text-white font-medium rounded-lg shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer relative z-50">
                     <i data-lucide="check-circle-2" class="w-4 h-4"></i> Continue with Local Capture
                 </button>
-                <button id="onboarding-api-btn" onclick="useApiInstead()" class="mt-3 text-xs text-stone-500 hover:text-accent underline underline-offset-2 transition-colors">
+                <button id="onboarding-api-btn" onclick="useApiInstead()" class="text-xs text-stone-500 hover:text-accent underline underline-offset-2 transition-colors" style="margin-top: 1.25rem;">
                     Use API Key for Cloud Transcription
                 </button>
+
+                <div class="flex items-center justify-center gap-2" style="margin-top: 2.5rem;">
+                    <button id="onboarding-show-pill" type="button" onclick="toggleOnboardingPill(this)" class="w-10 h-5 bg-stone-300 dark:bg-stone-600 rounded-full relative transition-colors focus:outline-none" data-checked="false">
+                        <div class="w-3 h-3 bg-white rounded-full absolute top-1 left-1 transition-transform"></div>
+                    </button>
+                    <span class="text-xs text-stone-500 dark:text-stone-400 cursor-default">Show floating widget</span>
+                </div>
             </div>
 
             <div id="onboarding-api-step" class="hidden w-full p-8 animate-fade-in">
@@ -155,6 +182,23 @@
                 <div class="mt-4 flex justify-end gap-2">
                     <button onclick="closeClearHistoryModal()" class="px-3 py-1.5 rounded-md text-xs font-medium border border-stone-300 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors">Cancel</button>
                     <button onclick="confirmClearHistory()" class="px-3 py-1.5 rounded-md text-xs font-medium bg-red-600 hover:bg-red-700 text-white transition-colors">Clear</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Factory Reset Modal -->
+        <div id="factory-reset-modal" class="absolute inset-0 z-[70] hidden">
+            <div id="factory-reset-backdrop" class="absolute inset-0 bg-black/55 backdrop-blur-sm opacity-0 transition-opacity duration-200" onclick="closeFactoryResetModal()"></div>
+            <div id="factory-reset-card" class="absolute left-1/2 top-1/2 w-[min(90%,340px)] -translate-x-1/2 -translate-y-1/2 opacity-0 scale-95 transition-all duration-200 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-100 dark:bg-stone-800 shadow-2xl p-4">
+                <h3 class="text-sm font-semibold text-stone-800 dark:text-stone-200">Factory Reset?</h3>
+                <p class="mt-2 text-xs text-stone-500 dark:text-stone-400 leading-relaxed">This will erase all settings, history, and saved preferences. The app will restart as if freshly installed.</p>
+                <label class="mt-3 flex items-center gap-2 cursor-pointer">
+                    <input id="reset-delete-models" type="checkbox" class="w-3.5 h-3.5 rounded border-stone-300 dark:border-stone-600 text-red-600 focus:ring-red-500 accent-red-600">
+                    <span class="text-xs text-stone-500 dark:text-stone-400">Also delete downloaded models</span>
+                </label>
+                <div class="mt-4 flex justify-end gap-2">
+                    <button onclick="closeFactoryResetModal()" class="px-3 py-1.5 rounded-md text-xs font-medium border border-stone-300 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors">Cancel</button>
+                    <button onclick="confirmFactoryReset()" class="px-3 py-1.5 rounded-md text-xs font-medium bg-red-600 hover:bg-red-700 text-white transition-colors">Reset Everything</button>
                 </div>
             </div>
         </div>
@@ -470,6 +514,28 @@
                             <option value="0">Forever</option>
                         </select>
                     </div>
+                    <!-- Update Channel -->
+                    <div class="border-t border-stone-200 dark:border-stone-700 pt-3"></div>
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-sm dark:text-stone-300">Update Channel</span>
+                        <select id="update-channel-select" class="bg-stone-200 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-md px-2 py-1 text-xs dark:text-stone-200 focus:outline-none focus:ring-2 focus:ring-accent">
+                            <option value="stable">Stable</option>
+                            <option value="beta" selected>Beta</option>
+                        </select>
+                    </div>
+                    <!-- Update Status -->
+                    <div id="update-status-card" class="bg-stone-200/60 dark:bg-stone-800/60 rounded-lg p-2.5 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span id="update-status-text" class="text-xs text-stone-500 dark:text-stone-400">No update info</span>
+                            <button id="update-check-btn" onclick="checkForUpdates()" class="text-[10px] font-medium text-accent hover:underline">Check Now</button>
+                        </div>
+                        <p id="update-detail-text" class="text-[10px] text-stone-400 dark:text-stone-500 hidden"></p>
+                        <div id="update-progress-bar" class="hidden w-full h-1.5 bg-stone-300 dark:bg-stone-700 rounded-full overflow-hidden">
+                            <div id="update-progress-fill" class="h-full bg-accent rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                        <button id="update-download-btn" onclick="downloadUpdate()" class="hidden w-full px-2 py-1 rounded-md text-[10px] font-medium bg-accent hover:bg-accent/90 text-white transition-colors">Download Update</button>
+                        <button id="update-install-btn" onclick="installUpdate()" class="hidden w-full px-2 py-1 rounded-md text-[10px] font-medium bg-green-600 hover:bg-green-700 text-white transition-colors">Restart &amp; Install</button>
+                    </div>
                 </div>
 
                 <!-- Planned Features -->
@@ -493,6 +559,15 @@
                     </div>
                 </div>
 
+                <!-- Danger Zone -->
+                <div class="space-y-3 pb-5 border-b border-stone-200 dark:border-stone-700">
+                    <h3 class="text-xs font-bold text-red-500 uppercase tracking-wider">Danger Zone</h3>
+                    <button onclick="openFactoryResetModal()" class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md text-xs font-medium border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">
+                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                        Factory Reset
+                    </button>
+                </div>
+
                 <div class="pt-6 mt-4 border-t border-stone-200 dark:border-stone-700 text-center">
                     <p class="font-semibold text-sm dark:text-stone-200" data-app-name>WhisperClick</p>
                     <p id="app-version" class="text-xs text-stone-500">v1.2.0</p>
@@ -501,7 +576,7 @@
         </aside>
 
         <!-- Header -->
-        <header id="title-bar" class="h-10 bg-stone-100 dark:bg-stone-850 flex items-center justify-between px-3 shrink-0 cursor-default select-none border-b border-stone-200 dark:border-stone-700">
+        <header id="title-bar" class="h-10 bg-stone-100 dark:bg-stone-850 flex items-center justify-between px-3 shrink-0 cursor-default select-none">
             <div class="flex items-center gap-2">
                 <i data-lucide="mic" class="w-4 h-4 text-accent"></i>
                 <span class="font-semibold text-sm tracking-wide dark:text-stone-200" data-app-name>WhisperClick</span>
@@ -523,6 +598,8 @@
                 </button>
             </div>
         </header>
+        <!-- Divider below header — sits at y=40, outside the native titleBarOverlay area -->
+        <div class="w-full shrink-0 bg-stone-200 dark:bg-stone-700 relative" style="height: 1px; z-index: 300;"></div>
 
         <!-- Toolbar (Expanding) -->
         <div class="relative z-30 flex flex-col">
@@ -551,7 +628,7 @@
             </div>
 
             <!-- Expanding Selector Panel -->
-            <div id="selector-panel" class="bg-stone-100 dark:bg-stone-850 border-b border-stone-200 dark:border-stone-700 overflow-hidden transition-all duration-300 ease-in-out max-h-0 opacity-0 relative z-30 shadow-inner">
+            <div id="selector-panel" class="bg-stone-100 dark:bg-stone-850 border-b border-stone-200 dark:border-stone-700 overflow-y-auto overflow-x-hidden transition-all duration-300 ease-in-out max-h-0 opacity-0 relative z-30 shadow-inner">
                 <div class="p-3" id="selector-content"></div>
             </div>
         </div>
@@ -777,6 +854,9 @@
         const clearHistoryModal = document.getElementById('clear-history-modal');
         const clearHistoryBackdrop = document.getElementById('clear-history-backdrop');
         const clearHistoryCard = document.getElementById('clear-history-card');
+        const factoryResetModal = document.getElementById('factory-reset-modal');
+        const factoryResetBackdrop = document.getElementById('factory-reset-backdrop');
+        const factoryResetCard = document.getElementById('factory-reset-card');
 
         const onboardingOverlay = document.getElementById('onboarding-overlay');
         const onboardingLocalStep = document.getElementById('onboarding-local-step');
@@ -809,6 +889,14 @@
         const vizStyleSelect = document.getElementById('viz-style-select');
         const vizMotionSelect = document.getElementById('viz-motion-select');
         const audioRetentionSelect = document.getElementById('audio-retention-select');
+        const updateChannelSelect = document.getElementById('update-channel-select');
+        const updateStatusText = document.getElementById('update-status-text');
+        const updateDetailText = document.getElementById('update-detail-text');
+        const updateCheckBtn = document.getElementById('update-check-btn');
+        const updateProgressBar = document.getElementById('update-progress-bar');
+        const updateProgressFill = document.getElementById('update-progress-fill');
+        const updateDownloadBtn = document.getElementById('update-download-btn');
+        const updateInstallBtn = document.getElementById('update-install-btn');
         const hotkeyDisplay = document.getElementById('hotkey-display');
         const hotkeyInput = document.getElementById('hotkey-input');
         const footerHotkeyDisplay = document.getElementById('footer-hotkey-display');
@@ -1441,26 +1529,36 @@
         async function downloadLocalModel(modelName) {
             if (!nativeBridgeReady || modelActionBusy || activeModelDownload) return;
             modelActionBusy = true;
+            activeModelDownload = modelName;
             renderModelManager();
-            try {
-                const response = await callNativeApi('download_model', modelName);
-                if (!response?.success) {
+
+            // Fire download — don't await (it blocks until complete)
+            callNativeApi('download_model', modelName).then(response => {
+                if (!response?.success && activeModelDownload === modelName) {
                     const message = response?.error || `Could not start download for ${getLocalModelDisplayName(modelName)}.`;
                     setModelManagerProgress(message, 'error');
                     showToast(message, 'info');
-                    return;
+                    activeModelDownload = null;
+                    stopModelDownloadPolling();
+                    modelActionBusy = false;
+                    renderModelManager();
                 }
-                activeModelDownload = modelName;
-                setModelManagerProgress(`Downloading ${getLocalModelDisplayName(modelName)}... 0%`, 'muted');
-                stopModelDownloadPolling();
-                modelDownloadPoll = setInterval(() => {
-                    pollModelDownloadProgress().catch(() => {});
-                }, 1000);
-                await pollModelDownloadProgress();
-            } finally {
-                modelActionBusy = false;
-                renderModelManager();
-            }
+            }).catch(() => {
+                if (activeModelDownload === modelName) {
+                    activeModelDownload = null;
+                    stopModelDownloadPolling();
+                    modelActionBusy = false;
+                    renderModelManager();
+                }
+            });
+
+            setModelManagerProgress(`Downloading ${getLocalModelDisplayName(modelName)}... 0%`, 'muted');
+            stopModelDownloadPolling();
+            modelDownloadPoll = setInterval(() => {
+                pollModelDownloadProgress().catch(() => {});
+            }, 1000);
+            modelActionBusy = false;
+            renderModelManager();
         }
 
         async function deleteLocalModel(modelName) {
@@ -1686,14 +1784,161 @@
             }
         }
 
+        function toggleOnboardingModelDropdown() {
+            const menu = document.getElementById('onboarding-model-menu');
+            const chevron = document.getElementById('onboarding-model-chevron');
+            if (!menu) return;
+            const opening = menu.classList.toggle('hidden') === false;
+            if (chevron) chevron.style.transform = opening ? 'rotate(180deg)' : '';
+        }
+
+        function selectOnboardingModel(value, label) {
+            const hiddenInput = document.getElementById('onboarding-model-select');
+            const labelEl = document.getElementById('onboarding-model-label');
+            const menu = document.getElementById('onboarding-model-menu');
+            const chevron = document.getElementById('onboarding-model-chevron');
+            if (hiddenInput) hiddenInput.value = value;
+            if (labelEl) labelEl.textContent = label;
+            if (menu) {
+                // Update active highlight — accent for selected, default for rest
+                menu.querySelectorAll('button').forEach(btn => {
+                    if (btn.dataset.value === value) {
+                        btn.classList.add('text-accent', 'font-medium');
+                        btn.classList.remove('text-stone-600', 'dark:text-stone-300');
+                    } else {
+                        btn.classList.remove('text-accent', 'font-medium');
+                        btn.classList.add('text-stone-600', 'dark:text-stone-300');
+                    }
+                });
+                menu.classList.add('hidden');
+            }
+            if (chevron) chevron.style.transform = '';
+            onboardingModelChanged(value);
+        }
+
+        function onboardingModelChanged(modelName) {
+            // Update the toolbar model so startOnboardingModelDownload() uses it
+            localToolbarModel = getLocalLabelFromName(modelName);
+            syncToolbarModelLabel();
+            writeSettingsToStorage({ localModel: modelName });
+
+            // Re-check if this model is already downloaded
+            const info = availableLocalModels.find(m =>
+                normalizeLocalModelName(m.name) === modelName);
+            const downloaded = info?.downloaded;
+
+            if (downloaded) {
+                if (onboardingLocalCaption) onboardingLocalCaption.textContent = 'Ready';
+                if (onboardingStatus) onboardingStatus.textContent = `${getLocalModelDisplayName(modelName)} is ready.`;
+                if (onboardingProgress) onboardingProgress.style.width = '100%';
+                if (onboardingBtn) {
+                    onboardingBtn.disabled = false;
+                    onboardingBtn.innerHTML = '<i data-lucide="check-circle-2" class="w-4 h-4"></i> Continue with Local Capture';
+                }
+                localModelReady = true;
+            } else {
+                if (onboardingLocalCaption) onboardingLocalCaption.textContent = 'Download needed';
+                if (onboardingStatus) onboardingStatus.textContent = `${getLocalModelDisplayName(modelName)} will be downloaded.`;
+                if (onboardingProgress) { onboardingProgress.classList.add('w-0'); onboardingProgress.style.width = '0%'; }
+                if (onboardingBtn) {
+                    onboardingBtn.disabled = false;
+                    onboardingBtn.innerHTML = '<i data-lucide="download" class="w-4 h-4"></i> Download & Continue';
+                }
+                localModelReady = false;
+            }
+            lucide.createIcons();
+        }
+
         function startOnboarding() {
-            finishOnboarding();
+            if (localModelReady) {
+                setMode('local');
+                dismissOnboarding("Local model ready.", "success");
+                return;
+            }
+            // Model not downloaded — start inline download
+            startOnboardingModelDownload();
+        }
+
+        async function startOnboardingModelDownload() {
+            const modelName = getLocalNameFromLabel(localToolbarModel) || 'base';
+            if (!nativeBridgeReady) return;
+
+            // Update button to show downloading state
+            if (onboardingBtn) {
+                onboardingBtn.disabled = true;
+                onboardingBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Downloading...';
+            }
+            if (onboardingLocalCaption) onboardingLocalCaption.textContent = 'Downloading...';
+            if (onboardingStatus) onboardingStatus.textContent = `Downloading ${getLocalModelDisplayName(modelName)}... 0%`;
+            if (onboardingProgress) {
+                onboardingProgress.classList.remove('w-0', 'w-full');
+                onboardingProgress.style.width = '0%';
+            }
+
+            activeModelDownload = modelName;
+
+            // Fire download — don't await (it blocks until complete)
+            callNativeApi('download_model', modelName).then(response => {
+                if (!response?.success && activeModelDownload === modelName) {
+                    activeModelDownload = null;
+                    if (onboardingLocalCaption) onboardingLocalCaption.textContent = 'Download failed';
+                    if (onboardingStatus) onboardingStatus.textContent = response?.error || 'Could not start download.';
+                    if (onboardingBtn) { onboardingBtn.disabled = false; onboardingBtn.innerHTML = '<i data-lucide="rotate-ccw" class="w-4 h-4"></i> Retry Download'; }
+                    lucide.createIcons();
+                }
+            }).catch(() => {
+                if (activeModelDownload === modelName) {
+                    activeModelDownload = null;
+                    if (onboardingLocalCaption) onboardingLocalCaption.textContent = 'Download failed';
+                    if (onboardingStatus) onboardingStatus.textContent = 'Could not start download.';
+                    if (onboardingBtn) { onboardingBtn.disabled = false; onboardingBtn.innerHTML = '<i data-lucide="rotate-ccw" class="w-4 h-4"></i> Retry Download'; }
+                    lucide.createIcons();
+                }
+            });
+
+            // Poll progress immediately — events arrive via preload listener
+            const poll = setInterval(async () => {
+                if (!activeModelDownload) { clearInterval(poll); return; }
+                try {
+                    const progress = await callNativeApi('get_download_progress');
+                    if (!progress) return;
+                    const status = String(progress.status || '').toLowerCase();
+
+                    if (status.startsWith('error:')) {
+                        clearInterval(poll);
+                        activeModelDownload = null;
+                        if (onboardingLocalCaption) onboardingLocalCaption.textContent = 'Download failed';
+                        if (onboardingStatus) onboardingStatus.textContent = progress.status.slice(6).trim() || 'Download failed.';
+                        if (onboardingBtn) { onboardingBtn.disabled = false; onboardingBtn.innerHTML = '<i data-lucide="rotate-ccw" class="w-4 h-4"></i> Retry Download'; }
+                        lucide.createIcons();
+                        return;
+                    }
+                    if (status === 'complete') {
+                        clearInterval(poll);
+                        activeModelDownload = null;
+                        await refreshLocalModelState();
+                        renderModelManager();
+                        setMode('local');
+                        dismissOnboarding(`${getLocalModelDisplayName(modelName)} downloaded.`, "success");
+                        return;
+                    }
+                    const pct = Math.max(0, Math.min(100, Math.round((Number(progress.progress) || 0) * 100)));
+                    if (onboardingProgress) onboardingProgress.style.width = `${pct}%`;
+                    if (onboardingStatus) onboardingStatus.textContent = `Downloading ${getLocalModelDisplayName(modelName)}... ${pct}%`;
+                } catch {}
+            }, 1000);
         }
 
         function dismissOnboarding(message = "", toastType = "info") {
             if (!onboardingOverlay || !onboardingOverlay.isConnected) {
                 if (message) showToast(message, toastType);
                 return;
+            }
+            // Save onboarding preferences
+            if (nativeBridgeReady) {
+                const pillBtn = document.getElementById('onboarding-show-pill');
+                const showPill = pillBtn ? pillBtn.getAttribute('data-checked') === 'true' : false;
+                callNativeApi('save_settings', { onboardingComplete: true, show_pill_widget: showPill }).catch(() => {});
             }
             onboardingOverlay.classList.add('opacity-0', 'pointer-events-none', 'transition-opacity', 'duration-500');
             setTimeout(() => {
@@ -1702,20 +1947,25 @@
             }, 500);
         }
 
-        function finishOnboarding() {
-            if (nativeBridgeReady) {
-                refreshLocalModelState().then(() => {
-                    if (localModelReady) {
-                        dismissOnboarding("Local model ready.", "success");
-                    } else {
-                        showToast("Local model is not downloaded yet. Configure API mode for now.", "info");
-                        showApiOnboardingStep();
-                    }
-                });
-                return;
+        function toggleOnboardingPill(btn) {
+            const isChecked = btn.getAttribute('data-checked') === 'true';
+            const newState = !isChecked;
+            btn.setAttribute('data-checked', String(newState));
+            const dot = btn.firstElementChild;
+            if (newState) {
+                btn.classList.remove('bg-stone-300', 'dark:bg-stone-600');
+                btn.classList.add('bg-accent');
+                dot.classList.add('translate-x-5');
+            } else {
+                btn.classList.add('bg-stone-300', 'dark:bg-stone-600');
+                btn.classList.remove('bg-accent');
+                dot.classList.remove('translate-x-5');
             }
-            localModelReady = true;
-            dismissOnboarding("Local capture mode ready. Add API key for transcription.", "success");
+        }
+
+        function finishOnboarding() {
+            // Legacy — startOnboarding() handles both paths now
+            startOnboarding();
         }
 
         function setMode(nextMode) {
@@ -2219,13 +2469,14 @@
                 renderModelManager();
                 if (localModelReady) {
                     if (onboardingLocalCaption) onboardingLocalCaption.textContent = 'Ready';
-                    if (onboardingProgress) { onboardingProgress.classList.remove('w-0'); onboardingProgress.classList.add('w-full'); }
+                    if (onboardingProgress) { onboardingProgress.classList.remove('w-0'); onboardingProgress.classList.add('w-full'); onboardingProgress.style.width = '100%'; }
                     if (onboardingStatus) onboardingStatus.textContent = `${getLocalModelDisplayName(getLocalNameFromLabel(localToolbarModel))} is ready.`;
-                    dismissOnboarding();
-                } else if (onboardingStatus) {
+                    if (onboardingBtn) onboardingBtn.innerHTML = '<i data-lucide="check-circle-2" class="w-4 h-4"></i> Continue with Local Capture';
+                } else {
                     if (onboardingLocalCaption) onboardingLocalCaption.textContent = 'Download needed';
                     if (onboardingProgress) { onboardingProgress.classList.remove('w-full'); onboardingProgress.classList.add('w-0'); }
-                    onboardingStatus.textContent = `${localToolbarModel} model is not downloaded yet.`;
+                    if (onboardingStatus) onboardingStatus.textContent = `${getLocalModelDisplayName(getLocalNameFromLabel(localToolbarModel))} model is not downloaded yet.`;
+                    if (onboardingBtn) onboardingBtn.innerHTML = '<i data-lucide="download" class="w-4 h-4"></i> Download Model';
                 }
             } catch {
                 localModelReady = false;
@@ -2336,6 +2587,9 @@
                         audioRetentionSelect.value = String(settings.audioRetentionDays);
                     }
 
+                    // Init update channel from backend
+                    initUpdateUi();
+
                     syncSpeechSettingsUi();
                     syncToolbarModelLabel();
 
@@ -2354,8 +2608,8 @@
                         targetLanguage: settings.target_language || undefined
                     });
 
-                    // If backend has mode/provider configured, this isn't a first run
-                    if (settings.mode || settings.api_provider) {
+                    // If backend has completed onboarding, this isn't a first run
+                    if (settings.onboardingComplete || settings.onboarding_complete) {
                         _backendConfigured = true;
                     }
                 }
@@ -2391,9 +2645,9 @@
             } catch { /* version display is non-critical */ }
             await hydrateApiKeysFromBackend();
 
-            // Show onboarding only on genuine first run:
-            // no model downloaded AND no API key AND backend has no prior configuration
-            if (!localModelReady && !openAiApiKeyMemory && !geminiApiKeyMemory && !_backendConfigured) {
+            // Show onboarding when backend has never completed it (first run or factory reset).
+            // Model files may still exist on disk after reset, so don't gate on localModelReady.
+            if (!_backendConfigured && !openAiApiKeyMemory && !geminiApiKeyMemory) {
                 if (onboardingOverlay) onboardingOverlay.classList.remove('hidden');
             } else if (_backendConfigured && !openAiApiKeyMemory && !geminiApiKeyMemory && !localModelReady) {
                 // Previously configured but keys are missing (e.g. dev/prod isolation)
@@ -2545,6 +2799,12 @@
         if (audioRetentionSelect) {
             audioRetentionSelect.addEventListener('change', () => {
                 callNativeApi('save_settings', { audio_retention_days: parseInt(audioRetentionSelect.value, 10) }).catch(() => {});
+            });
+        }
+
+        if (updateChannelSelect) {
+            updateChannelSelect.addEventListener('change', () => {
+                callNativeApi('set_update_channel', updateChannelSelect.value).catch(() => {});
             });
         }
 
@@ -2701,6 +2961,12 @@
             showToast("Some app settings could not be loaded.", "info");
         });
 
+        // Sync pill toggle when pill is hidden via right-click context menu
+        window.addEventListener('pill-hidden', () => {
+            applySwitchState(pillWidgetToggle, false);
+            updatePillMonitorVisibility(false);
+        });
+
         function toggleSelector(type) {
             if (activePanel === type) {
                 closePanel();
@@ -2793,8 +3059,8 @@
                 modelChevron.style.transform = 'rotate(0deg)';
             }
             lucide.createIcons();
-            selectorPanel.style.maxHeight = '200px';
             selectorPanel.style.opacity = '1';
+            updateCompactLayout();
         }
 
         function closePanel() {
@@ -2807,7 +3073,53 @@
             if(micBtn) {
                 micBtn.classList.replace('border-current', 'border-transparent');
             }
+            updateCompactLayout();
         }
+
+        // --- Dynamic compact layout ---
+        const COMPACT_HISTORY_THRESHOLD = 350;
+        const COMPACT_PANEL_MIN = 120;
+
+        function updateCompactLayout() {
+            const h = window.innerHeight;
+            const recSurface = document.getElementById('recording-surface');
+            const historySection = historyList.parentElement;
+            const CHROME = 121; // titlebar(40) + divider(1) + toolbar(48) + footer(32)
+            const REC_H = 97;
+
+            // Reset to defaults
+            recSurface.style.display = '';
+            historySection.style.display = '';
+
+            if (activePanel) {
+                const availWithRec = h - CHROME - REC_H;
+                let panelMax;
+
+                if (availWithRec < COMPACT_PANEL_MIN) {
+                    recSurface.style.display = 'none';
+                    panelMax = Math.max(Math.min(h - CHROME, 300), 80);
+                } else {
+                    panelMax = Math.min(availWithRec, 200);
+                }
+
+                selectorPanel.style.maxHeight = panelMax + 'px';
+
+                const recVisible = recSurface.style.display !== 'none';
+                const remaining = h - CHROME - panelMax - (recVisible ? REC_H : 0);
+                if (remaining < 130) {
+                    historySection.style.display = 'none';
+                }
+            } else {
+                if (h < COMPACT_HISTORY_THRESHOLD) {
+                    historySection.style.display = 'none';
+                }
+            }
+        }
+
+        window.addEventListener('resize', () => {
+            clearTimeout(window._compactLayoutTimer);
+            window._compactLayoutTimer = setTimeout(updateCompactLayout, 100);
+        });
 
         async function selectModel(m) {
             localToolbarModel = m;
@@ -4291,6 +4603,177 @@
         function clearHistoryConfirm() {
             openClearHistoryModal();
         }
+
+        // --- Factory Reset ---
+        function openFactoryResetModal() {
+            if (!factoryResetModal || !factoryResetBackdrop || !factoryResetCard) return;
+            factoryResetModal.classList.remove('hidden');
+            setTimeout(() => {
+                factoryResetBackdrop.classList.remove('opacity-0');
+                factoryResetCard.classList.remove('opacity-0', 'scale-95');
+            }, 10);
+        }
+
+        function closeFactoryResetModal() {
+            if (!factoryResetModal || !factoryResetBackdrop || !factoryResetCard) return;
+            factoryResetBackdrop.classList.add('opacity-0');
+            factoryResetCard.classList.add('opacity-0', 'scale-95');
+            setTimeout(() => {
+                factoryResetModal.classList.add('hidden');
+            }, 200);
+        }
+
+        async function confirmFactoryReset() {
+            const deleteModels = document.getElementById('reset-delete-models')?.checked;
+            closeFactoryResetModal();
+            if (nativeBridgeReady) {
+                if (deleteModels) {
+                    showToast("Deleting models...", "info");
+                    try {
+                        const models = await callNativeApi('get_models');
+                        for (const m of models) {
+                            if (m.downloaded) await callNativeApi('delete_model', m.name);
+                        }
+                    } catch {}
+                }
+                await callNativeApi('reset_settings');
+            }
+            localStorage.removeItem('whisperclick_settings_v1');
+            showToast("Resetting...", "info");
+            setTimeout(() => window.location.reload(), 500);
+        }
+
+        // --- Auto-Updater UI ---
+        let _updatePollTimer = null;
+
+        async function initUpdateUi() {
+            if (!nativeBridgeReady) return;
+            try {
+                const res = await callNativeApi('get_update_channel');
+                if (updateChannelSelect && res?.channel) {
+                    updateChannelSelect.value = res.channel;
+                }
+            } catch {}
+            startUpdatePolling();
+        }
+
+        function startUpdatePolling() {
+            if (_updatePollTimer) return;
+            // Immediate first check so card shows version on open
+            (async () => {
+                try {
+                    const data = await callNativeApi('get_update_status');
+                    if (data) handleUpdateStatus(data);
+                } catch {}
+            })();
+            _updatePollTimer = setInterval(async () => {
+                if (!nativeBridgeReady) return;
+                try {
+                    const data = await callNativeApi('get_update_status');
+                    if (data) handleUpdateStatus(data);
+                } catch {}
+            }, 2000);
+        }
+
+        function handleUpdateStatus(data) {
+            if (!updateStatusText) return;
+            // Hide all action elements by default
+            updateDetailText?.classList.add('hidden');
+            updateProgressBar?.classList.add('hidden');
+            updateDownloadBtn?.classList.add('hidden');
+            updateInstallBtn?.classList.add('hidden');
+
+            switch (data.status) {
+                case 'checking':
+                    updateStatusText.innerHTML = '<span class="inline-flex items-center gap-1.5"><i data-lucide="loader-2" style="width:12px;height:12px;animation:spin 1s linear infinite;"></i> Checking for updates...</span>';
+                    updateStatusText.style.opacity = '1';
+                    if (updateCheckBtn) { updateCheckBtn.textContent = 'Checking...'; updateCheckBtn.disabled = true; updateCheckBtn.style.opacity = '0.5'; }
+                    break;
+                case 'available':
+                    updateStatusText.innerHTML = `<span class="inline-flex items-center gap-1.5"><i data-lucide="download" style="width:12px;height:12px;"></i> Update available: v${data.version}</span>`;
+                    {
+                        let avDetail = data.currentVersion ? `You have v${data.currentVersion}` : '';
+                        if (data.releaseDate) {
+                            avDetail += (avDetail ? ' · ' : '') + `Released ${new Date(data.releaseDate).toLocaleDateString()}`;
+                        }
+                        if (avDetail) { updateDetailText.textContent = avDetail; updateDetailText.classList.remove('hidden'); }
+                    }
+                    updateDownloadBtn?.classList.remove('hidden');
+                    if (updateCheckBtn) { updateCheckBtn.textContent = 'Check Now'; updateCheckBtn.disabled = false; updateCheckBtn.style.opacity = ''; }
+                    break;
+                case 'up-to-date':
+                    updateStatusText.innerHTML = `<span class="inline-flex items-center gap-1.5"><i data-lucide="check-circle-2" style="width:12px;height:12px;color:#22c55e;"></i> You're up to date</span>`;
+                    {
+                        const utdVer = data.currentVersion || data.version;
+                        const utdDetail = `v${utdVer} is the latest${data.channel ? ` on ${data.channel} channel` : ''}`;
+                        updateDetailText.textContent = utdDetail;
+                        updateDetailText.classList.remove('hidden');
+                    }
+                    if (updateCheckBtn) { updateCheckBtn.textContent = 'Check Now'; updateCheckBtn.disabled = false; updateCheckBtn.style.opacity = ''; }
+                    break;
+                case 'downloading':
+                    updateStatusText.textContent = `Downloading... ${data.percent || 0}%`;
+                    updateProgressBar?.classList.remove('hidden');
+                    if (updateProgressFill) updateProgressFill.style.width = `${data.percent || 0}%`;
+                    if (data.total) {
+                        const mb = (n) => (n / 1048576).toFixed(1);
+                        updateDetailText.textContent = `${mb(data.transferred)} / ${mb(data.total)} MB`;
+                        updateDetailText.classList.remove('hidden');
+                    }
+                    break;
+                case 'ready':
+                    updateStatusText.innerHTML = `<span class="inline-flex items-center gap-1.5"><i data-lucide="package-check" style="width:12px;height:12px;color:#22c55e;"></i> v${data.version} ready to install</span>`;
+                    if (data.currentVersion) {
+                        updateDetailText.textContent = `You have v${data.currentVersion}`;
+                        updateDetailText.classList.remove('hidden');
+                    }
+                    updateInstallBtn?.classList.remove('hidden');
+                    if (updateCheckBtn) { updateCheckBtn.textContent = 'Check Now'; updateCheckBtn.disabled = false; updateCheckBtn.style.opacity = ''; }
+                    break;
+                case 'error':
+                    updateStatusText.innerHTML = '<span class="inline-flex items-center gap-1.5"><i data-lucide="alert-circle" style="width:12px;height:12px;color:#ef4444;"></i> Update check failed</span>';
+                    if (data.message) {
+                        updateDetailText.textContent = data.message;
+                        updateDetailText.classList.remove('hidden');
+                    }
+                    if (updateCheckBtn) { updateCheckBtn.textContent = 'Retry'; updateCheckBtn.disabled = false; updateCheckBtn.style.opacity = ''; }
+                    break;
+                default: { // 'idle'
+                    const cv = data.currentVersion || '';
+                    const ch = data.channel || '';
+                    if (cv) {
+                        updateStatusText.textContent = `Current version: v${cv}`;
+                        if (ch) {
+                            updateDetailText.textContent = `${ch.charAt(0).toUpperCase() + ch.slice(1)} channel`;
+                            updateDetailText.classList.remove('hidden');
+                        }
+                    } else {
+                        updateStatusText.textContent = 'No update info';
+                    }
+                    if (updateCheckBtn) { updateCheckBtn.textContent = 'Check Now'; updateCheckBtn.disabled = false; updateCheckBtn.style.opacity = ''; }
+                }
+            }
+            // Re-render Lucide icons inserted via innerHTML
+            try { lucide.createIcons({ nameAttr: 'data-lucide', attrs: {} }); } catch {}
+        }
+
+        async function checkForUpdates() {
+            if (!nativeBridgeReady) return;
+            if (updateCheckBtn) updateCheckBtn.textContent = 'Checking...';
+            await callNativeApi('check_for_updates');
+        }
+
+        async function downloadUpdate() {
+            if (!nativeBridgeReady) return;
+            updateDownloadBtn?.classList.add('hidden');
+            await callNativeApi('download_update');
+        }
+
+        async function installUpdate() {
+            if (!nativeBridgeReady) return;
+            await callNativeApi('install_update');
+        }
+
         function exportTranscription(fmt) {
             const text = detailText?.textContent || '';
             if (!text.trim()) { showToast("Nothing to export", "info"); return; }

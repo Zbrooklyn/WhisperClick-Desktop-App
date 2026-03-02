@@ -71,7 +71,7 @@ describe('PNG structure', () => {
   test('valid PNG signature (89504E47)', () => {
     const { createTray } = loadTray();
     const buf = captureIcon(() => {
-      createTray({ onShow: () => {}, onStartStop: () => {}, onSettings: () => {}, onQuit: () => {} });
+      createTray({ onShow: () => {}, onBuildMenu: async () => [] });
     });
     expect(buf).not.toBeNull();
     expect(buf[0]).toBe(137);
@@ -83,7 +83,7 @@ describe('PNG structure', () => {
   test('IHDR chunk has 16x16 dimensions', () => {
     const { createTray } = loadTray();
     const buf = captureIcon(() => {
-      createTray({ onShow: () => {}, onStartStop: () => {}, onSettings: () => {}, onQuit: () => {} });
+      createTray({ onShow: () => {}, onBuildMenu: async () => [] });
     });
     // After 8-byte signature: 4 length + 4 "IHDR" = data starts at offset 16
     const width = buf.readUInt32BE(16);
@@ -95,7 +95,7 @@ describe('PNG structure', () => {
   test('IDAT chunk exists', () => {
     const { createTray } = loadTray();
     const buf = captureIcon(() => {
-      createTray({ onShow: () => {}, onStartStop: () => {}, onSettings: () => {}, onQuit: () => {} });
+      createTray({ onShow: () => {}, onBuildMenu: async () => [] });
     });
     expect(buf.toString('binary')).toContain('IDAT');
   });
@@ -103,7 +103,7 @@ describe('PNG structure', () => {
   test('IEND chunk exists', () => {
     const { createTray } = loadTray();
     const buf = captureIcon(() => {
-      createTray({ onShow: () => {}, onStartStop: () => {}, onSettings: () => {}, onQuit: () => {} });
+      createTray({ onShow: () => {}, onBuildMenu: async () => [] });
     });
     expect(buf.toString('binary')).toContain('IEND');
   });
@@ -115,7 +115,7 @@ describe('CRC32', () => {
   test('IHDR CRC matches independently computed CRC32', () => {
     const { createTray } = loadTray();
     const buf = captureIcon(() => {
-      createTray({ onShow: () => {}, onStartStop: () => {}, onSettings: () => {}, onQuit: () => {} });
+      createTray({ onShow: () => {}, onBuildMenu: async () => [] });
     });
 
     const ihdrLen = buf.readUInt32BE(8);
@@ -167,9 +167,7 @@ describe('createTray', () => {
     const { createTray } = loadTray();
     const result = createTray({
       onShow: () => {},
-      onStartStop: () => {},
-      onSettings: () => {},
-      onQuit: () => {},
+      onBuildMenu: async () => [{ label: 'Test' }],
     });
     // Duck-type check — tray.js constructs `new Tray(icon)` from electron
     expect(result).toBeDefined();
@@ -177,18 +175,23 @@ describe('createTray', () => {
     expect(typeof result.setImage).toBe('function');
   });
 
-  test('sets context menu with expected items', () => {
+  test('registers right-click handler for dynamic menu', async () => {
     const { createTray } = loadTray();
+    const mockTemplate = [
+      { label: 'Show WhisperClick' },
+      { type: 'separator' },
+      { label: 'Quit' },
+    ];
     const result = createTray({
       onShow: () => {},
-      onStartStop: () => {},
-      onSettings: () => {},
-      onQuit: () => {},
+      onBuildMenu: async () => mockTemplate,
     });
-    expect(result.contextMenu).toBeDefined();
-    expect(result.contextMenu._template).toBeDefined();
-    // Should have Show, separator, Start Recording, separator, Settings, Quit
-    const labels = result.contextMenu._template
+    // Simulate right-click to trigger dynamic menu build
+    expect(result._listeners['right-click']).toBeDefined();
+    await result.emit('right-click');
+    expect(result.lastPopupMenu).toBeDefined();
+    expect(result.lastPopupMenu._template).toBeDefined();
+    const labels = result.lastPopupMenu._template
       .filter(item => item.label)
       .map(item => item.label);
     expect(labels).toContain('Show WhisperClick');

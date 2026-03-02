@@ -252,6 +252,17 @@ describe('API key routing', () => {
   });
 });
 
+// ── Factory reset ───────────────────────────────────────────────────
+
+describe('factory reset', () => {
+  test('reset_settings invokes reset-settings', async () => {
+    ipcRenderer.invoke.mockResolvedValueOnce({ success: true });
+    const result = await api.reset_settings();
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('reset-settings');
+    expect(result).toEqual({ success: true });
+  });
+});
+
 // ── Recording ───────────────────────────────────────────────────────────
 
 describe('recording', () => {
@@ -377,10 +388,10 @@ describe('models', () => {
     // Trigger the ipcRenderer.on('model-download-progress') listener
     const listeners = ipcRenderer._listeners['model-download-progress'];
     expect(listeners).toBeDefined();
-    listeners[0]({}, { progress: 75, status: 'downloading', model: 'base' });
+    listeners[0]({}, { current: 75, total: 100, model: 'base' });
 
     const result = await api.get_download_progress();
-    expect(result.progress).toBe(75);
+    expect(result.progress).toBe(0.75);
     expect(result.status).toBe('downloading');
   });
 });
@@ -591,5 +602,56 @@ describe('export', () => {
     ipcRenderer.invoke.mockResolvedValueOnce({ success: false, error: 'Cancelled' });
     const result = await api.export_transcription('text', 'txt');
     expect(result.success).toBe(false);
+  });
+});
+
+// ── Auto-updater ────────────────────────────────────────────────────────
+
+describe('auto-updater', () => {
+  test('check_for_updates invokes check-for-updates', async () => {
+    ipcRenderer.invoke.mockResolvedValueOnce({});
+    await api.check_for_updates();
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('check-for-updates');
+  });
+
+  test('download_update invokes download-update', async () => {
+    ipcRenderer.invoke.mockResolvedValueOnce({});
+    await api.download_update();
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('download-update');
+  });
+
+  test('install_update invokes install-update', async () => {
+    ipcRenderer.invoke.mockResolvedValueOnce(undefined);
+    await api.install_update();
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('install-update');
+  });
+
+  test('set_update_channel invokes set-update-channel', async () => {
+    ipcRenderer.invoke.mockResolvedValueOnce({ success: true, channel: 'stable' });
+    const result = await api.set_update_channel('stable');
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('set-update-channel', 'stable');
+    expect(result.channel).toBe('stable');
+  });
+
+  test('get_update_channel invokes get-update-channel', async () => {
+    ipcRenderer.invoke.mockResolvedValueOnce({ channel: 'beta' });
+    const result = await api.get_update_channel();
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('get-update-channel');
+    expect(result.channel).toBe('beta');
+  });
+
+  test('get_update_status returns idle by default', async () => {
+    const result = await api.get_update_status();
+    expect(result).toEqual({ status: 'idle' });
+  });
+
+  test('get_update_status returns latest after event', async () => {
+    const listeners = ipcRenderer._listeners['update-status'];
+    expect(listeners).toBeDefined();
+    listeners[0]({}, { status: 'available', version: '2.2.0' });
+
+    const result = await api.get_update_status();
+    expect(result.status).toBe('available');
+    expect(result.version).toBe('2.2.0');
   });
 });

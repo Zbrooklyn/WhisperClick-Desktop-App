@@ -43,10 +43,15 @@ class Tray {
   }
   setToolTip(tip) { this.toolTip = tip; }
   setContextMenu(menu) { this.contextMenu = menu; }
+  popUpContextMenu(menu) { this.lastPopupMenu = menu; }
   setImage(img) { this.icon = img; }
   on(event, fn) {
     if (!this._listeners[event]) this._listeners[event] = [];
     this._listeners[event].push(fn);
+  }
+  async emit(event, ...args) {
+    const fns = this._listeners[event] || [];
+    for (const fn of fns) await fn(...args);
   }
 
   static _clear() { Tray._instances.length = 0; }
@@ -93,6 +98,7 @@ class BrowserWindow {
     this.setTitleBarOverlay = jest.fn();
     this.setIgnoreMouseEvents = jest.fn();
     this.setBounds = jest.fn();
+    this.getBounds = jest.fn(() => ({ x: 960, y: 50, width: 90, height: 30 }));
     BrowserWindow._instances.push(this);
   }
 

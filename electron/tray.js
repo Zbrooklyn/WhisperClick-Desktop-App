@@ -69,21 +69,17 @@ function generateTrayIcon(color = '#CF9673', size = 16) {
   return nativeImage.createFromBuffer(png);
 }
 
-function createTray({ onShow, onStartStop, onSettings, onQuit, isDev = false }) {
+function createTray({ onShow, onBuildMenu, isDev = false }) {
   const icon = generateTrayIcon(isDev ? '#60A5FA' : '#CF9673');
   tray = new Tray(icon);
   tray.setToolTip(isDev ? 'WhisperClick [DEV]' : 'WhisperClick');
 
-  const contextMenu = Menu.buildFromTemplate([
-    { label: 'Show WhisperClick', click: onShow },
-    { type: 'separator' },
-    { label: 'Start Recording', id: 'rec', click: onStartStop },
-    { type: 'separator' },
-    { label: 'Settings', click: onSettings },
-    { label: 'Quit', click: onQuit },
-  ]);
-
-  tray.setContextMenu(contextMenu);
+  // Dynamic menu: rebuild on every right-click so state is always fresh
+  tray.on('right-click', async () => {
+    const template = await onBuildMenu();
+    const menu = Menu.buildFromTemplate(template);
+    tray.popUpContextMenu(menu);
+  });
   tray.on('click', onShow);
 
   return tray;
@@ -101,11 +97,4 @@ function updateTrayIcon(state) {
   tray.setImage(generateTrayIcon(colors[state] || '#CF9673'));
 }
 
-function updateTrayMenu(isRecording) {
-  if (!tray) return;
-  const menu = tray.contextMenu;
-  // Unfortunately Electron doesn't allow updating menu items by id easily
-  // We'd need to rebuild the menu — for now this is a placeholder
-}
-
-module.exports = { createTray, updateTrayIcon, updateTrayMenu };
+module.exports = { createTray, updateTrayIcon };

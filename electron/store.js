@@ -14,7 +14,7 @@ const DEFAULT_SETTINGS = {
   theme: 'dark',
   alwaysOnTop: false,
   autoPaste: true,
-  showPill: true,
+  showPill: false,
   closeBehavior: 'tray',
   autoStart: false,
   soundEnabled: true,
@@ -26,6 +26,7 @@ const DEFAULT_SETTINGS = {
   visualizerMotion: 'balanced',
   audioRetentionDays: 30,
   onboardingComplete: false,
+  updateChannel: 'beta',
   openaiApiKey: '',
   geminiApiKey: '',
 };
@@ -115,6 +116,11 @@ class Store {
   resetSettings() {
     this.saveSettings(DEFAULT_SETTINGS);
     return { ...DEFAULT_SETTINGS };
+  }
+
+  resetAll() {
+    this.saveSettings({ ...DEFAULT_SETTINGS });
+    this._saveHistory([]);
   }
 
   // --- History ---
