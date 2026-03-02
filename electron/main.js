@@ -66,6 +66,22 @@ function createMainWindow() {
 
   mainWindow.once('ready-to-show', () => mainWindow.show());
 
+  // Pill visibility follows main window: pill shows when window is hidden, hides when shown
+  mainWindow.on('show', () => {
+    if (pillWindow && !pillWindow.isDestroyed()) pillWindow.hide();
+  });
+  mainWindow.on('restore', () => {
+    if (pillWindow && !pillWindow.isDestroyed()) pillWindow.hide();
+  });
+  mainWindow.on('hide', () => {
+    const settings = store.getSettings();
+    if (settings.showPill && pillWindow && !pillWindow.isDestroyed()) pillWindow.show();
+  });
+  mainWindow.on('minimize', () => {
+    const settings = store.getSettings();
+    if (settings.showPill && pillWindow && !pillWindow.isDestroyed()) pillWindow.show();
+  });
+
   mainWindow.on('close', (e) => {
     const settings = store.getSettings();
     if (settings.closeBehavior === 'tray' && tray) {
@@ -754,7 +770,11 @@ app.whenReady().then(() => {
   const settings = store.getSettings();
 
   createMainWindow();
-  if (settings.showPill) createPillWindow();
+  // Create pill but keep it hidden — it shows when main window is hidden/minimized
+  if (settings.showPill) {
+    createPillWindow();
+    if (pillWindow) pillWindow.hide();
+  }
 
   // Auto-updater
   initUpdater(mainWindow, store);

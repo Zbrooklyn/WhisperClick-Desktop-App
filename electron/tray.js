@@ -1,4 +1,5 @@
 const { Tray, Menu, nativeImage } = require('electron');
+const path = require('path');
 const zlib = require('zlib');
 
 let tray = null;
@@ -70,7 +71,14 @@ function generateTrayIcon(color = '#CF9673', size = 16) {
 }
 
 function createTray({ onShow, onBuildMenu, isDev = false }) {
-  const icon = generateTrayIcon(isDev ? '#60A5FA' : '#CF9673');
+  const iconPath = path.join(__dirname, '../icons/icon.ico');
+  let icon;
+  try {
+    icon = nativeImage.createFromPath(iconPath);
+    if (icon.isEmpty()) icon = generateTrayIcon(isDev ? '#60A5FA' : '#CF9673');
+  } catch {
+    icon = generateTrayIcon(isDev ? '#60A5FA' : '#CF9673');
+  }
   tray = new Tray(icon);
   tray.setToolTip(isDev ? 'WhisperClick [DEV]' : 'WhisperClick');
 
