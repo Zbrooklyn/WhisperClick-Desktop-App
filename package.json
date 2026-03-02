@@ -22,11 +22,13 @@
     "directories": {
       "output": "release"
     },
+    "icon": "icons/icon.png",
     "files": [
       "electron/**",
       "src/frontend/**",
       "src/pill/**",
-      "engine/**"
+      "engine/**",
+      "icons/**"
     ],
     "extraResources": [
       {
@@ -38,6 +40,7 @@
       }
     ],
     "win": {
+      "icon": "icons/icon.ico",
       "target": [
         {
           "target": "nsis",
@@ -73,9 +76,11 @@
           ]
         }
       ],
+      "icon": "icons/icon.png",
       "category": "public.app-category.productivity"
     },
     "linux": {
+      "icon": "icons/icon.png",
       "target": [
         "AppImage"
       ],

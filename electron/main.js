@@ -44,6 +44,7 @@ function createMainWindow() {
     height: winHeight,
     minWidth: 480,
     minHeight: 218,
+    icon: path.join(__dirname, '../icons/icon.ico'),
     backgroundColor: settings.theme === 'dark' ? '#1C1917' : '#FAFAF9',
     titleBarStyle: 'hidden',
     titleBarOverlay: {

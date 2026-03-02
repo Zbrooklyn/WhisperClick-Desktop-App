@@ -1868,6 +1868,7 @@
                 onboardingBtn.disabled = true;
                 onboardingBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Downloading...';
             }
+            lucide.createIcons();
             if (onboardingLocalCaption) onboardingLocalCaption.textContent = 'Downloading...';
             if (onboardingStatus) onboardingStatus.textContent = `Downloading ${getLocalModelDisplayName(modelName)}... 0%`;
             if (onboardingProgress) {
@@ -2478,6 +2479,7 @@
                     if (onboardingStatus) onboardingStatus.textContent = `${getLocalModelDisplayName(getLocalNameFromLabel(localToolbarModel))} model is not downloaded yet.`;
                     if (onboardingBtn) onboardingBtn.innerHTML = '<i data-lucide="download" class="w-4 h-4"></i> Download Model';
                 }
+                lucide.createIcons();
             } catch {
                 localModelReady = false;
 
