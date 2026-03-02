@@ -7,3 +7,4 @@ openai
 # Local model support (optional but recommended)
 faster-whisper
 huggingface_hub
+onnxruntime

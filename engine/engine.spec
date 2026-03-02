@@ -33,6 +33,7 @@ a = Analysis(
         # ML / transcription
         'ctranslate2',
         'faster_whisper',
+        'onnxruntime',
         'huggingface_hub',
         'huggingface_hub.utils',
         'huggingface_hub.utils._validators',
