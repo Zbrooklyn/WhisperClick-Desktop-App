@@ -58,6 +58,8 @@
     },
     "nsis": {
       "artifactName": "WhisperClick-Setup-${version}.${ext}",
+      "installerIcon": "icons/icon.ico",
+      "uninstallerIcon": "icons/icon.ico",
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
