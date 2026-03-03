@@ -62,7 +62,7 @@ jobs:
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
           "
       - name: Build Windows installer + portable
-        run: npx electron-builder --win --publish never --channel beta
+        run: npx electron-builder --win --publish never -c.generateUpdatesFilesForAllChannels=true
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -70,6 +70,7 @@ jobs:
           path: |
             release/*.exe
             release/beta.yml
+            release/latest.yml
           if-no-files-found: error
 
   build-macos:
@@ -114,7 +115,7 @@ jobs:
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
           "
       - name: Build macOS DMG
-        run: npx electron-builder --mac --publish never --channel beta
+        run: npx electron-builder --mac --publish never -c.generateUpdatesFilesForAllChannels=true
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -123,6 +124,7 @@ jobs:
             release/*.dmg
             release/*.zip
             release/beta-mac.yml
+            release/latest-mac.yml
           if-no-files-found: error
 
   build-linux:
@@ -164,7 +166,7 @@ jobs:
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
           "
       - name: Build Linux AppImage
-        run: npx electron-builder --linux --publish never --channel beta
+        run: npx electron-builder --linux --publish never -c.generateUpdatesFilesForAllChannels=true
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -172,6 +174,7 @@ jobs:
           path: |
             release/*.AppImage
             release/beta-linux.yml
+            release/latest-linux.yml
           if-no-files-found: error
 
   release:
