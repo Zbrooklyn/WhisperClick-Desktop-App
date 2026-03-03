@@ -2,8 +2,7 @@ const zlib = require('zlib');
 const { nativeImage, Tray, Menu } = require('electron');
 
 /**
- * Helper: get a fresh tray module (resets module-level `let tray = null`).
- * We delete only the tray module from cache, keeping the electron mock intact.
+ * Helper: get a fresh tray module (resets module-level state).
  */
 function loadTray() {
   const trayPath = require.resolve('../../electron/tray');
@@ -11,32 +10,32 @@ function loadTray() {
   return require('../../electron/tray');
 }
 
-/** Helper: capture the PNG buffer passed to nativeImage.createFromBuffer */
-function captureIcon(fn) {
-  let capturedBuf = null;
+/** Helper: capture ALL buffers passed to nativeImage.createFromBuffer */
+function withBufferCapture(fn) {
+  const captured = [];
   const original = nativeImage.createFromBuffer;
   nativeImage.createFromBuffer = jest.fn((buf) => {
-    capturedBuf = buf;
-    return { _buffer: buf, toPNG: () => buf, getSize: () => ({ width: 16, height: 16 }) };
+    captured.push(buf);
+    return { _buffer: buf, toPNG: () => buf, getSize: () => ({ width: 32, height: 32 }), isEmpty: () => false };
   });
   fn();
   nativeImage.createFromBuffer = original;
-  return capturedBuf;
+  return captured;
 }
 
-/** Helper: extract the first opaque pixel's RGB from a 16x16 RGBA PNG buffer */
+/** Helper: extract the first opaque pixel's RGB from a RGBA PNG buffer */
 function extractFirstPixelColor(pngBuf) {
-  // Find IDAT chunk
-  let offset = 8; // skip PNG signature
+  let offset = 8;
+  const width = pngBuf.readUInt32BE(16);
   while (offset < pngBuf.length) {
     const len = pngBuf.readUInt32BE(offset);
     const type = pngBuf.slice(offset + 4, offset + 8).toString('ascii');
     if (type === 'IDAT') {
       const compressed = pngBuf.slice(offset + 8, offset + 8 + len);
       const raw = zlib.inflateSync(compressed);
-      const rowStride = 16 * 4 + 1; // 16 pixels * 4 channels + 1 filter byte
-      for (let y = 0; y < 16; y++) {
-        for (let x = 0; x < 16; x++) {
+      const rowStride = width * 4 + 1;
+      for (let y = 0; y < width; y++) {
+        for (let x = 0; x < width; x++) {
           const px = y * rowStride + 1 + x * 4;
           if (raw[px + 3] > 0) {
             const r = raw[px].toString(16).padStart(2, '0');
@@ -68,56 +67,32 @@ function computeCRC32(buf) {
 // ── PNG structure ───────────────────────────────────────────────────────
 
 describe('PNG structure', () => {
-  test('valid PNG signature (89504E47)', () => {
+  test('tray icon is a valid PNG with correct structure', () => {
     const { createTray } = loadTray();
-    const buf = captureIcon(() => {
+    const bufs = withBufferCapture(() => {
       createTray({ onShow: () => {}, onBuildMenu: async () => [] });
     });
-    expect(buf).not.toBeNull();
+    expect(bufs.length).toBeGreaterThan(0);
+    const buf = bufs[0];
+
+    // Valid PNG signature
     expect(buf[0]).toBe(137);
     expect(buf[1]).toBe(80);
     expect(buf[2]).toBe(78);
     expect(buf[3]).toBe(71);
-  });
 
-  test('IHDR chunk has 16x16 dimensions', () => {
-    const { createTray } = loadTray();
-    const buf = captureIcon(() => {
-      createTray({ onShow: () => {}, onBuildMenu: async () => [] });
-    });
-    // After 8-byte signature: 4 length + 4 "IHDR" = data starts at offset 16
+    // Square dimensions
     const width = buf.readUInt32BE(16);
     const height = buf.readUInt32BE(20);
-    expect(width).toBe(16);
-    expect(height).toBe(16);
-  });
+    expect(width).toBeGreaterThanOrEqual(16);
+    expect(width).toBe(height);
 
-  test('IDAT chunk exists', () => {
-    const { createTray } = loadTray();
-    const buf = captureIcon(() => {
-      createTray({ onShow: () => {}, onBuildMenu: async () => [] });
-    });
-    expect(buf.toString('binary')).toContain('IDAT');
-  });
+    // Has IDAT and IEND chunks
+    const binary = buf.toString('binary');
+    expect(binary).toContain('IDAT');
+    expect(binary).toContain('IEND');
 
-  test('IEND chunk exists', () => {
-    const { createTray } = loadTray();
-    const buf = captureIcon(() => {
-      createTray({ onShow: () => {}, onBuildMenu: async () => [] });
-    });
-    expect(buf.toString('binary')).toContain('IEND');
-  });
-});
-
-// ── CRC32 ───────────────────────────────────────────────────────────────
-
-describe('CRC32', () => {
-  test('IHDR CRC matches independently computed CRC32', () => {
-    const { createTray } = loadTray();
-    const buf = captureIcon(() => {
-      createTray({ onShow: () => {}, onBuildMenu: async () => [] });
-    });
-
+    // IHDR CRC is correct
     const ihdrLen = buf.readUInt32BE(8);
     expect(ihdrLen).toBe(13);
     const ihdrTypeAndData = buf.slice(12, 12 + 4 + ihdrLen);
@@ -131,12 +106,15 @@ describe('CRC32', () => {
 describe('state-to-color mapping', () => {
   function getColorForState(state) {
     const { createTray, updateTrayIcon } = loadTray();
-    // Create tray first to set the module-level `tray` variable
-    createTray({ onShow: () => {}, onStartStop: () => {}, onSettings: () => {}, onQuit: () => {} });
-    // Now capture the icon generated for updateTrayIcon
-    const buf = captureIcon(() => updateTrayIcon(state));
-    if (!buf) return null;
-    return extractFirstPixelColor(buf);
+    withBufferCapture(() => {
+      createTray({ onShow: () => {}, onBuildMenu: async () => [] });
+    });
+    updateTrayIcon(state);
+    // Get the buffer from the tray's setImage call (the nativeImage has _buffer)
+    const trayInst = Tray._instances[Tray._instances.length - 1];
+    const img = trayInst.icon;
+    if (!img || !img._buffer) return null;
+    return extractFirstPixelColor(img._buffer);
   }
 
   test('dormant → #CF9673', () => {
@@ -167,9 +145,8 @@ describe('createTray', () => {
     const { createTray } = loadTray();
     const result = createTray({
       onShow: () => {},
-      onBuildMenu: async () => [{ label: 'Test' }],
+      onBuildMenu: async () => [],
     });
-    // Duck-type check — tray.js constructs `new Tray(icon)` from electron
     expect(result).toBeDefined();
     expect(result.toolTip).toBeDefined();
     expect(typeof result.setImage).toBe('function');
@@ -186,7 +163,6 @@ describe('createTray', () => {
       onShow: () => {},
       onBuildMenu: async () => mockTemplate,
     });
-    // Simulate right-click to trigger dynamic menu build
     expect(result._listeners['right-click']).toBeDefined();
     await result.emit('right-click');
     expect(result.lastPopupMenu).toBeDefined();

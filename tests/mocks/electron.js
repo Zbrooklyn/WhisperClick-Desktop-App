@@ -27,6 +27,11 @@ const nativeImage = {
     _buffer: buf,
     toPNG: () => buf,
     getSize: () => ({ width: 16, height: 16 }),
+    isEmpty: () => false,
+  })),
+  createFromPath: jest.fn(() => ({
+    isEmpty: () => true, // force fallback to generated icon in tests
+    getSize: () => ({ width: 0, height: 0 }),
   })),
 };
 
