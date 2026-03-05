@@ -17,6 +17,7 @@
 #   TESTING.md       — Test architecture notes
 #   VERIFICATION.md  — Manual test checklist
 #   tools/           — Internal dev scripts
+#   docs/dev/        — Internal dev documentation
 
 set -euo pipefail
 
@@ -28,6 +29,7 @@ PRIVATE_FILES=(
   "TESTING.md"
   "VERIFICATION.md"
   "tools/"
+  "docs/dev/"
 )
 
 PUBLIC_REMOTE="public"
