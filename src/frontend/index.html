@@ -526,11 +526,9 @@
                     </div>
                     <div class="flex items-center justify-between gap-3">
                         <span class="text-sm dark:text-stone-300">Auto-download Updates</span>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input id="auto-download-toggle" type="checkbox" class="sr-only peer">
-                            <div class="w-9 h-5 bg-stone-300 dark:bg-stone-700 peer-focus:ring-2 peer-focus:ring-accent rounded-full peer peer-checked:bg-accent transition-colors"></div>
-                            <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform peer-checked:translate-x-4"></div>
-                        </label>
+                        <button id="auto-download-toggle" onclick="toggleSwitch(this)" class="w-10 h-5 bg-stone-300 dark:bg-stone-600 rounded-full relative transition-colors focus:outline-none" data-checked="false">
+                            <div class="w-3 h-3 bg-white rounded-full absolute top-1 left-1 transition-transform"></div>
+                        </button>
                     </div>
                     <!-- Update Status -->
                     <div id="update-status-card" class="bg-stone-200/60 dark:bg-stone-800/60 rounded-lg p-2.5 space-y-2">
@@ -1630,6 +1628,7 @@
                 always_on_top: isSwitchOn(alwaysOnTopToggle),
                 show_pill_widget: isSwitchOn(pillWidgetToggle),
                 sound_enabled: isSwitchOn(soundToggle),
+                auto_download_updates: isSwitchOn(autoDownloadToggle),
                 mode: currentMode,
                 model: getLocalNameFromLabel(localToolbarModel)
             };
@@ -1786,6 +1785,7 @@
             applySwitchState(alwaysOnTopToggle, !!stored.alwaysOnTop);
             applySwitchState(pillWidgetToggle, !!stored.showPillWidget);
             applySwitchState(soundToggle, stored.soundEnabled !== false);
+            applySwitchState(autoDownloadToggle, !!stored.autoDownloadUpdates);
             if (typeof stored.theme === 'string') {
                 applyTheme(stored.theme);
             }
@@ -2600,9 +2600,7 @@
                     if (audioRetentionSelect && settings.audioRetentionDays !== undefined) {
                         audioRetentionSelect.value = String(settings.audioRetentionDays);
                     }
-                    if (autoDownloadToggle && settings.auto_download_updates !== undefined) {
-                        autoDownloadToggle.checked = !!settings.auto_download_updates;
-                    }
+                    applySwitchState(autoDownloadToggle, !!settings.auto_download_updates);
 
                     // Init update channel from backend
                     initUpdateUi();
@@ -2825,11 +2823,6 @@
             });
         }
 
-        if (autoDownloadToggle) {
-            autoDownloadToggle.addEventListener('change', () => {
-                callNativeApi('save_settings', { auto_download_updates: autoDownloadToggle.checked }).catch(() => {});
-            });
-        }
 
         if (speechSourceLanguageSelect) {
             speechSourceLanguageSelect.addEventListener('change', () => {
