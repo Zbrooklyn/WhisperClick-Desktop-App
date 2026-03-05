@@ -77,8 +77,8 @@ Currently only Apple Silicon (arm64) DMGs are built. Intel Macs
    macOS Ventura+. Zero build cost but may have performance issues
    with the Python sidecar, and older macOS versions won't have it.
 
-**Status:** GitHub retired `macos-13` (Intel) runners. Need to pick
-an alternative path. Significant portion of Mac users still on Intel.
+**Status:** DONE — added `build-macos-x64` job using `macos-15-intel`
+runner. Two DMGs per release (arm64 + x64). Available until Fall 2027.
 
 ### Live Streaming Runtime
 True real-time transcription with partial updates during recording.
@@ -97,6 +97,43 @@ CI secrets, and macOS notarization. Biggest barrier is cost.
 ### Stable Release Channel
 Ship a polished `v2.2.0` stable. Channel switching UI exists but
 there are no stable releases to switch to.
+
+**Status:** v2.0.0 shipped as first stable release. Channel switching
+now functional.
+
+---
+
+## Monetization — Free + Premium Model
+
+### Decided
+
+- **Free version**: all current features, distributed via public GitHub repo
+- **Paid version**: roadmap features (post-processing, voice commands, custom
+  vocabulary, etc.), distributed separately (website/Gumroad/etc.)
+- **Architecture**: single codebase, `premium/` folder holds paid modules.
+  Sync script strips `premium/` from public repo. Free version doesn't
+  contain premium code at all — no feature flags, no disabled buttons.
+- **Two builds**: public repo CI builds free version. Paid version built
+  separately from private repo (includes `premium/` folder).
+- **License key**: required to activate premium features in the paid build.
+  Key checked at runtime before loading premium modules.
+
+### Needs Research / Decision
+
+- **License key provider**: Gumroad, LemonSqueezy, Keygen.sh, Paddle, or
+  self-hosted? Need to compare pricing, API quality, offline support.
+- **Offline validation**: Can the app validate a license without internet?
+  Options: cryptographic license keys (no server needed), periodic phone-home
+  with grace period, or hardware-locked keys.
+- **License expiry behavior**: Do premium features disable when the license
+  expires? Does the user keep the version they paid for but stop getting
+  updates? Perpetual vs subscription.
+- **Pricing model**: One-time purchase, annual subscription, or lifetime +
+  annual update tiers?
+- **Distribution**: Direct download from whisperclick.com with license key
+  emailed? Or marketplace (Gumroad, LemonSqueezy) handles delivery?
+- **Premium module loading**: How do premium modules hook into the core?
+  Dynamic `require()` from `premium/` at startup? Plugin registry pattern?
 
 ---
 
