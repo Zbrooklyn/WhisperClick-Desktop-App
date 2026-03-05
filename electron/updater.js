@@ -5,7 +5,7 @@
  * Supports stable/beta channels via GitHub releases (pre-release flag).
  */
 
-const { ipcMain, app } = require('electron');
+const { ipcMain, app, Notification } = require('electron');
 const { autoUpdater } = require('electron-updater');
 
 let _mainWindow = null;
@@ -81,6 +81,20 @@ function initUpdater(mainWindow, store) {
       status: 'ready',
       version: info.version,
     });
+    // System notification so user knows even if settings panel is closed
+    if (Notification.isSupported()) {
+      const n = new Notification({
+        title: 'WhisperClick Update Ready',
+        body: `v${info.version} downloaded — restart to install.`,
+      });
+      n.on('click', () => {
+        if (_mainWindow && !_mainWindow.isDestroyed()) {
+          _mainWindow.show();
+          _mainWindow.focus();
+        }
+      });
+      n.show();
+    }
   });
 
   autoUpdater.on('error', (err) => {

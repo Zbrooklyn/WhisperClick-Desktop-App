@@ -223,6 +223,13 @@ const dialog = {
   showMessageBox: jest.fn().mockResolvedValue({ response: 0 }),
 };
 
+class MockNotification {
+  constructor() { this._handlers = {}; }
+  on(event, handler) { this._handlers[event] = handler; return this; }
+  show() {}
+  static isSupported() { return true; }
+}
+
 module.exports = {
   safeStorage,
   nativeImage,
@@ -237,4 +244,5 @@ module.exports = {
   screen,
   globalShortcut,
   dialog,
+  Notification: MockNotification,
 };
