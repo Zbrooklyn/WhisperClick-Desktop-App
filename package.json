@@ -1,6 +1,6 @@
 {
   "name": "whisperclick",
-  "version": "2.1.0-beta.6",
+  "version": "2.1.0-beta.7",
   "description": "WhisperClick — Voice-to-text desktop app",
   "author": "Edward Shamosh",
   "main": "electron/main.js",
@@ -89,6 +89,7 @@
       ],
       "category": "Utility"
     },
+    "generateUpdatesFilesForAllChannels": true,
     "publish": {
       "provider": "github",
       "owner": "Zbrooklyn",

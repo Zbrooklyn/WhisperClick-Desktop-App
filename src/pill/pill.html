@@ -205,6 +205,17 @@
     }
     .capsule.error .recording-ui { display: none; }
     .capsule.error .dormant-bars { display: flex; }
+
+    /* Error tooltip variant — always visible during error state */
+    .tooltip.tooltip-error {
+      color: #F87171;
+      border-color: rgba(220, 100, 80, 0.5);
+      max-width: 200px;
+      white-space: normal;
+      text-align: center;
+      line-height: 1.3;
+    }
+    .capsule.error ~ .tooltip.tooltip-error { display: block !important; }
   </style>
 </head>
 <body>
@@ -238,6 +249,8 @@
       const capsule = document.getElementById('capsule');
       const dormantBars = document.getElementById('dormant-bars');
       const voiceBars = document.getElementById('voice-bars');
+      const tooltip = document.getElementById('tooltip');
+      const tooltipHotkey = document.getElementById('tooltip-hotkey');
 
       // Generate dormant mini-bars (14 bars, seeded random heights)
       const NUM_DORMANT = 14;
@@ -263,10 +276,20 @@
       // State
       let currentState = 'dormant';
       let shrinkTimeout = null;
+      const defaultTooltipHTML = tooltip.innerHTML;
 
-      function setState(state) {
+      function setState(state, message) {
         currentState = state;
         capsule.className = 'capsule ' + state;
+
+        // Update tooltip based on state
+        if (state === 'error' && message) {
+          tooltip.innerHTML = message;
+          tooltip.classList.add('tooltip-error');
+        } else {
+          tooltip.innerHTML = defaultTooltipHTML;
+          tooltip.classList.remove('tooltip-error');
+        }
 
         // Processing: stagger bar animation delays
         if (state === 'processing') {
@@ -281,7 +304,7 @@
           if (shrinkTimeout) clearTimeout(shrinkTimeout);
           shrinkTimeout = setTimeout(() => {
             setState('dormant');
-          }, 2000);
+          }, state === 'error' ? 3000 : 2000);
         }
       }
 
@@ -300,7 +323,7 @@
       // IPC listeners
       window.electronAPI.onStateUpdate((data) => {
         if (shrinkTimeout) { clearTimeout(shrinkTimeout); shrinkTimeout = null; }
-        setState(data.state);
+        setState(data.state, data.message);
       });
 
       window.electronAPI.onLevelUpdate((val) => {
@@ -332,8 +355,8 @@
 
       // Init
       (async () => {
-        const { state } = await window.electronAPI.getState();
-        setState(state);
+        const { state, message } = await window.electronAPI.getState();
+        setState(state, message);
       })();
     })();
   </script>

@@ -323,6 +323,22 @@ describe('recording handlers', () => {
     cleanup();
     expect(result.success).toBe(true);
   });
+
+  test('cancel-processing resets state to dormant immediately', async () => {
+    // Put app in recording state first
+    const cleanup = autoRespondSidecar(initialFakeProc, {
+      start_rec: { result: 'ok' },
+      cancel: { result: 'ok' },
+    });
+    await ipcMain._invoke('start-recording');
+    const stateBeforeCancel = await ipcMain._invoke('get-state');
+    expect(stateBeforeCancel.state).toBe('recording');
+
+    await ipcMain._invoke('cancel-processing');
+    cleanup();
+    const stateAfterCancel = await ipcMain._invoke('get-state');
+    expect(stateAfterCancel.state).toBe('dormant');
+  });
 });
 
 // ── Clipboard handlers ──────────────────────────────────────────────────
@@ -755,6 +771,23 @@ describe('sidecar event handling', () => {
     expect(state.state).toBe('error');
   });
 
+  test('error event includes message in state', async () => {
+    pushSidecarEvent(initialFakeProc, 'error', { message: 'API key invalid' });
+    await tick(30);
+    const state = await ipcMain._invoke('get-state');
+    expect(state.message).toBe('API key invalid');
+  });
+
+  test('state broadcast includes message field', async () => {
+    mainWin.webContents.send.mockClear();
+    pushSidecarEvent(initialFakeProc, 'error', { message: 'broadcast msg test' });
+    await tick(30);
+    expect(mainWin.webContents.send).toHaveBeenCalledWith(
+      'state-update',
+      expect.objectContaining({ state: 'error', message: 'broadcast msg test' })
+    );
+  });
+
   test('error event broadcasts to mainWindow', async () => {
     mainWin.webContents.send.mockClear();
     pushSidecarEvent(initialFakeProc, 'error', { message: 'broadcast error' });
@@ -819,14 +852,16 @@ describe('start-recording error path', () => {
     expect(result.error).toMatch(/No mic/);
   });
 
-  test('resets state to dormant on sidecar failure', async () => {
+  test('resets state to error then dormant on sidecar failure', async () => {
     const cleanup = autoRespondSidecar(initialFakeProc, {
       start_rec: { error: 'Failed' },
     });
     await ipcMain._invoke('start-recording');
     cleanup();
     const state = await ipcMain._invoke('get-state');
-    expect(state.state).toBe('dormant');
+    // broadcastError sets 'error' first, then dormant after 3s timeout
+    expect(state.state).toBe('error');
+    expect(state.message).toMatch(/Failed/);
   });
 });
 
@@ -1005,6 +1040,8 @@ describe('hotkey and toggleRecording', () => {
     pushSidecarEvent(initialFakeProc, 'cancelled', {});
     await tick(30);
     mainWin._destroyed = false;
+    // Set up valid API key so pre-validation passes
+    await ipcMain._invoke('save-settings', { provider: 'openai', openaiApiKey: 'sk-test-key', mode: 'api' });
   });
 
   test('hotkey callback routes through mainWindow JS', () => {
@@ -1092,6 +1129,88 @@ describe('hotkey and toggleRecording', () => {
     mainWin._destroyed = false;
     pushSidecarEvent(initialFakeProc, 'cancelled', {});
     await tick(30);
+  });
+});
+
+// ── pill state sync — pre-validation and error feedback ─────────────────
+
+describe('pill state sync and error feedback', () => {
+  beforeAll(async () => {
+    pushSidecarEvent(initialFakeProc, 'cancelled', {});
+    await tick(30);
+    mainWin._destroyed = false;
+  });
+
+  test('pill-toggle with no API key broadcasts error to pill', async () => {
+    // Clear API keys
+    await ipcMain._invoke('save-settings', { openaiApiKey: '', geminiApiKey: '', mode: 'api', provider: 'openai' });
+
+    mainWin.webContents.send.mockClear();
+    await ipcMain._invoke('pill-toggle-recording');
+    await tick(30);
+
+    expect(mainWin.webContents.send).toHaveBeenCalledWith(
+      'state-update',
+      expect.objectContaining({ state: 'error', message: expect.stringMatching(/API key/i) })
+    );
+
+    // Restore key for subsequent tests
+    await ipcMain._invoke('save-settings', { openaiApiKey: 'sk-test-key' });
+  });
+
+  test('pill-toggle with valid API key routes through to V3', async () => {
+    await ipcMain._invoke('save-settings', { openaiApiKey: 'sk-test-key', mode: 'api', provider: 'openai' });
+    mainWin.webContents.executeJavaScript.mockClear();
+
+    await ipcMain._invoke('pill-toggle-recording');
+
+    expect(mainWin.webContents.executeJavaScript).toHaveBeenCalledWith(
+      'triggerTrustedHotkeyToggle()'
+    );
+  });
+
+  test('hotkey with no API key sets error state with message', async () => {
+    await ipcMain._invoke('save-settings', { openaiApiKey: '', geminiApiKey: '', mode: 'api', provider: 'openai' });
+    await tick(50);
+
+    const hotkeyCallback = globalShortcut._shortcuts['Ctrl+Alt+R'];
+    hotkeyCallback();
+    await tick(30);
+
+    const state = await ipcMain._invoke('get-state');
+    expect(state.state).toBe('error');
+    expect(state.message).toMatch(/API key|not ready/i);
+
+    // Restore
+    await ipcMain._invoke('save-settings', { openaiApiKey: 'sk-test-key' });
+    // Wait for error to clear
+    await new Promise(r => setTimeout(r, 3500));
+  });
+
+  test('error message clears after timeout', async () => {
+    jest.useFakeTimers();
+    pushSidecarEvent(initialFakeProc, 'error', { message: 'test timeout clear' });
+    await Promise.resolve();
+    jest.advanceTimersByTime(100);
+    await Promise.resolve();
+
+    let state = await ipcMain._invoke('get-state');
+    expect(state.state).toBe('error');
+    expect(state.message).toBe('test timeout clear');
+
+    jest.advanceTimersByTime(3000);
+    await Promise.resolve();
+
+    state = await ipcMain._invoke('get-state');
+    expect(state.state).toBe('dormant');
+    expect(state.message).toBe('');
+
+    jest.useRealTimers();
+  });
+
+  test('get-state returns message field', async () => {
+    const state = await ipcMain._invoke('get-state');
+    expect(state).toHaveProperty('message');
   });
 });
 
@@ -1452,19 +1571,48 @@ describe('tray callbacks (dynamic menu)', () => {
 // ── sidecar restart backoff ─────────────────────────────────────────────
 
 describe('sidecar restart backoff', () => {
+  test('crash during recording sets error state', async () => {
+    // Put app in recording state first
+    const cleanup = autoRespondSidecar(initialFakeProc, {
+      start_rec: { result: 'ok' },
+    });
+    await ipcMain._invoke('start-recording');
+    cleanup();
+    expect((await ipcMain._invoke('get-state')).state).toBe('recording');
+
+    // Emit exit — the exit handler should set error state for active recordings
+    // NOTE: This is the first exit on initialFakeProc, starting the restart chain
+    initialFakeProc.emit('exit', 1);
+    await tick(30);
+
+    const state = await ipcMain._invoke('get-state');
+    expect(state.state).toBe('error');
+    expect(state.message).toMatch(/crashed/i);
+
+    // Wait for restart to complete before next test
+    await new Promise(r => setTimeout(r, 1500));
+    // Push ready event on new process so restartCount resets
+    const newProc = spawn.mock.results[spawn.mock.results.length - 1].value;
+    pushSidecarEvent(newProc, 'ready', { version: '1.0' });
+    await tick(50);
+  });
+
   test('non-zero exit triggers restart with increasing delay, stops after 3', () => {
     jest.useFakeTimers();
     const spawnBefore = spawn.mock.calls.length;
 
+    // Get the current active sidecar process (from restart above)
+    let proc = spawn.mock.results[spawn.mock.results.length - 1].value;
+
     // Crash 1 → restart after 1s (delay = 1000 * 1)
-    initialFakeProc.emit('exit', 1);
+    proc.emit('exit', 1);
     jest.advanceTimersByTime(999);
     expect(spawn.mock.calls.length).toBe(spawnBefore);
     jest.advanceTimersByTime(1);
     expect(spawn.mock.calls.length).toBe(spawnBefore + 1);
 
     // Crash 2 → restart after 2s (delay = 1000 * 2)
-    let proc = spawn.mock.results[spawn.mock.results.length - 1].value;
+    proc = spawn.mock.results[spawn.mock.results.length - 1].value;
     proc.emit('exit', 1);
     jest.advanceTimersByTime(1999);
     expect(spawn.mock.calls.length).toBe(spawnBefore + 1);
@@ -1527,7 +1675,7 @@ describe('sidecar not running guards', () => {
     expect(result.error).toMatch(/not running/i);
   });
 
-  test('cancel-processing returns error when sidecar is down', async () => {
+  test('cancel-processing returns error when sidecar is down and not active', async () => {
     const result = await ipcMain._invoke('cancel-processing');
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/not ready/i);

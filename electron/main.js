@@ -19,6 +19,7 @@ let tray = null;
 let store = null;
 let sidecar = null;
 let appState = 'dormant'; // dormant | recording | processing | success | error
+let appStateMessage = '';  // Human-readable context for current state (e.g. error details)
 let isQuitting = false;
 
 const isDev = !app.isPackaged;
@@ -132,8 +133,14 @@ function createPillWindow() {
 
 // --- State machine ---
 
+function setAppState(state, message) {
+  appState = state;
+  if (message !== undefined) appStateMessage = message;
+  else if (state === 'dormant' || state === 'success') appStateMessage = '';
+}
+
 function broadcastState() {
-  const payload = { state: appState };
+  const payload = { state: appState, message: appStateMessage };
   if (mainWindow) mainWindow.webContents.send('state-update', payload);
   if (pillWindow) pillWindow.webContents.send('state-update', payload);
   updateTrayIcon(appState);
@@ -142,6 +149,45 @@ function broadcastState() {
 function broadcastLevel(level) {
   if (mainWindow) mainWindow.webContents.send('level-update', level);
   if (pillWindow) pillWindow.webContents.send('level-update', level);
+}
+
+function broadcastError(message) {
+  setAppState('error', message);
+  broadcastState();
+  setTimeout(() => {
+    setAppState('dormant');
+    broadcastState();
+  }, 3000);
+}
+
+/**
+ * Pre-validate recording readiness from the main process.
+ * Returns null if ready, or an error message string if not.
+ * This ensures the pill always gets feedback — even when mainWindow is hidden.
+ */
+function validateRecordingReadiness() {
+  if (!sidecar || !sidecar.isRunning) {
+    return 'Backend not ready — restarting…';
+  }
+  if (appState === 'processing') {
+    return null; // Let cancel logic handle it
+  }
+  if (appState !== 'dormant') {
+    return null; // Already recording — stop logic will handle it
+  }
+  const s = store.getSettings();
+  const mode = s.mode || 'api';
+  if (mode === 'api') {
+    // Only block if NO provider has a key. If the active provider's key is
+    // missing but another provider has one, let V3 auto-switch providers.
+    const hasAnyKey = (s.openaiApiKey && s.openaiApiKey.trim()) ||
+                      (s.geminiApiKey && s.geminiApiKey.trim());
+    if (!hasAnyKey) {
+      return 'No API key configured. Open Settings to add one.';
+    }
+  }
+  // Local mode: sidecar handles model checks — no pre-validation needed here
+  return null;
 }
 
 // --- Hotkey ---
@@ -156,6 +202,13 @@ function registerHotkey(accelerator) {
   }
   try {
     const success = globalShortcut.register(normalized, () => {
+      // Pre-validate before routing — ensures pill always gets error feedback
+      const validationError = validateRecordingReadiness();
+      if (validationError) {
+        broadcastError(validationError);
+        return;
+      }
+
       // Capture the foreground window *before* toggling — mirrors V3's
       // capture_paste_target() so auto-paste can restore focus later.
       if (sidecar && sidecar.isRunning) sidecar.send('capture_fg').catch(() => {});
@@ -186,11 +239,11 @@ async function toggleRecording() {
         await sidecar.send('stop_rec');
       } catch { /* ignore */ }
     }
-    appState = 'processing';
+    setAppState('processing');
     broadcastState();
   } else if (appState === 'dormant') {
     // Start recording
-    appState = 'recording';
+    setAppState('recording');
     broadcastState();
     if (sidecar && sidecar.isRunning) {
       try {
@@ -283,10 +336,17 @@ ipcMain.handle('delete-history', (_, id) => store.deleteHistory(id));
 ipcMain.handle('clear-history', () => store.clearHistory());
 
 // State
-ipcMain.handle('get-state', () => ({ state: appState }));
+ipcMain.handle('get-state', () => ({ state: appState, message: appStateMessage }));
 
 // Pill recording — routes through the V3 frontend so both share one state machine
-ipcMain.handle('pill-toggle-recording', () => {
+ipcMain.handle('pill-toggle-recording', async () => {
+  // Pre-validate before routing — ensures pill always gets error feedback
+  const validationError = validateRecordingReadiness();
+  if (validationError) {
+    broadcastError(validationError);
+    return;
+  }
+
   // Capture foreground before toggle — pill is non-focusable so target app is still fg
   if (sidecar && sidecar.isRunning) sidecar.send('capture_fg').catch(() => {});
 
@@ -376,15 +436,17 @@ ipcMain.handle('verify-api-key', async (_, provider, key, baseUrl) => {
 
 // Start recording — separate from toggle, used by V3 frontend
 ipcMain.handle('start-recording', async () => {
-  if (!sidecar || !sidecar.isRunning) return { success: false, error: 'Backend not ready' };
-  appState = 'recording';
+  if (!sidecar || !sidecar.isRunning) {
+    broadcastError('Backend not ready — restarting…');
+    return { success: false, error: 'Backend not ready' };
+  }
+  setAppState('recording');
   broadcastState();
   try {
     await sidecar.send('start_rec');
     return { success: true };
   } catch (err) {
-    appState = 'dormant';
-    broadcastState();
+    broadcastError(err.message || 'Failed to start recording');
     return { success: false, error: err.message };
   }
 });
@@ -392,7 +454,7 @@ ipcMain.handle('start-recording', async () => {
 // Stop recording — blocks until transcription completes (V3 frontend expects this)
 ipcMain.handle('stop-recording', async () => {
   if (!sidecar || !sidecar.isRunning) return { success: false, error: 'Backend not ready' };
-  appState = 'processing';
+  setAppState('processing');
   broadcastState();
   try {
     await sidecar.send('stop_rec');
@@ -403,6 +465,7 @@ ipcMain.handle('stop-recording', async () => {
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {
       cleanup();
+      broadcastError('Processing timed out');
       resolve({ success: false, error: 'Processing timed out' });
     }, 120000);
 
@@ -432,11 +495,22 @@ ipcMain.handle('stop-recording', async () => {
 
 // Cancel in-flight processing
 ipcMain.handle('cancel-processing', async () => {
-  if (!sidecar || !sidecar.isRunning) return { success: false, error: 'Backend not ready' };
+  const wasActive = appState === 'recording' || appState === 'processing';
+
+  // Immediately reset to dormant so the UI unblocks
+  if (wasActive) {
+    setAppState('dormant');
+    broadcastState();
+  }
+
+  if (!sidecar || !sidecar.isRunning) {
+    return wasActive ? { success: true } : { success: false, error: 'Backend not ready' };
+  }
   try {
     await sidecar.send('cancel');
     return { success: true };
   } catch (err) {
+    // State already reset — just report the sidecar error
     return { success: false, error: err.message };
   }
 });
@@ -805,7 +879,7 @@ app.whenReady().then(() => {
   sidecar.on('level', (data) => broadcastLevel(data.level));
 
   sidecar.on('transcription', (data) => {
-    appState = 'success';
+    setAppState('success');
     broadcastState();
     if (data.text) {
       // Gap #46: Include translation field; Gap #47: Include audio_file
@@ -832,7 +906,7 @@ app.whenReady().then(() => {
       }, 150);
     }
     setTimeout(() => {
-      appState = 'dormant';
+      setAppState('dormant');
       broadcastState();
     }, 1500);
   });
@@ -855,7 +929,7 @@ app.whenReady().then(() => {
   });
 
   sidecar.on('cancelled', () => {
-    appState = 'dormant';
+    setAppState('dormant');
     broadcastState();
   });
 
@@ -864,13 +938,8 @@ app.whenReady().then(() => {
   });
 
   sidecar.on('error', (data) => {
-    appState = 'error';
-    broadcastState();
+    broadcastError(data.message || 'Something went wrong');
     if (mainWindow) mainWindow.webContents.send('sidecar-error', data);
-    setTimeout(() => {
-      appState = 'dormant';
-      broadcastState();
-    }, 3000);
   });
 
   const MAX_SIDECAR_RESTARTS = 3;
@@ -878,6 +947,12 @@ app.whenReady().then(() => {
   sidecar.on('exit', (code) => {
     console.log(`Sidecar exited with code ${code}`);
     if (isQuitting) return;
+
+    // If recording or processing was in progress, reset state and notify user
+    if (appState === 'recording' || appState === 'processing') {
+      broadcastError('Backend crashed — recording lost');
+    }
+
     if (code !== 0 && code !== null && sidecarRestartCount < MAX_SIDECAR_RESTARTS) {
       sidecarRestartCount++;
       const delay = 1000 * sidecarRestartCount;
@@ -888,6 +963,7 @@ app.whenReady().then(() => {
       }, delay);
     } else if (sidecarRestartCount >= MAX_SIDECAR_RESTARTS) {
       console.error('Sidecar crashed too many times — giving up');
+      broadcastError('Backend failed to start — restart the app');
     }
   });
 
