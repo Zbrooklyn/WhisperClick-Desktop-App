@@ -6,7 +6,7 @@
 
 **Status**: Production — live on beta channel, auto-updater functional.
 
-**Latest release**: v2.1.0-beta.7 (GitHub pre-release)
+**Latest release**: v2.1.0-beta.9 (GitHub pre-release)
 
 The Electron port uses V3's original `index.html`/`tailwind.css`/`lucide.min.js`
 frontend directly, with a pywebview API compatibility shim in `preload.js` that
