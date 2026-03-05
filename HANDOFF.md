@@ -1,10 +1,12 @@
 # HANDOFF — WhisperClick Electron
 
-> Last updated: 2026-02-28
+> Last updated: 2026-03-05
 
 ## Current State
 
-**Status**: Production-hardened — all known port gaps resolved, ready for live testing.
+**Status**: Production — live on beta channel, auto-updater functional.
+
+**Latest release**: v2.1.0-beta.7 (GitHub pre-release)
 
 The Electron port uses V3's original `index.html`/`tailwind.css`/`lucide.min.js`
 frontend directly, with a pywebview API compatibility shim in `preload.js` that
@@ -17,12 +19,13 @@ translates all `window.pywebview.api` calls to Electron IPC.
 - Window controls (minimize, maximize, close)
 - Settings drawer (opens/closes, persists settings)
 - Theme switching (dark/light)
-- Pill widget (dormant/recording/processing states, native context menu, drag)
-- Pill tooltip visible above capsule (bottom-anchored in 220x140 window)
-- Pill cancel button discards audio (sends `cancel` to sidecar, not `stop_rec`)
-- Pill right-click shows native OS context menu (not clipped HTML)
+- Pill widget (dormant/recording/processing/success/error states, native context menu, drag)
+- Pill tooltip shows error messages (API key missing, sidecar down, timeout, crash)
+- Pill cancel button immediately resets state to dormant
+- Pill context menu includes History shortcut
 - Hotkey registration (normalized V3 → Electron format)
-- Tray icon with context menu
+- Pre-validation: checks sidecar + API keys before routing to V3
+- Tray icon with context menu (rich menu with microphone, mode, recent transcriptions)
 - Single-instance lock
 - Close-to-tray behavior
 - Python sidecar launches and connects (stdin/stdout JSON protocol)
@@ -33,6 +36,12 @@ translates all `window.pywebview.api` calls to Electron IPC.
 - API keys encrypted at rest via Electron `safeStorage` (auto-migrates plaintext)
 - Crash-safe atomic writes for settings and history (`.tmp` + `.bak` pattern)
 - History capped at 500 entries (prevents unbounded growth)
+- Auto-updater with beta/stable channel support
+- Silent update install (no NSIS wizard on update)
+- Configurable auto-download updates
+- Release notes shown in update UI
+- Update UI shows immediate feedback with checking spinner and "Checked just now"
+- CI/CD: GitHub Actions builds Windows/macOS/Linux, creates pre-release
 
 ### What Needs Live Testing (requires mic + API key or local model)
 
@@ -40,10 +49,6 @@ translates all `window.pywebview.api` calls to Electron IPC.
 - Audio playback from history
 - Auto-paste after transcription
 - Visualizer animation during recording
-
-### Known Gaps
-
-- Auto-updater not yet integrated (electron-updater dep installed)
 
 ## Architecture
 
@@ -54,10 +59,11 @@ electron/
   preload-pill.js  — Pill window preload (window.electronAPI)
   sidecar.js       — Python sidecar manager (stdin/stdout JSON protocol)
   store.js         — JSON file settings/history persistence
+  updater.js       — Auto-updater (electron-updater, beta/stable channels)
   tray.js          — System tray icon and menu
 
 src/frontend/      — V3 frontend (copied verbatim, 2 lines changed)
-  index.html       — Main UI (4350+ lines, inline JS)
+  index.html       — Main UI (4800+ lines, inline JS)
   css/tailwind.css — Pre-built Tailwind CSS
   js/lucide.min.js — Lucide icon library
 
@@ -92,6 +98,8 @@ translates automatically:
 | `api_model`        | `apiModel`        |
 | `output_mode`      | `outputMode`      |
 | `model`            | `localModel`      |
+| `audio_retention_days` | `audioRetentionDays` |
+| `auto_download_updates` | `autoDownloadUpdates` |
 
 ### Recording Flow
 
@@ -103,9 +111,10 @@ translates automatically:
 
 ### Hotkey Flow
 
-Global hotkey → `executeJavaScript('triggerTrustedHotkeyToggle()')` →
-V3 frontend handles validation, mode checks, API key checks → calls
-`start_recording()` or `stop_recording()`.
+Global hotkey → `validateRecordingReadiness()` pre-check → if OK,
+`executeJavaScript('triggerTrustedHotkeyToggle()')` → V3 frontend handles
+validation, mode checks → calls `start_recording()` or `stop_recording()`.
+If pre-check fails, `broadcastError(message)` shows error on pill tooltip.
 
 ## Files Changed from V3
 
@@ -116,17 +125,19 @@ Only 2 changes to the V3 frontend:
 2. **`index.html` inline `<script>`**: Replaced `initTitleBarDrag` IIFE with a
    comment (drag handled by CSS)
 
-## Completed Cleanup
+## CI/CD
 
-- Deleted abandoned React files (`src/App.jsx`, `src/main.jsx`, `src/index.css`, `src/components/*.jsx`)
-- Deleted unused build configs (`index.html`, `vite.config.js`, `postcss.config.js`)
-- Removed `react`, `react-dom`, `lucide-react` from `package.json` dependencies
-- Removed `@vitejs/plugin-react`, `vite` from devDependencies
-- Installed missing Python deps (`faster-whisper`, `huggingface_hub`)
-- Added `get-displays` and `move-pill-to-display` IPC handlers
+- **Workflow**: `.github/workflows/build.yml`
+- **Trigger**: Push to `electron-beta` branch
+- **Builds**: Windows (NSIS + portable), macOS (DMG, arm64), Linux (AppImage)
+- **Release**: Auto-creates GitHub pre-release with all artifacts
+- **Update manifest**: `latest.yml` (used by electron-updater with `allowPrerelease`)
+- `generateUpdatesFilesForAllChannels` is set in `package.json` build config
 
 ## Next Steps
 
-1. Live-test full recording/transcription flow with mic + API key
-2. Test electron-builder packaging (`npm run dist:win`)
-3. Integrate auto-updater (electron-updater)
+1. Live-test auto-updater flow (beta.5 → beta.7+)
+2. Fix 3 cross-platform test failures (Linux CI, `continue-on-error: true`)
+3. Code signing for Windows/macOS (removes SmartScreen/Gatekeeper warnings)
+4. Live streaming runtime (partial transcription during recording)
+5. Ship first stable release (`v2.2.0`)

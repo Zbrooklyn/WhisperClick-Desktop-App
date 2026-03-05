@@ -31,11 +31,15 @@ function initUpdater(mainWindow, store) {
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
 
-  // Set channel from stored preference (or auto-detect from version string)
+  // Always read latest.yml (the only manifest electron-builder generates).
+  // Beta vs stable is controlled by allowPrerelease — beta users see pre-release
+  // versions, stable users only see stable versions.
   const settings = store.getSettings();
-  const channel = settings.updateChannel || (app.getVersion().includes('beta') ? 'beta' : 'stable');
-  autoUpdater.channel = channel; // tells electron-updater to look for beta.yml vs latest.yml
-  autoUpdater.allowPrerelease = channel === 'beta';
+  const isBeta = settings.updateChannel
+    ? settings.updateChannel === 'beta'
+    : app.getVersion().includes('beta');
+  autoUpdater.channel = 'latest';
+  autoUpdater.allowPrerelease = isBeta;
 
   // --- Events → renderer ---
   autoUpdater.on('checking-for-update', () => {
@@ -47,7 +51,13 @@ function initUpdater(mainWindow, store) {
       status: 'available',
       version: info.version,
       releaseDate: info.releaseDate,
+      releaseNotes: info.releaseNotes || '',
     });
+    // Auto-download if user opted in
+    const s = _store ? _store.getSettings() : {};
+    if (s.autoDownloadUpdates) {
+      autoUpdater.downloadUpdate().catch(() => {});
+    }
   });
 
   autoUpdater.on('update-not-available', (info) => {
@@ -98,14 +108,13 @@ function initUpdater(mainWindow, store) {
   });
 
   ipcMain.handle('install-update', () => {
-    autoUpdater.quitAndInstall(false, true);
+    autoUpdater.quitAndInstall(true, true);
   });
 
   ipcMain.handle('set-update-channel', (_, channel) => {
     const valid = channel === 'stable' ? 'stable' : 'beta';
     const settings = _store.getSettings();
     _store.saveSettings({ ...settings, updateChannel: valid });
-    autoUpdater.channel = valid;
     autoUpdater.allowPrerelease = valid === 'beta';
     return { success: true, channel: valid };
   });

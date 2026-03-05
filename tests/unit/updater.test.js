@@ -155,7 +155,7 @@ describe('IPC handlers', () => {
 
   test('install-update calls quitAndInstall', async () => {
     await ipcMain._invoke('install-update');
-    expect(autoUpdater.quitAndInstall).toHaveBeenCalledWith(false, true);
+    expect(autoUpdater.quitAndInstall).toHaveBeenCalledWith(true, true);
   });
 
   test('set-update-channel saves to store and updates allowPrerelease', async () => {

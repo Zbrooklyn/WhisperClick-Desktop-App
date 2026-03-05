@@ -26,6 +26,7 @@ const DEFAULT_SETTINGS = {
   visualizerMotion: 'balanced',
   audioRetentionDays: 30,
   onboardingComplete: false,
+  autoDownloadUpdates: false,
   updateChannel: 'beta',
   openaiApiKey: '',
   geminiApiKey: '',

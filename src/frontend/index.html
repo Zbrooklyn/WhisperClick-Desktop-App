@@ -524,6 +524,14 @@
                             <option value="beta" selected>Beta</option>
                         </select>
                     </div>
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-sm dark:text-stone-300">Auto-download Updates</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input id="auto-download-toggle" type="checkbox" class="sr-only peer">
+                            <div class="w-9 h-5 bg-stone-300 dark:bg-stone-700 peer-focus:ring-2 peer-focus:ring-accent rounded-full peer peer-checked:bg-accent transition-colors"></div>
+                            <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform peer-checked:translate-x-4"></div>
+                        </label>
+                    </div>
                     <!-- Update Status -->
                     <div id="update-status-card" class="bg-stone-200/60 dark:bg-stone-800/60 rounded-lg p-2.5 space-y-2">
                         <div class="flex items-center justify-between">
@@ -534,6 +542,7 @@
                         <div id="update-progress-bar" class="hidden w-full h-1.5 bg-stone-300 dark:bg-stone-700 rounded-full overflow-hidden">
                             <div id="update-progress-fill" class="h-full bg-accent rounded-full transition-all duration-300" style="width: 0%"></div>
                         </div>
+                        <p id="update-release-notes" class="text-[10px] text-stone-400 dark:text-stone-500 hidden max-h-20 overflow-y-auto"></p>
                         <button id="update-download-btn" onclick="downloadUpdate()" class="hidden w-full px-2 py-1 rounded-md text-[10px] font-medium bg-accent hover:bg-accent/90 text-white transition-colors">Download Update</button>
                         <button id="update-install-btn" onclick="installUpdate()" class="hidden w-full px-2 py-1 rounded-md text-[10px] font-medium bg-green-600 hover:bg-green-700 text-white transition-colors">Restart &amp; Install</button>
                     </div>
@@ -898,6 +907,8 @@
         const updateProgressFill = document.getElementById('update-progress-fill');
         const updateDownloadBtn = document.getElementById('update-download-btn');
         const updateInstallBtn = document.getElementById('update-install-btn');
+        const updateReleaseNotes = document.getElementById('update-release-notes');
+        const autoDownloadToggle = document.getElementById('auto-download-toggle');
         const hotkeyDisplay = document.getElementById('hotkey-display');
         const hotkeyInput = document.getElementById('hotkey-input');
         const footerHotkeyDisplay = document.getElementById('footer-hotkey-display');
@@ -2589,6 +2600,9 @@
                     if (audioRetentionSelect && settings.audioRetentionDays !== undefined) {
                         audioRetentionSelect.value = String(settings.audioRetentionDays);
                     }
+                    if (autoDownloadToggle && settings.auto_download_updates !== undefined) {
+                        autoDownloadToggle.checked = !!settings.auto_download_updates;
+                    }
 
                     // Init update channel from backend
                     initUpdateUi();
@@ -2808,6 +2822,12 @@
         if (updateChannelSelect) {
             updateChannelSelect.addEventListener('change', () => {
                 callNativeApi('set_update_channel', updateChannelSelect.value).catch(() => {});
+            });
+        }
+
+        if (autoDownloadToggle) {
+            autoDownloadToggle.addEventListener('change', () => {
+                callNativeApi('save_settings', { auto_download_updates: autoDownloadToggle.checked }).catch(() => {});
             });
         }
 
@@ -4680,11 +4700,23 @@
 
         function handleUpdateStatus(data) {
             if (!updateStatusText) return;
+            const prevStatus = updateStatusText.dataset.status;
+            updateStatusText.dataset.status = data.status;
+            if (data.currentVersion) updateStatusText.dataset.currentVersion = data.currentVersion;
             // Hide all action elements by default
             updateDetailText?.classList.add('hidden');
             updateProgressBar?.classList.add('hidden');
             updateDownloadBtn?.classList.add('hidden');
             updateInstallBtn?.classList.add('hidden');
+            updateReleaseNotes?.classList.add('hidden');
+
+            // Flash the card when results arrive (not during checking)
+            const card = document.getElementById('update-status-card');
+            if (card && prevStatus === 'checking' && data.status !== 'checking') {
+                card.style.transition = 'background-color 300ms ease';
+                card.style.backgroundColor = 'rgba(207, 150, 115, 0.12)';
+                setTimeout(() => { card.style.backgroundColor = ''; }, 600);
+            }
 
             switch (data.status) {
                 case 'checking':
@@ -4701,6 +4733,13 @@
                         }
                         if (avDetail) { updateDetailText.textContent = avDetail; updateDetailText.classList.remove('hidden'); }
                     }
+                    if (data.releaseNotes && updateReleaseNotes) {
+                        const notes = typeof data.releaseNotes === 'string' ? data.releaseNotes : '';
+                        if (notes.trim()) {
+                            updateReleaseNotes.textContent = notes.replace(/<[^>]+>/g, '').trim();
+                            updateReleaseNotes.classList.remove('hidden');
+                        }
+                    }
                     updateDownloadBtn?.classList.remove('hidden');
                     if (updateCheckBtn) { updateCheckBtn.textContent = 'Check Now'; updateCheckBtn.disabled = false; updateCheckBtn.style.opacity = ''; }
                     break;
@@ -4708,8 +4747,8 @@
                     updateStatusText.innerHTML = `<span class="inline-flex items-center gap-1.5"><i data-lucide="check-circle-2" style="width:12px;height:12px;color:#22c55e;"></i> You're up to date</span>`;
                     {
                         const utdVer = data.currentVersion || data.version;
-                        const utdDetail = `v${utdVer} is the latest${data.channel ? ` on ${data.channel} channel` : ''}`;
-                        updateDetailText.textContent = utdDetail;
+                        const channelStr = data.channel ? ` on ${data.channel} channel` : '';
+                        updateDetailText.textContent = `v${utdVer} is the latest${channelStr} · Checked just now`;
                         updateDetailText.classList.remove('hidden');
                     }
                     if (updateCheckBtn) { updateCheckBtn.textContent = 'Check Now'; updateCheckBtn.disabled = false; updateCheckBtn.style.opacity = ''; }
@@ -4762,7 +4801,8 @@
 
         async function checkForUpdates() {
             if (!nativeBridgeReady) return;
-            if (updateCheckBtn) updateCheckBtn.textContent = 'Checking...';
+            // Immediate visual feedback — don't wait for 2s poll
+            handleUpdateStatus({ status: 'checking', currentVersion: updateStatusText?.dataset.currentVersion });
             await callNativeApi('check_for_updates');
         }
 

@@ -716,8 +716,21 @@ async function buildRichMenuTemplate({ includePillItems = false, includeQuit = f
     },
   ];
 
-  // Pill-specific: Hide Pill
+  // Pill-specific: History + Hide Pill
   if (includePillItems) {
+    template.push({
+      label: 'History',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+          // Close settings drawer so history list is visible
+          mainWindow.webContents.executeJavaScript(
+            "document.getElementById('settings-drawer')?.classList.add('translate-x-full')"
+          ).catch(() => {});
+        }
+      },
+    });
     template.push({
       label: 'Hide Pill',
       click: () => {
