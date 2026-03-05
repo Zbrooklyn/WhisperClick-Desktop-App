@@ -127,56 +127,6 @@ jobs:
             release/latest-mac.yml
           if-no-files-found: error
 
-  build-macos-x64:
-    needs: test
-    runs-on: macos-13
-    steps:
-      - uses: actions/checkout@v4
-
-      # --- Python engine build ---
-      - name: Install system dependencies
-        run: brew install portaudio libsndfile
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Install Python dependencies
-        run: |
-          pip install pyinstaller
-          pip install -r engine/requirements.txt
-      - name: Build engine binary
-        run: pyinstaller engine/engine.spec --noconfirm
-      - name: Stage engine binary for electron-builder
-        run: |
-          mkdir -p engine-dist
-          mv dist/engine engine-dist/engine
-
-      # --- Electron build ---
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: npm install
-      - name: Patch package.json for bundled engine + x64
-        run: |
-          node -e "
-            const pkg = require('./package.json');
-            const fs = require('fs');
-            pkg.build.extraResources = [
-              { from: 'engine-dist/engine/', to: 'engine-bin/' }
-            ];
-            pkg.build.mac.target = [{ target: 'dmg', arch: ['x64'] }];
-            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-          "
-      - name: Build macOS x64 DMG
-        run: npx electron-builder --mac --publish never
-      - name: Upload macOS x64 artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-x64-release
-          path: |
-            release/*.dmg
-            release/*.zip
-          if-no-files-found: error
-
   build-linux:
     needs: test
     runs-on: ubuntu-latest
@@ -228,7 +178,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    needs: [build-windows, build-macos, build-macos-x64, build-linux]
+    needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -251,5 +201,4 @@ jobs:
           files: |
             artifacts/windows-release/*
             artifacts/macos-release/*
-            artifacts/macos-x64-release/*
             artifacts/linux-release/*
