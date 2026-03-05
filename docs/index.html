@@ -2567,7 +2567,7 @@
           <ol>
             <li>Run the installer or portable EXE</li>
             <li>WhisperClick appears in your system tray</li>
-            <li>Press <span class="kbd">Ctrl</span>+<span class="kbd">Shift</span>+<span class="kbd">R</span> to start recording</li>
+            <li>Press <span class="kbd">Ctrl</span>+<span class="kbd">Alt</span>+<span class="kbd">R</span> to start recording</li>
             <li>Talk, then press the hotkey again to stop</li>
             <li>Text appears at your cursor, already pasted</li>
           </ol>
@@ -2576,24 +2576,34 @@
 
       <!-- macOS panel -->
       <div class="platform-panel" id="panel-macos">
-        <div class="download-packages stagger reveal" style="grid-template-columns:1fr;max-width:400px;" id="macos-packages">
-          <div class="package-card package-recommended" id="macos-dmg-card">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-              <h3 style="margin:0;">macOS (Apple Silicon)</h3>
-              <span class="dl-badge-beta">Beta</span>
-            </div>
-            <div class="package-file" id="macos-file">WhisperClick-*.dmg</div>
-            <p class="package-desc">DMG installer for Apple Silicon Macs (M1/M2/M3/M4). Mount and drag to Applications.</p>
-            <div class="package-meta" id="macos-meta">
+        <div class="download-packages stagger reveal" id="macos-packages">
+          <div class="package-card package-recommended" id="macos-arm64-card">
+            <h3>Apple Silicon</h3>
+            <div class="package-file" id="macos-arm64-file">WhisperClick-*-arm64.dmg</div>
+            <p class="package-desc">For M1, M2, M3, and M4 Macs (2020 and newer). Mount the DMG and drag to Applications.</p>
+            <div class="package-meta" id="macos-arm64-meta">
               <span class="skeleton"></span>
             </div>
-            <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases" class="package-dl-btn" id="macos-dl-btn">
+            <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases" class="package-dl-btn" id="macos-arm64-dl-btn">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1a1 1 0 0 1 1 1v9.586l2.293-2.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L9 11.586V2a1 1 0 0 1 1-1ZM3 15a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1a1 1 0 0 1 1-1Z"/></svg>
+              Download .dmg
+            </a>
+          </div>
+          <div class="package-card" id="macos-x64-card">
+            <h3>Intel</h3>
+            <div class="package-file" id="macos-x64-file">WhisperClick-*.dmg</div>
+            <p class="package-desc">For Intel Macs (2015–2020). Mount the DMG and drag to Applications.</p>
+            <div class="package-meta" id="macos-x64-meta">
+              <span class="skeleton"></span>
+            </div>
+            <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases" class="package-dl-btn" id="macos-x64-dl-btn">
               <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1a1 1 0 0 1 1 1v9.586l2.293-2.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L9 11.586V2a1 1 0 0 1 1-1ZM3 15a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1a1 1 0 0 1 1-1Z"/></svg>
               Download .dmg
             </a>
           </div>
         </div>
-        <div class="download-buttons reveal" style="max-width:400px;margin:0 auto;">
+        <p class="download-note reveal" style="text-align:center;color:var(--text-muted);font-size:0.85rem;margin-top:12px;">Not sure which Mac you have? Click <strong>Apple menu → About This Mac</strong>. If it says M1, M2, M3, or M4, choose Apple Silicon.</p>
+        <div class="download-buttons reveal">
           <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases" class="btn btn-secondary">
             All releases &amp; changelog
           </a>
@@ -2604,10 +2614,7 @@
       <div class="platform-panel" id="panel-linux">
         <div class="download-packages stagger reveal" style="grid-template-columns:1fr;max-width:400px;" id="linux-packages">
           <div class="package-card package-recommended" id="linux-appimage-card">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-              <h3 style="margin:0;">Linux (AppImage)</h3>
-              <span class="dl-badge-beta">Beta</span>
-            </div>
+            <h3>Linux (AppImage)</h3>
             <div class="package-file" id="linux-file">WhisperClick-*.AppImage</div>
             <p class="package-desc">Portable AppImage for most Linux distributions. Download, make executable, and run.</p>
             <div class="package-meta" id="linux-meta">
@@ -2873,7 +2880,7 @@ venv\Scripts\activate
         var TT_FONT = '11px "Segoe UI", system-ui, sans-serif';
         var TT_FONT_BOLD = '600 11px "Segoe UI", system-ui, sans-serif';
         var ttTextMain = 'Click or hold ';
-        var ttTextKey = 'Ctrl+Shift+R';
+        var ttTextKey = 'Ctrl+Alt+R';
         var ttTextEnd = ' to start dictating';
 
         // Temporarily measure text
@@ -3181,22 +3188,22 @@ venv\Scripts\activate
           });
         });
 
-      // 2. Fetch all releases to find pre-release (macOS/Linux beta builds)
-      fetch(ALL_URL)
+      // 2. Fetch latest release for macOS/Linux assets (same release as Windows)
+      fetch(LATEST_URL)
         .then(function(res) {
           if (!res.ok) throw new Error('HTTP ' + res.status);
           return res.json();
         })
-        .then(function(releases) {
-          var preRelease = releases.find(function(r) { return r.prerelease; });
-          if (!preRelease) return;
+        .then(function(release) {
+          var assets = release.assets || [];
+          var version = release.tag_name || release.name || '';
 
-          var assets = preRelease.assets || [];
-          var version = preRelease.tag_name || preRelease.name || '';
-
-          // Find macOS DMG
-          var macAsset = assets.find(function(a) {
-            return /\.dmg$/i.test(a.name);
+          // Find macOS DMGs — arm64 has "arm64" in name, x64 does not
+          var macArm64 = assets.find(function(a) {
+            return /\.dmg$/i.test(a.name) && /arm64/i.test(a.name);
+          });
+          var macX64 = assets.find(function(a) {
+            return /\.dmg$/i.test(a.name) && !/arm64/i.test(a.name);
           });
 
           // Find Linux AppImage
@@ -3204,14 +3211,21 @@ venv\Scripts\activate
             return /\.appimage$/i.test(a.name);
           });
 
-          // Populate macOS card + hero dropdown item
-          if (macAsset) {
-            populateBetaCard(macAsset, version, 'macos-file', 'macos-meta', 'macos-dl-btn');
+          // Populate macOS Apple Silicon card + hero dropdown
+          if (macArm64) {
+            populateBetaCard(macArm64, version, 'macos-arm64-file', 'macos-arm64-meta', 'macos-arm64-dl-btn');
             var heroMac = document.getElementById('hero-dl-macos');
-            if (heroMac) heroMac.href = macAsset.browser_download_url;
+            if (heroMac) heroMac.href = macArm64.browser_download_url;
           }
 
-          // Populate Linux card + hero dropdown item
+          // Populate macOS Intel card + hero dropdown
+          if (macX64) {
+            populateBetaCard(macX64, version, 'macos-x64-file', 'macos-x64-meta', 'macos-x64-dl-btn');
+            var heroMacIntel = document.getElementById('hero-dl-macos-intel');
+            if (heroMacIntel) heroMacIntel.href = macX64.browser_download_url;
+          }
+
+          // Populate Linux card + hero dropdown
           if (linuxAsset) {
             populateBetaCard(linuxAsset, version, 'linux-file', 'linux-meta', 'linux-dl-btn');
             var heroLinux = document.getElementById('hero-dl-linux');
