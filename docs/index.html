@@ -1,0 +1,3297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhisperClick — Talk instead of type | AI Voice-to-Text for Windows, macOS &amp; Linux</title>
+  <meta name="description" content="Free AI voice-to-text app for Windows, macOS, and Linux. Press a hotkey, talk, and text appears at your cursor. Use OpenAI and Google Gemini APIs for fast, accurate transcription in any app.">
+  <meta name="theme-color" content="#0c0a09">
+
+  <!-- Favicon -->
+  <link rel="icon" href="assets/favicon.ico" sizes="any">
+  <link rel="icon" href="assets/microphone_logo.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/favicon-192.png">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="WhisperClick — AI Voice-to-Text for Windows, macOS &amp; Linux">
+  <meta property="og:description" content="AI speech-to-text that runs offline with Whisper AI or cloud APIs. One hotkey, instant transcription, pasted at your cursor.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://zbrooklyn.github.io/WhisperClick-Desktop-App/">
+  <meta property="og:image" content="https://zbrooklyn.github.io/WhisperClick-Desktop-App/assets/app-dark.png">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    /* ═══════════════════════════════════════════════════
+       RESET & TOKENS
+       ═══════════════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-deep:    #0c0a09;
+      --bg:         #1c1917;
+      --bg-raised:  #292524;
+      --bg-elevated:#3a3533;
+      --border:     #44403c;
+      --border-dim: #2e2a27;
+      --text:       #f5f5f4;
+      --text-secondary: #d6d3d1;
+      --text-dim:   #a8a29e;
+      --text-muted: #78716c;
+      --accent:     #CF9673;
+      --accent-light:#e8c4a8;
+      --accent-glow: rgba(207,150,115,0.35);
+      --accent-subtle: rgba(207,150,115,0.08);
+      --green:      #86efac;
+      --blue:       #93c5fd;
+      --radius:     12px;
+      --radius-lg:  20px;
+      --max-w:      1120px;
+      --nav-h:      64px;
+    }
+
+    html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg-deep);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    a { color: var(--accent); text-decoration: none; transition: color 0.2s; }
+    a:hover { color: var(--accent-light); }
+    img { max-width: 100%; height: auto; display: block; }
+
+    /* ═══════════════════════════════════════════════════
+       UTILITIES
+       ═══════════════════════════════════════════════════ */
+    .container { max-width: var(--max-w); margin: 0 auto; padding: 0 24px; }
+    .section-label {
+      display: inline-block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      margin-bottom: 16px;
+    }
+    .section-title {
+      font-size: 2.5rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 16px;
+    }
+    .section-subtitle {
+      font-size: 1.15rem;
+      color: var(--text-dim);
+      max-width: 600px;
+      line-height: 1.6;
+    }
+    .section-header { text-align: center; margin-bottom: 56px; }
+    .section-header .section-subtitle { margin: 0 auto; }
+
+    /* Scroll reveal */
+    .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+                  transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Stagger children */
+    .stagger > .reveal:nth-child(1) { transition-delay: 0ms; }
+    .stagger > .reveal:nth-child(2) { transition-delay: 80ms; }
+    .stagger > .reveal:nth-child(3) { transition-delay: 160ms; }
+    .stagger > .reveal:nth-child(4) { transition-delay: 240ms; }
+    .stagger > .reveal:nth-child(5) { transition-delay: 320ms; }
+    .stagger > .reveal:nth-child(6) { transition-delay: 400ms; }
+
+    /* ═══════════════════════════════════════════════════
+       NAVBAR
+       ═══════════════════════════════════════════════════ */
+    .navbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--nav-h);
+      z-index: 100;
+      background: rgba(12,10,9,0.75);
+      backdrop-filter: blur(16px) saturate(180%);
+      -webkit-backdrop-filter: blur(16px) saturate(180%);
+      border-bottom: 1px solid var(--border-dim);
+      transition: background 0.3s;
+    }
+    .navbar .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 100%;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: var(--text);
+    }
+    .nav-brand img { width: 28px; height: 28px; }
+    .nav-brand:hover { color: var(--text); }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      list-style: none;
+    }
+    .nav-links a {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-dim);
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta {
+      font-size: 0.85rem !important;
+      font-weight: 600 !important;
+      color: var(--bg-deep) !important;
+      background: var(--accent);
+      padding: 8px 20px;
+      border-radius: 9999px;
+      transition: background 0.2s, transform 0.15s !important;
+    }
+    .nav-cta:hover {
+      background: var(--accent-light) !important;
+      color: var(--bg-deep) !important;
+      transform: translateY(-1px);
+    }
+
+    /* Mobile nav toggle */
+    .nav-toggle { display: none; background: none; border: none; cursor: pointer; padding: 8px; }
+    .nav-toggle span {
+      display: block; width: 22px; height: 2px;
+      background: var(--text-dim); margin: 5px 0;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       BUTTONS
+       ═══════════════════════════════════════════════════ */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: inherit;
+      font-weight: 600;
+      border: none;
+      border-radius: 9999px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+    .btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+    .btn-primary {
+      background: var(--accent);
+      color: var(--bg-deep);
+      font-size: 1.05rem;
+      padding: 15px 36px;
+      box-shadow: 0 0 32px var(--accent-glow), 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .btn-primary:hover {
+      background: var(--accent-light);
+      color: var(--bg-deep);
+      transform: translateY(-2px);
+      box-shadow: 0 0 48px var(--accent-glow), 0 8px 24px rgba(0,0,0,0.3);
+    }
+    .btn-primary svg { fill: var(--bg-deep); }
+
+    .btn-secondary {
+      background: var(--bg-raised);
+      color: var(--text);
+      font-size: 1rem;
+      padding: 13px 28px;
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover {
+      background: var(--bg-elevated);
+      color: var(--text);
+      transform: translateY(-1px);
+    }
+    .btn-secondary svg { fill: var(--text); }
+
+    /* Hero split download button */
+    .hero-dl-group {
+      position: relative;
+      display: inline-flex;
+    }
+    .hero-dl-group .btn-primary {
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+    .hero-dl-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      background: var(--accent);
+      color: var(--bg-deep);
+      border: none;
+      border-left: 1px solid rgba(0,0,0,0.15);
+      border-top-right-radius: 9999px;
+      border-bottom-right-radius: 9999px;
+      cursor: pointer;
+      transition: background 0.2s;
+      box-shadow: 0 0 32px var(--accent-glow), 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .hero-dl-toggle:hover {
+      background: var(--accent-light);
+    }
+    .hero-dl-toggle svg {
+      width: 18px;
+      height: 18px;
+      fill: var(--bg-deep);
+      transition: transform 0.2s;
+    }
+    .hero-dl-toggle.open svg {
+      transform: rotate(180deg);
+    }
+    .hero-dl-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      min-width: 280px;
+      background: var(--bg-raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+      z-index: 50;
+      overflow: hidden;
+    }
+    .hero-dl-menu.open {
+      display: block;
+    }
+    .hero-dl-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text);
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .hero-dl-item:hover {
+      background: var(--bg-elevated);
+      color: var(--text);
+    }
+    .hero-dl-item svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      fill: currentColor;
+    }
+    .hero-dl-menu hr {
+      border: none;
+      border-top: 1px solid var(--border-dim);
+      margin: 0;
+    }
+    .dl-badge-beta {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 2px 7px;
+      border-radius: 9999px;
+      background: rgba(245,158,11,0.15);
+      color: #f59e0b;
+      margin-left: auto;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       HERO
+       ═══════════════════════════════════════════════════ */
+    .hero {
+      position: relative;
+      padding: calc(var(--nav-h) + 72px) 0 64px;
+      overflow: hidden;
+    }
+
+    /* Radial glow behind hero */
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -10%;
+      right: -5%;
+      width: 800px;
+      height: 700px;
+      background: radial-gradient(ellipse at center, rgba(207,150,115,0.10) 0%, transparent 65%);
+      pointer-events: none;
+    }
+
+    /* Grid pattern overlay */
+    .hero::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(207,150,115,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(207,150,115,0.03) 1px, transparent 1px);
+      background-size: 64px 64px;
+      mask-image: radial-gradient(ellipse at 70% 40%, black 20%, transparent 60%);
+      -webkit-mask-image: radial-gradient(ellipse at 70% 40%, black 20%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .hero .container { position: relative; z-index: 1; }
+
+    /* Split layout */
+    .hero-split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      align-items: center;
+    }
+
+    .hero-content {
+      text-align: left;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent-subtle);
+      border: 1px solid rgba(207,150,115,0.2);
+      border-radius: 9999px;
+      padding: 6px 16px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--accent);
+      margin-bottom: 28px;
+    }
+    .hero-badge .dot {
+      width: 6px; height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .hero h1 {
+      font-size: 3.4rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1.1;
+      margin-bottom: 20px;
+    }
+    .hero h1 .gradient {
+      background: linear-gradient(135deg, var(--accent) 0%, #e8c4a8 50%, #f5d6c0 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-sub {
+      font-size: 1.1rem;
+      color: var(--text-dim);
+      max-width: 480px;
+      margin-bottom: 32px;
+      line-height: 1.7;
+    }
+
+    .hero-buttons {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .hero-note {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* Platform availability chips in hero */
+    .hero-platforms {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+    .platform-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-dim);
+    }
+    .platform-chip svg { width: 14px; height: 14px; flex-shrink: 0; }
+    .platform-chip.available { color: var(--green); }
+    .platform-chip.coming { color: var(--text-muted); font-style: italic; }
+    .platform-chip .chip-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .platform-chip.available .chip-dot { background: var(--green); }
+    .platform-chip.coming .chip-dot { background: var(--text-muted); }
+
+    /* Hero visual — right side */
+    .hero-visual {
+      position: relative;
+    }
+
+    /* ── App Mockup ── */
+    .app-mockup {
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      font-family: 'Segoe UI', -apple-system, system-ui, sans-serif;
+      font-size: 12.5px;
+      line-height: 1.4;
+      color: #e7e5e4;
+      background: #1c1917;
+      box-shadow:
+        0 0 80px rgba(207,150,115,0.08),
+        0 32px 64px rgba(0,0,0,0.5),
+        0 8px 16px rgba(0,0,0,0.3);
+      transition: box-shadow 0.4s, border-color 0.4s, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      user-select: none;
+      /* Match real app proportions: 520w x 820h = ~1:1.577 */
+      display: flex;
+      flex-direction: column;
+      aspect-ratio: 520 / 820;
+    }
+    .hero-visual:hover .app-mockup {
+      box-shadow:
+        0 0 120px rgba(207,150,115,0.15),
+        0 40px 80px rgba(0,0,0,0.5),
+        0 12px 24px rgba(0,0,0,0.3);
+      border-color: var(--accent);
+      transform: scale(1.03);
+    }
+    /* Soft fade on left edge — dissolves on hover */
+    .hero-visual::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to left, transparent 60%, var(--bg-deep) 100%);
+      border-radius: var(--radius-lg);
+      pointer-events: none;
+      opacity: 0.5;
+      transition: opacity 0.4s;
+      z-index: 1;
+    }
+    .hero-visual:hover::after { opacity: 0.12; }
+
+    /* Title bar */
+    .mock-titlebar {
+      height: 34px;
+      background: #222020;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 10px;
+      border-bottom: 1px solid #44403c;
+    }
+    .mock-titlebar-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .mock-titlebar-left svg { width: 14px; height: 14px; color: var(--accent); }
+    .mock-titlebar-left span {
+      font-weight: 600;
+      font-size: 12.5px;
+      letter-spacing: 0.03em;
+      color: #d6d3d1;
+    }
+    .mock-titlebar-right {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+    .mock-wb {
+      width: 24px; height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: transparent;
+      border-radius: 4px;
+      cursor: default;
+      color: #a8a29e;
+    }
+    .mock-wb svg { width: 12px; height: 12px; }
+    .mock-sep {
+      width: 1px;
+      height: 14px;
+      background: #57534e;
+      margin: 0 3px;
+    }
+    .mock-wb-close svg { color: #a8a29e; }
+
+    /* Toolbar */
+    .mock-toolbar {
+      height: 38px;
+      background: #222020;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 10px;
+      border-bottom: 1px solid #44403c;
+    }
+    .mock-pill-switch {
+      position: relative;
+      display: flex;
+      align-items: center;
+      background: #44403c;
+      border-radius: 9999px;
+      height: 24px;
+      width: 108px;
+      padding: 2px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .mock-pill-slider {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: calc(50% - 2px);
+      height: calc(100% - 4px);
+      background: #57534e;
+      border-radius: 9999px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    .mock-pill-switch span {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      text-align: center;
+      pointer-events: none;
+    }
+    .mock-pill-active { color: #e7e5e4; }
+    .mock-pill-inactive { color: #78716c; }
+
+    .mock-selector {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: #a8a29e;
+      white-space: nowrap;
+    }
+    .mock-selector svg { width: 11px; height: 11px; flex-shrink: 0; }
+    .mock-selector .sel-icon { color: var(--accent); }
+    .mock-selector .sel-label { color: var(--accent); font-weight: 600; }
+    .mock-selector .sel-chevron { opacity: 0.5; color: var(--accent); }
+    .mock-selector-mic .sel-label { color: #a8a29e; font-weight: 400; }
+    .mock-selector-mic .sel-icon { color: #a8a29e; }
+    .mock-selector-mic .sel-chevron { color: #a8a29e; }
+
+    /* Recording surface */
+    .mock-recorder {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 18px;
+      border-bottom: 1px solid #292524;
+      background: #222020;
+    }
+    .mock-rec-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #44403c;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .mock-rec-icon svg { width: 14px; height: 14px; color: #a8a29e; }
+
+    /* Active recording state */
+    .mock-recording {
+      background: rgba(207,150,115,0.06);
+    }
+    .mock-rec-active {
+      background: rgba(220,100,80,0.15) !important;
+      box-shadow: none !important;
+    }
+    .mock-rec-active svg { color: #dc6450 !important; width: 13px; height: 13px; }
+
+    /* Audio visualizer bars — active recording animation */
+    .mock-viz {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 40px;
+      margin: 0 14px;
+      gap: 3px;
+    }
+    .mock-bar {
+      width: 4px;
+      background: var(--accent);
+      border-radius: 9999px;
+      animation: mock-talk 1.2s ease-in-out infinite alternate;
+    }
+    /* Each bar gets unique timing so they look organic */
+    @keyframes mock-talk {
+      0%   { transform: scaleY(0.3); opacity: 0.5; }
+      50%  { transform: scaleY(1);   opacity: 1; }
+      100% { transform: scaleY(0.5); opacity: 0.7; }
+    }
+    .mock-bar:nth-child(1)  { animation-duration: 0.8s;  animation-delay: -0.1s; }
+    .mock-bar:nth-child(2)  { animation-duration: 1.1s;  animation-delay: -0.5s; }
+    .mock-bar:nth-child(3)  { animation-duration: 0.9s;  animation-delay: -0.3s; }
+    .mock-bar:nth-child(4)  { animation-duration: 1.3s;  animation-delay: -0.8s; }
+    .mock-bar:nth-child(5)  { animation-duration: 0.7s;  animation-delay: -0.2s; }
+    .mock-bar:nth-child(6)  { animation-duration: 1.0s;  animation-delay: -0.6s; }
+    .mock-bar:nth-child(7)  { animation-duration: 1.4s;  animation-delay: -1.0s; }
+    .mock-bar:nth-child(8)  { animation-duration: 0.85s; animation-delay: -0.4s; }
+    .mock-bar:nth-child(9)  { animation-duration: 1.2s;  animation-delay: -0.7s; }
+    .mock-bar:nth-child(10) { animation-duration: 0.95s; animation-delay: -0.15s; }
+    .mock-bar:nth-child(11) { animation-duration: 1.1s;  animation-delay: -0.9s; }
+    .mock-bar:nth-child(12) { animation-duration: 0.75s; animation-delay: -0.35s; }
+    .mock-bar:nth-child(13) { animation-duration: 1.3s;  animation-delay: -0.55s; }
+    .mock-bar:nth-child(14) { animation-duration: 0.9s;  animation-delay: -1.1s; }
+    .mock-bar:nth-child(15) { animation-duration: 1.15s; animation-delay: -0.25s; }
+    .mock-bar:nth-child(16) { animation-duration: 0.8s;  animation-delay: -0.65s; }
+    .mock-bar:nth-child(17) { animation-duration: 1.05s; animation-delay: -0.45s; }
+    .mock-bar:nth-child(18) { animation-duration: 0.95s; animation-delay: -0.85s; }
+    .mock-bar:nth-child(19) { animation-duration: 1.25s; animation-delay: -0.3s; }
+    .mock-bar:nth-child(20) { animation-duration: 0.7s;  animation-delay: -0.75s; }
+    .mock-bar:nth-child(21) { animation-duration: 1.0s;  animation-delay: -0.5s; }
+    .mock-bar:nth-child(22) { animation-duration: 0.85s; animation-delay: -0.2s; }
+    .mock-bar:nth-child(23) { animation-duration: 1.15s; animation-delay: -0.95s; }
+    .mock-bar:nth-child(24) { animation-duration: 0.9s;  animation-delay: -0.4s; }
+    .mock-bar:nth-child(25) { animation-duration: 1.05s; animation-delay: -0.7s; }
+
+    .mock-timer {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      flex-shrink: 0;
+      min-width: 50px;
+    }
+    .mock-time {
+      font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      color: var(--accent);
+      line-height: 1;
+      margin-bottom: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+    .mock-status {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-weight: 500;
+      color: var(--accent);
+      opacity: 0.7;
+    }
+
+    /* History section */
+    .mock-history {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .mock-history-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(41,37,36,0.5);
+      box-shadow: 0 4px 6px -6px rgba(0,0,0,0.1);
+    }
+    .mock-history-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .mock-history-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: #78716c;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    .mock-badge {
+      background: #44403c;
+      font-size: 10px;
+      font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+      padding: 1px 7px;
+      border-radius: 9999px;
+      color: #a8a29e;
+    }
+    .mock-search {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: #292524;
+      border: 1px solid #44403c;
+      border-radius: 9999px;
+      padding: 5px 12px;
+      font-size: 10px;
+      color: #78716c;
+    }
+    .mock-search svg { width: 11px; height: 11px; color: #78716c; }
+
+    /* History cards list */
+    .mock-history-list {
+      flex: 1;
+      overflow: hidden;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* Individual history card */
+    .mock-card {
+      background: #292524;
+      border: 1px solid #44403c;
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+    .mock-card-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .mock-card-time {
+      font-size: 9.5px;
+      font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+      color: #78716c;
+    }
+    .mock-card-actions {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      opacity: 0.35;
+    }
+    .mock-card-actions svg { width: 11px; height: 11px; color: #78716c; }
+    .mock-card-text {
+      font-size: 12px;
+      line-height: 1.55;
+      color: #a8a29e;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Footer */
+    .mock-footer {
+      height: 28px;
+      background: #222020;
+      border-top: 1px solid #44403c;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      padding: 0 12px;
+      font-size: 9px;
+      color: #78716c;
+    }
+    .mock-footer-left {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .mock-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #86efac;
+      display: inline-block;
+    }
+    .mock-footer-center {
+      white-space: nowrap;
+    }
+    .mock-footer-center kbd {
+      font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+      background: #44403c;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 9px;
+      color: #a8a29e;
+    }
+    .mock-footer-right {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 3px;
+      color: #78716c;
+    }
+    .mock-footer-right svg { width: 10px; height: 10px; }
+    .lightbox-close:hover {
+      background: var(--bg-elevated);
+      color: var(--text);
+    }
+
+    /* Pill floating beneath screenshot */
+    .hero-pill {
+      position: absolute;
+      bottom: -28px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2;
+      max-width: 460px;
+    }
+    .hero-pill canvas {
+      filter: drop-shadow(0 8px 24px rgba(0,0,0,0.5));
+    }
+
+    /* ═══════════════════════════════════════════════════
+       STATS BAR
+       ═══════════════════════════════════════════════════ */
+    .stats {
+      padding: 48px 0;
+      border-top: 1px solid var(--border-dim);
+      border-bottom: 1px solid var(--border-dim);
+      background: var(--bg);
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      text-align: center;
+    }
+    .stat-item .stat-value {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .stat-item .stat-value .accent { color: var(--accent); }
+    .stat-item .stat-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       TWO MODES
+       ═══════════════════════════════════════════════════ */
+    .modes {
+      padding: 100px 0;
+    }
+    .modes-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    .mode-card {
+      background: var(--bg);
+      border: 1px solid var(--border-dim);
+      border-radius: var(--radius-lg);
+      padding: 40px 36px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s, transform 0.2s;
+    }
+    .mode-card:hover {
+      border-color: var(--border);
+      transform: translateY(-2px);
+    }
+    .mode-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+    .mode-card.local::before {
+      background: linear-gradient(90deg, var(--green), #22c55e);
+    }
+    .mode-card.cloud::before {
+      background: linear-gradient(90deg, var(--blue), #3b82f6);
+    }
+    .mode-icon {
+      width: 52px; height: 52px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+    .mode-card.local .mode-icon {
+      background: rgba(134,239,172,0.1);
+      border: 1px solid rgba(134,239,172,0.2);
+    }
+    .mode-card.local .mode-icon svg { color: var(--green); }
+    .mode-card.cloud .mode-icon {
+      background: rgba(147,197,253,0.1);
+      border: 1px solid rgba(147,197,253,0.2);
+    }
+    .mode-card.cloud .mode-icon svg { color: var(--blue); }
+    .mode-icon svg { width: 24px; height: 24px; }
+    .mode-card h3 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .mode-card .mode-desc {
+      color: var(--text-dim);
+      font-size: 1rem;
+      line-height: 1.7;
+      margin-bottom: 24px;
+    }
+    .mode-features {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .mode-features li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+    }
+    .mode-features li svg {
+      width: 18px; height: 18px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .mode-card.local .mode-features li svg { color: var(--green); }
+    .mode-card.cloud .mode-features li svg { color: var(--blue); }
+
+    /* ═══════════════════════════════════════════════════
+       SCREENSHOTS / SHOWCASE
+       ═══════════════════════════════════════════════════ */
+    .showcase {
+      padding: 100px 0;
+      background: var(--bg);
+    }
+    .showcase-tabs {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+      margin-bottom: 40px;
+      background: var(--bg-raised);
+      border-radius: 9999px;
+      padding: 4px;
+      width: fit-content;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .showcase-tab {
+      padding: 10px 24px;
+      border-radius: 9999px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      background: none;
+      font-family: inherit;
+    }
+    .showcase-tab.active {
+      background: var(--bg-elevated);
+      color: var(--text);
+    }
+    .showcase-tab:hover:not(.active) { color: var(--text-secondary); }
+
+    .showcase-panel { display: none; }
+    .showcase-panel.active { display: block; }
+
+    .showcase-image {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+    .showcase-image img {
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-dim);
+      box-shadow: 0 24px 48px rgba(0,0,0,0.4), 0 0 60px rgba(207,150,115,0.05);
+    }
+
+    /* Pill showcase */
+    .pill-showcase {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 48px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .pill-showcase-item { text-align: center; }
+    .pill-showcase-item img {
+      margin: 0 auto 16px;
+      border-radius: var(--radius);
+    }
+    /* Canvas pill widgets */
+    .pill-showcase-item canvas {
+      display: block;
+      margin: 0 auto 16px;
+    }
+    .hero-pill canvas {
+      display: block;
+    }
+    .pill-showcase-item .pill-label {
+      font-size: 0.95rem;
+      color: var(--text-dim);
+    }
+    .pill-showcase-item .pill-label strong {
+      color: var(--text-secondary);
+    }
+
+    /* ═══════════════════════════════════════════════════
+       FEATURES
+       ═══════════════════════════════════════════════════ */
+    .features { padding: 100px 0; }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    .feature-card {
+      background: var(--bg);
+      border: 1px solid var(--border-dim);
+      border-radius: var(--radius-lg);
+      padding: 32px 28px;
+      transition: border-color 0.3s, transform 0.2s;
+    }
+    .feature-card:hover {
+      border-color: var(--border);
+      transform: translateY(-2px);
+    }
+    .feature-icon-wrap {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      background: var(--accent-subtle);
+      border: 1px solid rgba(207,150,115,0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .feature-icon-wrap svg {
+      width: 20px; height: 20px;
+      color: var(--accent);
+    }
+    .feature-card h3 {
+      font-size: 1.05rem;
+      font-weight: 650;
+      margin-bottom: 8px;
+    }
+    .feature-card p {
+      font-size: 0.92rem;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       HOW IT WORKS
+       ═══════════════════════════════════════════════════ */
+    .how-it-works {
+      padding: 100px 0;
+      background: var(--bg);
+    }
+    .steps-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      position: relative;
+    }
+    /* Connecting line */
+    .steps-row::before {
+      content: '';
+      position: absolute;
+      top: 36px;
+      left: calc(12.5% + 24px);
+      right: calc(12.5% + 24px);
+      height: 2px;
+      background: linear-gradient(90deg, var(--border-dim), var(--accent), var(--border-dim));
+      opacity: 0.4;
+    }
+    .step-card {
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
+    .step-num {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      background: var(--bg-deep);
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      transition: border-color 0.3s;
+    }
+    .step-card:hover .step-num { border-color: var(--accent); }
+    .step-num svg { width: 28px; height: 28px; color: var(--accent); }
+    .step-card h3 {
+      font-size: 1.05rem;
+      font-weight: 650;
+      margin-bottom: 6px;
+    }
+    .step-card p {
+      font-size: 0.88rem;
+      color: var(--text-dim);
+      max-width: 200px;
+      margin: 0 auto;
+    }
+    .step-card .kbd {
+      display: inline-block;
+      background: var(--bg-raised);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 1px 6px;
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 0.82em;
+      color: var(--text-secondary);
+    }
+
+    /* ═══════════════════════════════════════════════════
+       USE CASES
+       ═══════════════════════════════════════════════════ */
+    .use-cases { padding: 100px 0; }
+
+    .use-case-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+    .use-case-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      background: var(--bg);
+      border: 1px solid var(--border-dim);
+      border-radius: var(--radius-lg);
+      padding: 28px 24px;
+      transition: border-color 0.3s;
+    }
+    .use-case-card:hover { border-color: var(--border); }
+    .use-case-icon {
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      background: var(--bg-raised);
+      border: 1px solid var(--border-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .use-case-icon svg { width: 22px; height: 22px; color: var(--text-dim); }
+    .use-case-card h3 {
+      font-size: 1rem;
+      font-weight: 650;
+      margin-bottom: 4px;
+    }
+    .use-case-card p {
+      font-size: 0.9rem;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       PRIVACY
+       ═══════════════════════════════════════════════════ */
+    .privacy {
+      padding: 100px 0;
+      background: var(--bg);
+    }
+    .privacy-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    .privacy-card {
+      background: var(--bg-deep);
+      border: 1px solid var(--border-dim);
+      border-radius: var(--radius-lg);
+      padding: 32px 28px;
+      transition: border-color 0.3s;
+    }
+    .privacy-card:hover { border-color: var(--border); }
+    .privacy-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      background: rgba(134,239,172,0.08);
+      border: 1px solid rgba(134,239,172,0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .privacy-icon svg { width: 20px; height: 20px; color: var(--green); }
+    .privacy-card h3 {
+      font-size: 1.05rem;
+      font-weight: 650;
+      margin-bottom: 8px;
+    }
+    .privacy-card p {
+      font-size: 0.92rem;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       DOWNLOAD / CTA
+       ═══════════════════════════════════════════════════ */
+    .download {
+      padding: 100px 0;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    /* Glow behind CTA */
+    .download::before {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 800px; height: 400px;
+      background: radial-gradient(ellipse at center bottom, rgba(207,150,115,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .download .container { position: relative; z-index: 1; }
+
+    /* Platform tabs */
+    .platform-tabs {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+      margin-bottom: 40px;
+      background: var(--bg-raised);
+      border-radius: 12px;
+      padding: 4px;
+      max-width: 460px;
+      margin-left: auto;
+      margin-right: auto;
+      border: 1px solid var(--border-dim);
+    }
+    .platform-tab {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 9px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      font-family: inherit;
+      transition: all 0.25s;
+    }
+    .platform-tab svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .platform-tab.active {
+      background: var(--bg-elevated);
+      color: var(--text);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .platform-tab:not(.active):hover {
+      color: var(--text-dim);
+    }
+
+    /* Platform panels */
+    .platform-panel { display: none; }
+    .platform-panel.active { display: block; }
+
+    /* macOS coming soon card */
+    .macos-soon {
+      max-width: 520px;
+      margin: 0 auto;
+      background: var(--bg);
+      border: 1px solid var(--border-dim);
+      border-radius: var(--radius-lg);
+      padding: 48px 40px;
+      text-align: center;
+    }
+    .macos-soon-icon {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 20px;
+      border-radius: 14px;
+      background: var(--accent-subtle);
+      border: 1px solid rgba(207,150,115,0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .macos-soon-icon svg { width: 28px; height: 28px; color: var(--accent); }
+    .macos-soon h3 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .macos-soon p {
+      font-size: 0.95rem;
+      color: var(--text-dim);
+      line-height: 1.6;
+      margin-bottom: 24px;
+      max-width: 380px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .macos-notify {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 24px;
+      background: var(--bg-raised);
+      border: 1px solid var(--border);
+      border-radius: 9999px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text);
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .macos-notify:hover {
+      border-color: var(--accent);
+      background: var(--bg-elevated);
+      color: var(--text);
+    }
+    .macos-notify svg { width: 16px; height: 16px; }
+
+    .download-packages {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      max-width: 780px;
+      margin: 0 auto 48px;
+    }
+    .package-card {
+      background: var(--bg);
+      border: 1px solid var(--border-dim);
+      border-radius: var(--radius);
+      padding: 24px 20px;
+      text-align: left;
+      transition: border-color 0.3s;
+      display: flex;
+      flex-direction: column;
+    }
+    .package-card:hover { border-color: var(--border); }
+    .package-card h3 {
+      font-size: 1rem;
+      font-weight: 650;
+      margin-bottom: 6px;
+    }
+    .package-card .package-file {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      font-family: 'SF Mono', 'Cascadia Code', monospace;
+      margin-bottom: 10px;
+      min-height: 1.3em;
+    }
+    .package-card .package-desc {
+      font-size: 0.88rem;
+      color: var(--text-dim);
+      line-height: 1.5;
+      margin-bottom: 16px;
+      flex: 1;
+    }
+    .package-card .package-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      min-height: 24px;
+    }
+    .package-version {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--accent);
+      background: var(--accent-subtle);
+      border: 1px solid rgba(207,150,115,0.2);
+      padding: 2px 10px;
+      border-radius: 9999px;
+    }
+    .package-size {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+    .package-dl-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      padding: 10px 16px;
+      background: var(--bg-raised);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.88rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .package-dl-btn:hover {
+      background: var(--bg-elevated);
+      border-color: var(--accent);
+      color: var(--text);
+    }
+    .package-dl-btn svg { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
+    .package-recommended .package-dl-btn {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--bg-deep);
+    }
+    .package-recommended .package-dl-btn:hover {
+      background: var(--accent-light);
+      border-color: var(--accent-light);
+      color: var(--bg-deep);
+    }
+    .package-recommended {
+      border-color: var(--accent) !important;
+      position: relative;
+    }
+    .package-recommended::before {
+      content: 'Recommended';
+      position: absolute;
+      top: -10px; left: 20px;
+      background: var(--accent);
+      color: var(--bg-deep);
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 2px 10px;
+      border-radius: 9999px;
+    }
+    /* Loading skeleton for package meta */
+    .package-meta .skeleton {
+      height: 20px;
+      width: 80px;
+      background: var(--bg-raised);
+      border-radius: 9999px;
+      animation: shimmer 1.5s ease-in-out infinite;
+    }
+    @keyframes shimmer {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 0.8; }
+    }
+    /* Download count */
+    .download-total {
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 48px;
+      min-height: 1.3em;
+    }
+    .download-total strong { color: var(--text-dim); }
+
+    .download-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    /* Quick start */
+    .quick-start {
+      max-width: 520px;
+      margin: 0 auto;
+      text-align: left;
+      background: var(--bg);
+      border: 1px solid var(--border-dim);
+      border-radius: var(--radius-lg);
+      padding: 32px 36px;
+    }
+    .quick-start h3 {
+      font-size: 1.05rem;
+      font-weight: 650;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .quick-start ol {
+      list-style: none;
+      counter-reset: qs;
+    }
+    .quick-start li {
+      counter-increment: qs;
+      padding: 8px 0;
+      padding-left: 40px;
+      position: relative;
+      font-size: 0.92rem;
+      color: var(--text-dim);
+    }
+    .quick-start li::before {
+      content: counter(qs);
+      position: absolute;
+      left: 0; top: 8px;
+      width: 26px; height: 26px;
+      background: var(--bg-raised);
+      border: 1px solid var(--border-dim);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    /* ═══════════════════════════════════════════════════
+       DEVELOPER
+       ═══════════════════════════════════════════════════ */
+    .developer {
+      padding: 80px 0;
+      background: var(--bg);
+      border-top: 1px solid var(--border-dim);
+    }
+    .developer-inner {
+      display: flex;
+      align-items: flex-start;
+      gap: 48px;
+    }
+    .developer-text { flex: 1; }
+    .developer-text h2 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+    }
+    .developer-text p {
+      color: var(--text-dim);
+      font-size: 0.95rem;
+      line-height: 1.7;
+      margin-bottom: 20px;
+    }
+    .developer-code {
+      flex: 1;
+      background: var(--bg-deep);
+      border: 1px solid var(--border-dim);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .code-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: var(--bg-raised);
+      border-bottom: 1px solid var(--border-dim);
+    }
+    .code-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--bg-elevated);
+    }
+    .developer-code pre {
+      padding: 20px;
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
+      font-size: 0.85rem;
+      line-height: 1.7;
+      color: var(--text-dim);
+      overflow-x: auto;
+    }
+    .developer-code .cmd { color: var(--accent); }
+    .developer-code .comment { color: var(--text-muted); }
+
+    /* ═══════════════════════════════════════════════════
+       FOOTER
+       ═══════════════════════════════════════════════════ */
+    footer {
+      border-top: 1px solid var(--border-dim);
+      padding: 48px 0 40px;
+    }
+    .footer-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 40px;
+      flex-wrap: wrap;
+    }
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+    .footer-brand img { width: 24px; height: 24px; }
+    .footer-tagline {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      max-width: 280px;
+    }
+    .footer-col h4 {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+    }
+    .footer-col ul { list-style: none; }
+    .footer-col li { margin-bottom: 8px; }
+    .footer-col a {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+    .footer-col a:hover { color: var(--text-secondary); }
+    .footer-bottom {
+      margin-top: 40px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border-dim);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .footer-bottom p {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    /* ═══════════════════════════════════════════════════
+       RESPONSIVE
+       ═══════════════════════════════════════════════════ */
+    @media (max-width: 900px) {
+      .hero-split {
+        grid-template-columns: 1fr;
+        gap: 40px;
+        text-align: center;
+      }
+      .hero-content { text-align: center; }
+      .hero-buttons { justify-content: center; }
+      .hero-sub { margin-left: auto; margin-right: auto; }
+      .hero h1 { font-size: 2.8rem; }
+      .hero-pill { max-width: 280px; }
+      .hero-visual::after { opacity: 0; }
+      .app-mockup { max-width: 380px; margin: 0 auto; }
+      .section-title { font-size: 2rem; }
+      .modes-grid { grid-template-columns: 1fr; }
+      .feature-grid { grid-template-columns: repeat(2, 1fr); }
+      .developer-inner { flex-direction: column; }
+      .developer-code { width: 100%; }
+      .steps-row { grid-template-columns: repeat(2, 1fr); gap: 32px; }
+      .steps-row::before { display: none; }
+      .download-packages { grid-template-columns: 1fr; max-width: 400px; }
+      .macos-soon { padding: 36px 28px; }
+      .footer-inner { flex-direction: column; }
+    }
+
+    @media (max-width: 640px) {
+      .container { padding: 0 18px; }
+      .hero { padding-top: calc(var(--nav-h) + 32px); padding-bottom: 32px; }
+      .hero h1 { font-size: 2.2rem; }
+      .hero-sub { font-size: 1.05rem; }
+      .hero-buttons { flex-direction: column; align-items: center; }
+      .hero-dl-group .btn-primary { font-size: 0.9rem; padding: 11px 20px; }
+      .hero-dl-label-full { display: none !important; }
+      .hero-dl-label-short { display: inline !important; }
+      .hero-dl-toggle { width: 36px; }
+      .hero-dl-toggle svg { width: 14px; height: 14px; }
+      .hero-dl-menu { min-width: 230px; left: 50%; transform: translateX(-50%); }
+      .hero-dl-item { padding: 10px 14px; font-size: 0.82rem; gap: 8px; }
+      .hero-platforms { justify-content: center; }
+      .hero-pill { bottom: -20px; max-width: 240px; }
+      .app-mockup { font-size: 10px; max-width: 300px; }
+      /* Title bar — more breathing room */
+      .mock-titlebar { height: 28px; padding: 0 8px; }
+      .mock-titlebar-left svg { width: 11px; height: 11px; }
+      .mock-titlebar-left span { font-size: 10.5px; }
+      .mock-wb { width: 20px; height: 20px; }
+      .mock-wb svg { width: 10px; height: 10px; }
+      .mock-sep { height: 10px; margin: 0 2px; }
+      /* Toolbar — scale the toggle and selectors */
+      .mock-toolbar { height: 30px; gap: 6px; padding: 0 8px; }
+      .mock-pill-switch { width: 78px; height: 20px; font-size: 9px; }
+      .mock-selector { font-size: 9px; gap: 2px; }
+      .mock-selector svg { width: 9px; height: 9px; }
+      /* Recording surface — fewer bars, tighter spacing */
+      .mock-recorder { padding: 12px 10px; }
+      .mock-rec-icon { width: 30px; height: 30px; }
+      .mock-rec-icon svg { width: 11px; height: 11px; }
+      .mock-rec-active svg { width: 10px !important; height: 10px !important; }
+      .mock-viz { margin: 0 8px; gap: 2px; height: 30px; }
+      .mock-bar { width: 3px; }
+      .mock-bar:nth-child(n+19) { display: none; }
+      .mock-time { font-size: 15px; }
+      .mock-status { font-size: 7.5px; }
+      .mock-timer { min-width: 40px; }
+      /* History — tighter spacing */
+      .mock-history-header { padding: 7px 10px; }
+      .mock-history-label { font-size: 8.5px; }
+      .mock-badge { font-size: 8.5px; padding: 1px 5px; }
+      .mock-search { padding: 3px 8px; font-size: 8.5px; }
+      .mock-search svg { width: 9px; height: 9px; }
+      .mock-history-list { padding: 6px 8px; gap: 5px; }
+      .mock-card { padding: 7px 9px; border-radius: 8px; }
+      .mock-card-meta { margin-bottom: 4px; }
+      .mock-card-time { font-size: 8px; }
+      .mock-card-actions svg { width: 9px; height: 9px; }
+      .mock-card-text { font-size: 10px; -webkit-line-clamp: 2; }
+      /* Footer bar */
+      .mock-footer { height: 22px; padding: 0 8px; font-size: 7.5px; }
+      .mock-footer-center kbd { font-size: 7.5px; padding: 0px 3px; }
+      .mock-dot { width: 4px; height: 4px; }
+      .mock-footer-right svg { width: 8px; height: 8px; }
+      .section-title { font-size: 1.7rem; }
+      .section-subtitle { font-size: 1rem; }
+      .section-header { margin-bottom: 36px; }
+      .showcase,
+      .features,
+      .how-it-works,
+      .use-cases,
+      .privacy,
+      .download { padding: 64px 0; }
+      .feature-grid,
+      .privacy-grid,
+      .use-case-grid { grid-template-columns: 1fr; }
+      .feature-card { padding: 24px 20px; }
+      .privacy-card { padding: 24px 20px; }
+      .use-case-card { padding: 20px 18px; gap: 14px; }
+      .steps-row { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+      .stat-item .stat-value { font-size: 1.5rem; }
+      .nav-links { display: none; }
+      .nav-toggle { display: block; }
+      .quick-start { padding: 24px 20px; }
+      .platform-tabs { max-width: 320px; }
+      .macos-soon { padding: 32px 20px; }
+      .macos-soon h3 { font-size: 1.1rem; }
+      .pill-showcase { gap: 32px; }
+      .pill-showcase-item canvas { max-width: 100%; height: auto; }
+      .pill-showcase-item .pill-label { font-size: 0.85rem; }
+      .showcase-tabs { margin-bottom: 28px; }
+      .showcase-tab { padding: 8px 16px; font-size: 0.82rem; }
+      .developer { padding: 56px 0; }
+      .developer-text h2 { font-size: 1.4rem; }
+      .developer-code pre { font-size: 0.78rem; padding: 14px; }
+      footer { padding: 32px 0 28px; }
+    }
+
+    /* ═══════════════════════════════════════════════════
+       DOWNLOAD STARTED NOTIFICATION
+       ═══════════════════════════════════════════════════ */
+    .dl-notify {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 9999;
+      transform: translateY(-100%);
+      transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .dl-notify.visible {
+      transform: translateY(0);
+    }
+    .dl-notify-inner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 14px 20px;
+      background: #1a5c2a;
+      border-bottom: 1px solid #22863a;
+      color: #d4edda;
+      font-size: 0.92rem;
+      line-height: 1.4;
+      text-align: center;
+      flex-wrap: wrap;
+    }
+    .dl-notify-icon {
+      flex-shrink: 0;
+      width: 20px; height: 20px;
+      color: #86efac;
+    }
+    .dl-notify-text strong {
+      color: #fff;
+    }
+    .dl-notify-text a {
+      color: #86efac;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .dl-notify-text a:hover {
+      color: #fff;
+    }
+    .dl-notify-dismiss {
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      color: #86efac;
+      cursor: pointer;
+      padding: 4px;
+      margin-left: 8px;
+      opacity: 0.7;
+      transition: opacity 0.15s;
+    }
+    .dl-notify-dismiss:hover { opacity: 1; }
+    .dl-notify-arrow {
+      display: inline-block;
+      animation: dl-bounce 1.5s ease infinite;
+    }
+    @keyframes dl-bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(3px); }
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- Download started notification bar -->
+  <div class="dl-notify" id="dl-notify">
+    <div class="dl-notify-inner">
+      <svg class="dl-notify-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      <span class="dl-notify-text" id="dl-notify-text">
+        <strong>Your download has started.</strong> Check your browser's download bar <span class="dl-notify-arrow">&#8595;</span> or press <strong>Ctrl+J</strong> to find it. <a href="#" id="dl-retry">Click here to try again</a> if it didn't start.
+      </span>
+      <button class="dl-notify-dismiss" id="dl-notify-dismiss" aria-label="Dismiss">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       NAVBAR
+       ════════════════════════════════════════════════════ -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="#" class="nav-brand">
+        <img src="assets/microphone_logo.svg" alt="" width="28" height="28">
+        WhisperClick
+      </a>
+      <ul class="nav-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#how-it-works">How it works</a></li>
+        <li><a href="#privacy">Privacy</a></li>
+        <li><a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App" target="_blank" rel="noopener">GitHub</a></li>
+        <li><a href="#download" class="nav-cta">Download</a></li>
+      </ul>
+      <button class="nav-toggle" aria-label="Menu" onclick="document.querySelector('.nav-links').classList.toggle('open')">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ════════════════════════════════════════════════════
+       HERO
+       ════════════════════════════════════════════════════ -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-split">
+        <div class="hero-content">
+          <div class="hero-badge">
+            <span class="dot"></span>
+            Free &amp; source available &middot; Windows, macOS &amp; Linux
+          </div>
+
+          <h1>
+            <span class="gradient">Talk instead of type.</span><br>
+            Anywhere on your desktop.
+          </h1>
+
+          <p class="hero-sub">
+            AI-powered voice typing for your entire desktop. Press a hotkey from any app,
+            say what you're thinking, and the text appears at your cursor. Runs offline with Whisper AI or connects to OpenAI and Gemini.
+          </p>
+
+          <div class="hero-buttons">
+            <div class="hero-dl-group">
+              <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest" class="btn btn-primary" id="hero-dl-btn">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="width:16px;height:16px;"><path d="M3 5.5l7.5-1v7.25H3V5.5zm0 13l7.5 1v-7.25H3V18.5zm8.5 1.13L21 21V11.75H11.5v7.88zm0-15.13v7.25H21V3L11.5 4.5z"/></svg>
+                <span class="hero-dl-label-full">Download for Windows</span>
+                <span class="hero-dl-label-short" style="display:none;">Download</span>
+              </a>
+              <button class="hero-dl-toggle" id="hero-dl-toggle" aria-label="More download options">
+                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"/></svg>
+              </button>
+              <div class="hero-dl-menu" id="hero-dl-menu">
+                <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest" class="hero-dl-item" id="hero-dl-windows" data-hero-platform="windows">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5l7.5-1v7.25H3V5.5zm0 13l7.5 1v-7.25H3V18.5zm8.5 1.13L21 21V11.75H11.5v7.88zm0-15.13v7.25H21V3L11.5 4.5z"/></svg>
+                  Windows Installer (.exe)
+                </a>
+                <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases" class="hero-dl-item" id="hero-dl-macos" data-hero-platform="macos">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+                  macOS (Apple Silicon)
+                  <span class="dl-badge-beta">Beta</span>
+                </a>
+                <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases" class="hero-dl-item" id="hero-dl-linux" data-hero-platform="linux">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.862 1.946 2.542.765.631 1.6.931 2.3.665.39-.135.643-.399.896-.72.25-.336.456-.669.806-.878a3.676 3.676 0 001.378-1.397c.073-.134.145-.269.2-.406.15-.334.29-.603.267-.87-.007-.14-.05-.26-.12-.356a.618.618 0 00-.079-.097l-.005-.005c-.193-.2-.407-.347-.632-.467-.58-.31-1.216-.468-1.676-.869a3.22 3.22 0 01-.753-.866 4.307 4.307 0 01-.268-.534c-.193-.467-.333-.929-.474-1.179-.14-.266-.269-.399-.4-.533-.13-.133-.267-.266-.4-.533-.262-.534-.4-1.6-.503-2.331-.064-.734-.03-1.331.157-2.131.187-.8.465-1.599.689-2.265.224-.734.38-1.199.291-1.865-.134-.8-.665-1.598-.936-1.865a.96.96 0 00-.3-.199 2.407 2.407 0 00-.735-.268c-.267-.066-.534-.1-.801-.1z"/></svg>
+                  Linux (AppImage)
+                  <span class="dl-badge-beta">Beta</span>
+                </a>
+                <hr>
+                <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases" class="hero-dl-item">
+                  <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.25 5.5a.75.75 0 00-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 00.75-.75v-4a.75.75 0 011.5 0v4A2.25 2.25 0 0112.75 17h-8.5A2.25 2.25 0 012 14.75v-8.5A2.25 2.25 0 014.25 4h5a.75.75 0 010 1.5h-5zm7.25-.75a.75.75 0 01.75-.75h3.5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0V6.31l-5.47 5.47a.75.75 0 01-1.06-1.06l5.47-5.47H12.25a.75.75 0 01-.75-.75z" clip-rule="evenodd"/></svg>
+                  All releases
+                </a>
+              </div>
+            </div>
+            <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App" target="_blank" rel="noopener" class="btn btn-secondary">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+              View source
+            </a>
+          </div>
+
+          <div class="hero-platforms">
+            <span class="platform-chip available">
+              <span class="chip-dot"></span>
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5l7.5-1v7.25H3V5.5zm0 13l7.5 1v-7.25H3V18.5zm8.5 1.13L21 21V11.75H11.5v7.88zm0-15.13v7.25H21V3L11.5 4.5z"/></svg>
+              Windows 10/11
+            </span>
+            <span class="platform-chip available">
+              <span class="chip-dot"></span>
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+              macOS (early access)
+            </span>
+            <span class="platform-chip available">
+              <span class="chip-dot"></span>
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.862 1.946 2.542.765.631 1.6.931 2.3.665.39-.135.643-.399.896-.72.25-.336.456-.669.806-.878a3.676 3.676 0 001.378-1.397c.073-.134.145-.269.2-.406.15-.334.29-.603.267-.87-.007-.14-.05-.26-.12-.356a.618.618 0 00-.079-.097l-.005-.005c-.193-.2-.407-.347-.632-.467-.58-.31-1.216-.468-1.676-.869a3.22 3.22 0 01-.753-.866 4.307 4.307 0 01-.268-.534c-.193-.467-.333-.929-.474-1.179-.14-.266-.269-.399-.4-.533-.13-.133-.267-.266-.4-.533-.262-.534-.4-1.6-.503-2.331-.064-.734-.03-1.331.157-2.131.187-.8.465-1.599.689-2.265.224-.734.38-1.199.291-1.865-.134-.8-.665-1.598-.936-1.865a.96.96 0 00-.3-.199 2.407 2.407 0 00-.735-.268c-.267-.066-.534-.1-.801-.1z"/></svg>
+              Linux (early access)
+            </span>
+            <span class="platform-chip" style="color:var(--text-muted);">&middot; No account required</span>
+          </div>
+        </div>
+
+        <div class="hero-visual reveal">
+          <!-- Live HTML/CSS recreation of the WhisperClick app UI -->
+          <div class="app-mockup" aria-label="WhisperClick application interface">
+
+            <!-- Title Bar -->
+            <div class="mock-titlebar">
+              <div class="mock-titlebar-left">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                <span>WhisperClick</span>
+              </div>
+              <div class="mock-titlebar-right">
+                <div class="mock-wb">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                </div>
+                <div class="mock-wb">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </div>
+                <div class="mock-sep"></div>
+                <div class="mock-wb mock-wb-close">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- Toolbar -->
+            <div class="mock-toolbar">
+              <div class="mock-pill-switch">
+                <div class="mock-pill-slider"></div>
+                <span class="mock-pill-active">Local</span>
+                <span class="mock-pill-inactive">API</span>
+              </div>
+              <div class="mock-selector">
+                <svg class="sel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                <span class="sel-label">Local Capture</span>
+                <svg class="sel-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+              <div class="mock-selector mock-selector-mic">
+                <svg class="sel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                <span class="sel-label">Default</span>
+                <svg class="sel-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+            </div>
+
+            <!-- Recording Surface — active recording state -->
+            <div class="mock-recorder mock-recording">
+              <div class="mock-rec-icon mock-rec-active">
+                <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="7" y="7" width="10" height="10" rx="1.5"/></svg>
+              </div>
+              <div class="mock-viz">
+                <div class="mock-bar" style="height:6px"></div>
+                <div class="mock-bar" style="height:12px"></div>
+                <div class="mock-bar" style="height:8px"></div>
+                <div class="mock-bar" style="height:18px"></div>
+                <div class="mock-bar" style="height:12px"></div>
+                <div class="mock-bar" style="height:24px"></div>
+                <div class="mock-bar" style="height:10px"></div>
+                <div class="mock-bar" style="height:28px"></div>
+                <div class="mock-bar" style="height:15px"></div>
+                <div class="mock-bar" style="height:34px"></div>
+                <div class="mock-bar" style="height:18px"></div>
+                <div class="mock-bar" style="height:38px"></div>
+                <div class="mock-bar" style="height:22px"></div>
+                <div class="mock-bar" style="height:30px"></div>
+                <div class="mock-bar" style="height:15px"></div>
+                <div class="mock-bar" style="height:24px"></div>
+                <div class="mock-bar" style="height:12px"></div>
+                <div class="mock-bar" style="height:18px"></div>
+                <div class="mock-bar" style="height:8px"></div>
+                <div class="mock-bar" style="height:15px"></div>
+                <div class="mock-bar" style="height:6px"></div>
+                <div class="mock-bar" style="height:12px"></div>
+                <div class="mock-bar" style="height:18px"></div>
+                <div class="mock-bar" style="height:8px"></div>
+                <div class="mock-bar" style="height:6px"></div>
+              </div>
+              <div class="mock-timer">
+                <span class="mock-time">00:04</span>
+                <span class="mock-status">Recording</span>
+              </div>
+            </div>
+
+            <!-- History Section -->
+            <div class="mock-history">
+              <div class="mock-history-header">
+                <div class="mock-history-left">
+                  <span class="mock-history-label">History</span>
+                  <span class="mock-badge">3</span>
+                </div>
+                <div class="mock-search">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <span>Search...</span>
+                </div>
+              </div>
+              <div class="mock-history-list">
+                <!-- Card 1 -->
+                <div class="mock-card">
+                  <div class="mock-card-meta">
+                    <span class="mock-card-time">2:34 PM &bull; 12s</span>
+                    <div class="mock-card-actions">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    </div>
+                  </div>
+                  <div class="mock-card-text">Hey, can you send me the updated design files when you get a chance? I want to review them before the meeting tomorrow morning.</div>
+                </div>
+                <!-- Card 2 -->
+                <div class="mock-card">
+                  <div class="mock-card-meta">
+                    <span class="mock-card-time">2:31 PM &bull; 8s</span>
+                    <div class="mock-card-actions">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    </div>
+                  </div>
+                  <div class="mock-card-text">Remind me to pick up coffee and grab lunch with Sarah on Thursday.</div>
+                </div>
+                <!-- Card 3 -->
+                <div class="mock-card">
+                  <div class="mock-card-meta">
+                    <span class="mock-card-time">2:28 PM &bull; 15s</span>
+                    <div class="mock-card-actions">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    </div>
+                  </div>
+                  <div class="mock-card-text">The quarterly report shows a 23% increase in user engagement compared to last quarter. We should highlight this in the stakeholder presentation next week.</div>
+                </div>
+                <!-- Card 4 -->
+                <div class="mock-card">
+                  <div class="mock-card-meta">
+                    <span class="mock-card-time">2:22 PM &bull; 6s</span>
+                    <div class="mock-card-actions">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    </div>
+                  </div>
+                  <div class="mock-card-text">Note to self: update the API documentation before the release on Friday.</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="mock-footer">
+              <div class="mock-footer-left">
+                <span class="mock-dot"></span>
+                <span>System Ready</span>
+              </div>
+              <span class="mock-footer-center">Press <kbd>Ctrl + Alt + R</kbd> to record</span>
+              <div class="mock-footer-right">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                <span>Clear History</span>
+              </div>
+            </div>
+
+          </div>
+          <div class="hero-pill">
+            <canvas id="pill-hero" aria-label="Floating pill recording indicator"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       STATS BAR
+       ════════════════════════════════════════════════════ -->
+  <section class="stats">
+    <div class="container">
+      <div class="stats-grid">
+        <div class="stat-item reveal">
+          <div class="stat-value">3-4<span class="accent">x</span></div>
+          <div class="stat-label">Faster than typing</div>
+        </div>
+        <div class="stat-item reveal">
+          <div class="stat-value">50<span class="accent">+</span></div>
+          <div class="stat-label">Languages supported</div>
+        </div>
+        <div class="stat-item reveal">
+          <div class="stat-value"><span class="accent">0</span></div>
+          <div class="stat-label">Telemetry &middot; Analytics &middot; Tracking</div>
+        </div>
+        <div class="stat-item reveal">
+          <div class="stat-value">100<span class="accent">%</span></div>
+          <div class="stat-label">Free for personal use</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       TWO MODES
+       ════════════════════════════════════════════════════ -->
+  <section class="modes" id="modes">
+    <div class="container">
+      <div class="section-header reveal">
+        <span class="section-label">Two ways to transcribe</span>
+        <h2 class="section-title">Your voice, your choice</h2>
+        <p class="section-subtitle">Run everything on your hardware for maximum privacy, or tap into cloud APIs when you need the highest accuracy.</p>
+      </div>
+
+      <div class="modes-grid stagger">
+        <div class="mode-card local reveal">
+          <div class="mode-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="9" y1="9" x2="9" y2="15"/><line x1="15" y1="9" x2="15" y2="15"/><line x1="12" y1="7" x2="12" y2="17"/></svg>
+          </div>
+          <h3>Local mode</h3>
+          <p class="mode-desc">Powered by <strong>Whisper AI</strong> (via faster-whisper), running entirely on your hardware. Download a model once, then transcribe forever with zero internet.</p>
+          <ul class="mode-features">
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Audio never leaves your machine
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              No internet connection required
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Multiple model sizes (tiny &rarr; large)
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              No API key or account needed
+            </li>
+          </ul>
+        </div>
+
+        <div class="mode-card cloud reveal">
+          <div class="mode-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+          </div>
+          <h3>API mode</h3>
+          <p class="mode-desc">Send audio to <strong>OpenAI Whisper</strong> or <strong>Google Gemini</strong> for top-tier accuracy. Only triggered when you press the hotkey.</p>
+          <ul class="mode-features">
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Best-in-class transcription accuracy
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Nothing stored after transcription
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              API key stored securely in OS keyring
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Switch providers anytime
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       SHOWCASE (Screenshots)
+       ════════════════════════════════════════════════════ -->
+  <section class="showcase" id="showcase">
+    <div class="container">
+      <div class="section-header reveal">
+        <span class="section-label">Interface</span>
+        <h2 class="section-title">Clean design, dark and light</h2>
+        <p class="section-subtitle">A polished interface for managing your settings, history, and transcription preferences.</p>
+      </div>
+
+      <div class="reveal">
+        <div class="showcase-tabs" role="tablist">
+          <button class="showcase-tab active" role="tab" data-panel="dark" aria-selected="true">Dark mode</button>
+          <button class="showcase-tab" role="tab" data-panel="light" aria-selected="false">Light mode</button>
+          <button class="showcase-tab" role="tab" data-panel="pill" aria-selected="false">Pill widget</button>
+        </div>
+
+        <div class="showcase-panel active" id="panel-dark">
+          <div class="showcase-image">
+            <img src="assets/app-dark.png" alt="WhisperClick in dark mode" loading="lazy">
+          </div>
+        </div>
+        <div class="showcase-panel" id="panel-light">
+          <div class="showcase-image">
+            <img src="assets/app-light.png" alt="WhisperClick in light mode" loading="lazy">
+          </div>
+        </div>
+        <div class="showcase-panel" id="panel-pill">
+          <div class="pill-showcase">
+            <div class="pill-showcase-item">
+              <canvas id="pill-idle" aria-label="Floating pill — idle state"></canvas>
+              <p class="pill-label"><strong>Idle</strong> — sits quietly at the bottom of your screen</p>
+            </div>
+            <div class="pill-showcase-item">
+              <canvas id="pill-hover" aria-label="Floating pill — hover with tooltip"></canvas>
+              <p class="pill-label"><strong>Hover</strong> — shows your hotkey and how to start dictating</p>
+            </div>
+            <div class="pill-showcase-item">
+              <canvas id="pill-recording" aria-label="Floating pill — recording with audio bars"></canvas>
+              <p class="pill-label"><strong>Recording</strong> — live audio visualization with cancel and stop</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       FEATURES
+       ════════════════════════════════════════════════════ -->
+  <section class="features" id="features">
+    <div class="container">
+      <div class="section-header reveal">
+        <span class="section-label">Features</span>
+        <h2 class="section-title">Everything you need, nothing you don't</h2>
+        <p class="section-subtitle">Built for speed and simplicity. No bloat, no setup wizards, no accounts.</p>
+      </div>
+
+      <div class="feature-grid stagger">
+        <div class="feature-card reveal">
+          <div class="feature-icon-wrap">
+            <!-- Globe icon -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          </div>
+          <h3>Works in any app</h3>
+          <p>Email, Slack, your IDE, Google Docs, a terminal — one global hotkey triggers recording wherever you are. No plugins needed.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon-wrap">
+            <!-- Shield icon -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <h3>Fully offline AI speech recognition</h3>
+          <p>Local mode runs Whisper AI entirely on your hardware. No cloud, no network, no exceptions.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon-wrap">
+            <!-- Zap icon -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <h3>Instant paste</h3>
+          <p>Text is transcribed and pasted at your cursor automatically. No copy button, no extra window. Talk, stop, done.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon-wrap">
+            <!-- Languages icon -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l6 6"/><path d="M4 14l6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="M22 22l-5-10-5 10"/><path d="M14 18h6"/></svg>
+          </div>
+          <h3>50+ languages</h3>
+          <p>Supports every language Whisper handles, with automatic detection. Switch languages in the tray menu or let it detect.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon-wrap">
+            <!-- History icon -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <h3>Searchable history</h3>
+          <p>Every transcription is saved with the original audio recording. Search your history and play back what you said.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon-wrap">
+            <!-- Minimize icon -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>
+          </div>
+          <h3>Stays out of your way</h3>
+          <p>Lives in the system tray. A tiny floating pill appears only while recording, with audio bars, cancel, and stop controls.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       HOW IT WORKS
+       ════════════════════════════════════════════════════ -->
+  <section class="how-it-works" id="how-it-works">
+    <div class="container">
+      <div class="section-header reveal">
+        <span class="section-label">Quick start</span>
+        <h2 class="section-title">Up and running in 30 seconds</h2>
+        <p class="section-subtitle">No account, no sign-up, no configuration required. Just install and go.</p>
+      </div>
+
+      <div class="steps-row stagger">
+        <div class="step-card reveal">
+          <div class="step-num">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </div>
+          <h3>Install</h3>
+          <p>Run the installer or extract the portable zip</p>
+        </div>
+        <div class="step-card reveal">
+          <div class="step-num">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 4v4"/><path d="M14 4v4"/><path d="M6 12h4"/><path d="M14 12h4"/></svg>
+          </div>
+          <h3>Press the hotkey</h3>
+          <p><span class="kbd">Ctrl</span>+<span class="kbd">Shift</span>+<span class="kbd">R</span> starts recording</p>
+        </div>
+        <div class="step-card reveal">
+          <div class="step-num">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          </div>
+          <h3>Talk</h3>
+          <p>Speak naturally — say whatever you're thinking</p>
+        </div>
+        <div class="step-card reveal">
+          <div class="step-num">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h3>Done</h3>
+          <p>Text appears at your cursor, already pasted</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       USE CASES
+       ════════════════════════════════════════════════════ -->
+  <section class="use-cases">
+    <div class="container">
+      <div class="section-header reveal">
+        <span class="section-label">Use cases</span>
+        <h2 class="section-title">Replace typing everywhere</h2>
+        <p class="section-subtitle">Anywhere you'd normally type, you can talk instead.</p>
+      </div>
+
+      <div class="use-case-grid stagger">
+        <div class="use-case-card reveal">
+          <div class="use-case-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          </div>
+          <div>
+            <h3>Email &amp; messaging</h3>
+            <p>Compose emails, Slack messages, and chat replies at the speed of thought.</p>
+          </div>
+        </div>
+        <div class="use-case-card reveal">
+          <div class="use-case-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          </div>
+          <div>
+            <h3>Code comments &amp; docs</h3>
+            <p>Dictate documentation, code comments, and commit messages from your IDE.</p>
+          </div>
+        </div>
+        <div class="use-case-card reveal">
+          <div class="use-case-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          </div>
+          <div>
+            <h3>Notes &amp; research</h3>
+            <p>Capture ideas into Notion, Obsidian, or any text editor without breaking focus.</p>
+          </div>
+        </div>
+        <div class="use-case-card reveal">
+          <div class="use-case-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+          </div>
+          <div>
+            <h3>Chat &amp; social</h3>
+            <p>Reply in Discord, Teams, or any social app. Long replies are finally easy.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       PRIVACY
+       ════════════════════════════════════════════════════ -->
+  <section class="privacy" id="privacy">
+    <div class="container">
+      <div class="section-header reveal">
+        <span class="section-label">Privacy</span>
+        <h2 class="section-title">Your voice stays yours</h2>
+        <p class="section-subtitle">No telemetry, no analytics, no background network calls. We don't collect anything.</p>
+      </div>
+
+      <div class="privacy-grid stagger">
+        <div class="privacy-card reveal">
+          <div class="privacy-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <h3>Zero data collection</h3>
+          <p>No telemetry, crash reports, or usage tracking. Nothing is ever sent to WhisperClick developers or any third party.</p>
+        </div>
+        <div class="privacy-card reveal">
+          <div class="privacy-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <h3>Local mode is fully offline</h3>
+          <p>Audio is processed entirely on your machine. No internet connection is used. Nothing leaves your computer. Ever.</p>
+        </div>
+        <div class="privacy-card reveal">
+          <div class="privacy-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </div>
+          <h3>You control when it listens</h3>
+          <p>There is no always-on microphone. Audio is captured only when you explicitly press the hotkey. Nothing else triggers recording.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       DOWNLOAD
+       ════════════════════════════════════════════════════ -->
+  <section class="download" id="download">
+    <div class="container">
+      <div class="section-header reveal">
+        <span class="section-label">Download</span>
+        <h2 class="section-title">Get WhisperClick</h2>
+        <p class="section-subtitle">Free for personal use. Source available. No account required.</p>
+      </div>
+
+      <!-- Platform tabs -->
+      <div class="platform-tabs reveal" role="tablist">
+        <button class="platform-tab active" role="tab" aria-selected="true" data-platform="windows" onclick="switchPlatform('windows')">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5l7.5-1v7.25H3V5.5zm0 13l7.5 1v-7.25H3V18.5zm8.5 1.13L21 21V11.75H11.5v7.88zm0-15.13v7.25H21V3L11.5 4.5z"/></svg>
+          Windows
+        </button>
+        <button class="platform-tab" role="tab" aria-selected="false" data-platform="macos" onclick="switchPlatform('macos')">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+          macOS
+        </button>
+        <button class="platform-tab" role="tab" aria-selected="false" data-platform="linux" onclick="switchPlatform('linux')">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.862 1.946 2.542.765.631 1.6.931 2.3.665.39-.135.643-.399.896-.72.25-.336.456-.669.806-.878a3.676 3.676 0 001.378-1.397c.073-.134.145-.269.2-.406.15-.334.29-.603.267-.87-.007-.14-.05-.26-.12-.356a.618.618 0 00-.079-.097l-.005-.005c-.193-.2-.407-.347-.632-.467-.58-.31-1.216-.468-1.676-.869a3.22 3.22 0 01-.753-.866 4.307 4.307 0 01-.268-.534c-.193-.467-.333-.929-.474-1.179-.14-.266-.269-.399-.4-.533-.13-.133-.267-.266-.4-.533-.262-.534-.4-1.6-.503-2.331-.064-.734-.03-1.331.157-2.131.187-.8.465-1.599.689-2.265.224-.734.38-1.199.291-1.865-.134-.8-.665-1.598-.936-1.865a.96.96 0 00-.3-.199 2.407 2.407 0 00-.735-.268c-.267-.066-.534-.1-.801-.1z"/></svg>
+          Linux
+        </button>
+      </div>
+
+      <!-- Windows panel -->
+      <div class="platform-panel active" id="panel-windows">
+        <div class="download-packages stagger reveal" id="download-packages">
+          <div class="package-card package-recommended" data-asset-pattern="Setup">
+            <h3>Installer</h3>
+            <div class="package-file">WhisperClick-Setup-*.exe</div>
+            <p class="package-desc">Installs to your system with a Start Menu shortcut. Best for most users.</p>
+            <div class="package-meta">
+              <span class="skeleton"></span>
+            </div>
+            <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest" class="package-dl-btn">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1a1 1 0 0 1 1 1v9.586l2.293-2.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L9 11.586V2a1 1 0 0 1 1-1ZM3 15a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1a1 1 0 0 1 1-1Z"/></svg>
+              Download .exe
+            </a>
+          </div>
+          <div class="package-card" data-asset-pattern="portable" data-asset-exclude="onefile">
+            <h3>Portable</h3>
+            <div class="package-file">WhisperClick-portable-*.zip</div>
+            <p class="package-desc">Unzip and run. No install needed. Great for USB drives and shared machines.</p>
+            <div class="package-meta">
+              <span class="skeleton"></span>
+            </div>
+            <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest" class="package-dl-btn">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1a1 1 0 0 1 1 1v9.586l2.293-2.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L9 11.586V2a1 1 0 0 1 1-1ZM3 15a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1a1 1 0 0 1 1-1Z"/></svg>
+              Download .zip
+            </a>
+          </div>
+          <div class="package-card" data-asset-pattern="onefile">
+            <h3>Single file</h3>
+            <div class="package-file">WhisperClick-portable-onefile-*.exe</div>
+            <p class="package-desc">One executable. Drop it anywhere and double-click to run.</p>
+            <div class="package-meta">
+              <span class="skeleton"></span>
+            </div>
+            <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest" class="package-dl-btn">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1a1 1 0 0 1 1 1v9.586l2.293-2.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L9 11.586V2a1 1 0 0 1 1-1ZM3 15a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1a1 1 0 0 1 1-1Z"/></svg>
+              Download .exe
+            </a>
+          </div>
+        </div>
+
+        <p class="download-total reveal" id="download-total"></p>
+
+        <div class="download-buttons reveal">
+          <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases" class="btn btn-secondary">
+            All releases &amp; changelog
+          </a>
+        </div>
+
+        <div class="quick-start reveal">
+          <h3>Quick start</h3>
+          <ol>
+            <li>Run the installer or portable EXE</li>
+            <li>WhisperClick appears in your system tray</li>
+            <li>Press <span class="kbd">Ctrl</span>+<span class="kbd">Shift</span>+<span class="kbd">R</span> to start recording</li>
+            <li>Talk, then press the hotkey again to stop</li>
+            <li>Text appears at your cursor, already pasted</li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- macOS panel -->
+      <div class="platform-panel" id="panel-macos">
+        <div class="download-packages stagger reveal" style="grid-template-columns:1fr;max-width:400px;" id="macos-packages">
+          <div class="package-card package-recommended" id="macos-dmg-card">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <h3 style="margin:0;">macOS (Apple Silicon)</h3>
+              <span class="dl-badge-beta">Beta</span>
+            </div>
+            <div class="package-file" id="macos-file">WhisperClick-*.dmg</div>
+            <p class="package-desc">DMG installer for Apple Silicon Macs (M1/M2/M3/M4). Mount and drag to Applications.</p>
+            <div class="package-meta" id="macos-meta">
+              <span class="skeleton"></span>
+            </div>
+            <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases" class="package-dl-btn" id="macos-dl-btn">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1a1 1 0 0 1 1 1v9.586l2.293-2.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L9 11.586V2a1 1 0 0 1 1-1ZM3 15a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1a1 1 0 0 1 1-1Z"/></svg>
+              Download .dmg
+            </a>
+          </div>
+        </div>
+        <div class="download-buttons reveal" style="max-width:400px;margin:0 auto;">
+          <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases" class="btn btn-secondary">
+            All releases &amp; changelog
+          </a>
+        </div>
+      </div>
+
+      <!-- Linux panel -->
+      <div class="platform-panel" id="panel-linux">
+        <div class="download-packages stagger reveal" style="grid-template-columns:1fr;max-width:400px;" id="linux-packages">
+          <div class="package-card package-recommended" id="linux-appimage-card">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <h3 style="margin:0;">Linux (AppImage)</h3>
+              <span class="dl-badge-beta">Beta</span>
+            </div>
+            <div class="package-file" id="linux-file">WhisperClick-*.AppImage</div>
+            <p class="package-desc">Portable AppImage for most Linux distributions. Download, make executable, and run.</p>
+            <div class="package-meta" id="linux-meta">
+              <span class="skeleton"></span>
+            </div>
+            <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases" class="package-dl-btn" id="linux-dl-btn">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1a1 1 0 0 1 1 1v9.586l2.293-2.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L9 11.586V2a1 1 0 0 1 1-1ZM3 15a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1a1 1 0 0 1 1-1Z"/></svg>
+              Download .AppImage
+            </a>
+          </div>
+        </div>
+        <div class="download-buttons reveal" style="max-width:400px;margin:0 auto;">
+          <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases" class="btn btn-secondary">
+            All releases &amp; changelog
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       DEVELOPER
+       ════════════════════════════════════════════════════ -->
+  <section class="developer">
+    <div class="container">
+      <div class="developer-inner reveal">
+        <div class="developer-text">
+          <span class="section-label">Open source</span>
+          <h2>Built in the open</h2>
+          <p>WhisperClick is source-available under CC BY-NC-SA 4.0. Clone the repo, build from source, or read every line of code that touches your microphone.</p>
+          <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App" target="_blank" rel="noopener" class="btn btn-secondary" style="margin-top: 8px;">
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            View on GitHub
+          </a>
+        </div>
+        <div class="developer-code">
+          <div class="code-header">
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+          </div>
+          <pre><span class="comment"># Clone and run from source</span>
+<span class="cmd">git clone</span> https://github.com/Zbrooklyn/WhisperClick-Desktop-App.git
+<span class="cmd">cd</span> WhisperClick-Desktop-App
+
+<span class="cmd">python</span> -m venv venv
+venv\Scripts\activate
+<span class="cmd">pip install</span> -r requirements.txt
+
+<span class="cmd">python</span> src/main.py</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       FOOTER
+       ════════════════════════════════════════════════════ -->
+  <footer>
+    <div class="container">
+      <div class="footer-inner">
+        <div>
+          <div class="footer-brand">
+            <img src="assets/microphone_logo.svg" alt="" width="24" height="24">
+            WhisperClick
+          </div>
+          <p class="footer-tagline">Talk instead of type. Anywhere on your desktop.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Product</h4>
+          <ul>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#download">Download</a></li>
+            <li><a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases">Changelog</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Resources</h4>
+          <ul>
+            <li><a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App" target="_blank" rel="noopener">GitHub</a></li>
+            <li><a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/blob/main/PRIVACY.md" target="_blank" rel="noopener">Privacy policy</a></li>
+            <li><a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/blob/main/SECURITY.md" target="_blank" rel="noopener">Security</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Legal</h4>
+          <ul>
+            <li><a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a></li>
+            <li><a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/blob/main/LICENSE" target="_blank" rel="noopener">License</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2026 WhisperClick. Free for personal and community use.</p>
+        <p>Made with care for people who think faster than they type.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ════════════════════════════════════════════════════
+       MINIMAL JS — Scroll reveal + Tab switching
+       ════════════════════════════════════════════════════ -->
+  <script>
+    // Scroll-triggered fade-in
+    (function() {
+      var observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+      document.querySelectorAll('.reveal').forEach(function(el) {
+        observer.observe(el);
+      });
+    })();
+
+    // Showcase tab switching
+    (function() {
+      var tabs = document.querySelectorAll('.showcase-tab');
+      tabs.forEach(function(tab) {
+        tab.addEventListener('click', function() {
+          tabs.forEach(function(t) {
+            t.classList.remove('active');
+            t.setAttribute('aria-selected', 'false');
+          });
+          tab.classList.add('active');
+          tab.setAttribute('aria-selected', 'true');
+          document.querySelectorAll('.showcase-panel').forEach(function(p) {
+            p.classList.remove('active');
+          });
+          document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
+        });
+      });
+    })();
+
+    // Platform tab switching (download section)
+    function switchPlatform(platform) {
+      document.querySelectorAll('.platform-tab').forEach(function(t) {
+        t.classList.toggle('active', t.dataset.platform === platform);
+        t.setAttribute('aria-selected', t.dataset.platform === platform ? 'true' : 'false');
+      });
+      document.querySelectorAll('.platform-panel').forEach(function(p) {
+        p.classList.toggle('active', p.id === 'panel-' + platform);
+      });
+    }
+
+    // Mobile nav toggle
+    (function() {
+      var style = document.createElement('style');
+      style.textContent = '@media(max-width:640px){.nav-links.open{display:flex;position:absolute;top:var(--nav-h);left:0;right:0;flex-direction:column;background:rgba(12,10,9,0.95);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--border-dim);padding:16px 24px;gap:16px;}.nav-links.open .nav-cta{text-align:center;}}';
+      document.head.appendChild(style);
+    })();
+
+    // ── Live pill widget renderer ──
+    // Ports the Qt PillWidget paint code to Canvas 2D
+    (function() {
+      var DPR = window.devicePixelRatio || 2;
+
+      // Colours — exact match to pill_widget.py
+      var COL_BG        = 'rgb(41,37,36)';
+      var COL_BORDER    = 'rgba(255,255,255,0.07)';
+      var COL_BORDER_HV = 'rgba(255,255,255,0.16)';
+      var COL_MINIBAR   = 'rgba(255,255,255,0.14)';
+      var COL_MINIBAR_HV= 'rgb(207,150,115)';
+      var COL_BAR       = 'rgb(207,150,115)';
+      var COL_X_BG      = 'rgba(255,255,255,0.08)';
+      var COL_X_FG      = 'rgb(168,162,158)';
+      var COL_STOP_BG   = 'rgb(220,100,80)';
+      var COL_STOP_FG   = '#fff';
+      var COL_TOOLTIP_BG= 'rgba(28,25,23,0.94)';
+      var COL_TOOLTIP_BORDER = 'rgba(255,255,255,0.06)';
+      var COL_TEXT       = 'rgb(214,211,209)';
+      var COL_TEXT_KEY   = 'rgb(207,150,115)';
+
+      // Sizes — exact match
+      var DORMANT_W = 72, DORMANT_H = 14;
+      var HOVER_W = 88, HOVER_H = 18;
+      var RECORDING_W = 200, RECORDING_H = 40;
+      var DORMANT_BARS = 14, DORMANT_BAR_W = 1.5, DORMANT_BAR_GAP = 1.5;
+      var NUM_BARS = 22, BAR_W = 3, BAR_GAP = 2;
+
+      // Seeded random for consistent dormant bars
+      function seededRandom(seed) {
+        var s = seed;
+        return function() { s = (s * 16807 + 0) % 2147483647; return (s - 1) / 2147483646; };
+      }
+      var rng42 = seededRandom(42);
+      var dormantBarH = [];
+      for (var i = 0; i < DORMANT_BARS; i++) dormantBarH.push(2 + rng42() * (DORMANT_H - 4 - 2));
+      var dormantBarH_hover = [];
+      var rng42b = seededRandom(42);
+      for (var i = 0; i < DORMANT_BARS; i++) dormantBarH_hover.push(2 + rng42b() * (HOVER_H - 4 - 2));
+
+      function setupCanvas(canvas, w, h, cssW) {
+        var cw = cssW || w;
+        var ch = h * (cw / w);
+        canvas.width = Math.round(cw * DPR);
+        canvas.height = Math.round(ch * DPR);
+        canvas.style.width = cw + 'px';
+        canvas.style.height = ch + 'px';
+        var ctx = canvas.getContext('2d');
+        ctx.scale(DPR * (cw / w), DPR * (ch / h));
+        return ctx;
+      }
+
+      function drawCapsule(ctx, w, h, borderCol) {
+        var r = h / 2;
+        ctx.beginPath();
+        ctx.moveTo(r, 0); ctx.lineTo(w - r, 0);
+        ctx.arc(w - r, r, r, -Math.PI / 2, Math.PI / 2);
+        ctx.lineTo(r, h); ctx.arc(r, r, r, Math.PI / 2, -Math.PI / 2);
+        ctx.closePath();
+        ctx.fillStyle = COL_BG; ctx.fill();
+        ctx.strokeStyle = borderCol; ctx.lineWidth = 1; ctx.stroke();
+      }
+
+      function drawMiniBars(ctx, w, h, barH, col) {
+        var total = DORMANT_BARS * DORMANT_BAR_W + (DORMANT_BARS - 1) * DORMANT_BAR_GAP;
+        var sx = (w - total) / 2;
+        var cy = h / 2;
+        ctx.fillStyle = col;
+        for (var i = 0; i < DORMANT_BARS; i++) {
+          var bh = barH[i];
+          var x = sx + i * (DORMANT_BAR_W + DORMANT_BAR_GAP);
+          ctx.fillRect(x, cy - bh / 2, DORMANT_BAR_W, bh);
+        }
+      }
+
+      // ── Animation speed (slower on mobile) ──
+      var isMobile = window.innerWidth <= 640;
+      var animSpeed = isMobile ? 0.4 : 1.0;
+
+      // ── Idle pill (static with subtle opacity breathing) ──
+      var idleCanvas = document.getElementById('pill-idle');
+      if (idleCanvas) {
+        var CSS_W_IDLE = 108;
+        var ctxI = setupCanvas(idleCanvas, DORMANT_W, DORMANT_H, CSS_W_IDLE);
+        var idleAlpha = 0.7;
+        var idleDir = 0.003 * animSpeed;
+        function drawIdle() {
+          ctxI.clearRect(0, 0, DORMANT_W, DORMANT_H);
+          ctxI.globalAlpha = idleAlpha;
+          drawCapsule(ctxI, DORMANT_W, DORMANT_H, COL_BORDER);
+          drawMiniBars(ctxI, DORMANT_W, DORMANT_H, dormantBarH, COL_MINIBAR);
+          ctxI.globalAlpha = 1;
+          idleAlpha += idleDir;
+          if (idleAlpha > 1) { idleAlpha = 1; idleDir = -0.003 * animSpeed; }
+          if (idleAlpha < 0.6) { idleAlpha = 0.6; idleDir = 0.003 * animSpeed; }
+          requestAnimationFrame(drawIdle);
+        }
+        drawIdle();
+      }
+
+      // ── Hover pill (tooltip + pill, gentle float) ──
+      var hoverCanvas = document.getElementById('pill-hover');
+      if (hoverCanvas) {
+        // Measure tooltip
+        var TT_PAD_H = 16, TT_PAD_V = 10, TT_RADIUS = 10;
+        var TT_FONT = '11px "Segoe UI", system-ui, sans-serif';
+        var TT_FONT_BOLD = '600 11px "Segoe UI", system-ui, sans-serif';
+        var ttTextMain = 'Click or hold ';
+        var ttTextKey = 'Ctrl+Shift+R';
+        var ttTextEnd = ' to start dictating';
+
+        // Temporarily measure text
+        var mCanvas = document.createElement('canvas');
+        var mCtx = mCanvas.getContext('2d');
+        mCtx.font = TT_FONT;
+        var wMain = mCtx.measureText(ttTextMain).width;
+        var wEnd = mCtx.measureText(ttTextEnd).width;
+        mCtx.font = TT_FONT_BOLD;
+        var wKey = mCtx.measureText(ttTextKey).width;
+        var ttW = wMain + wKey + wEnd + TT_PAD_H * 2;
+        var ttH = 14 + TT_PAD_V * 2; // approximate line height
+
+        var GAP = 8, PAD = 6;
+        var compW = Math.max(ttW, HOVER_W) + PAD * 2;
+        var compH = ttH + GAP + HOVER_H + PAD * 2;
+        var CSS_W_HOVER = 360;
+
+        var ctxH = setupCanvas(hoverCanvas, compW, compH, CSS_W_HOVER);
+        var floatY = 0, floatPhase = 0;
+
+        function drawHover() {
+          ctxH.clearRect(0, 0, compW, compH);
+          floatPhase += 0.02 * animSpeed;
+          floatY = Math.sin(floatPhase) * 2;
+
+          ctxH.save();
+          ctxH.translate(0, floatY);
+
+          // Tooltip
+          var tx = (compW - ttW) / 2, ty = PAD;
+          ctxH.beginPath();
+          ctxH.roundRect(tx, ty, ttW, ttH, TT_RADIUS);
+          ctxH.fillStyle = COL_TOOLTIP_BG; ctxH.fill();
+          ctxH.strokeStyle = COL_TOOLTIP_BORDER; ctxH.lineWidth = 1; ctxH.stroke();
+
+          var textY = ty + TT_PAD_V + 11;
+          var textX = tx + TT_PAD_H;
+          ctxH.font = TT_FONT; ctxH.fillStyle = COL_TEXT;
+          ctxH.fillText(ttTextMain, textX, textY);
+          textX += wMain;
+          ctxH.font = TT_FONT_BOLD; ctxH.fillStyle = COL_TEXT_KEY;
+          ctxH.fillText(ttTextKey, textX, textY);
+          textX += wKey;
+          ctxH.font = TT_FONT; ctxH.fillStyle = COL_TEXT;
+          ctxH.fillText(ttTextEnd, textX, textY);
+
+          // Hover pill
+          var px = (compW - HOVER_W) / 2, py = PAD + ttH + GAP;
+          ctxH.save();
+          ctxH.translate(px, py);
+          drawCapsule(ctxH, HOVER_W, HOVER_H, COL_BORDER_HV);
+          drawMiniBars(ctxH, HOVER_W, HOVER_H, dormantBarH_hover, COL_MINIBAR_HV);
+          ctxH.restore();
+
+          ctxH.restore();
+          requestAnimationFrame(drawHover);
+        }
+        drawHover();
+      }
+
+      // ── Recording pill (animated voice bars) ──
+      function initRecordingPill(canvasId, cssW) {
+        var canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        var ctx = setupCanvas(canvas, RECORDING_W, RECORDING_H, cssW);
+        var barHeights = [];
+        for (var i = 0; i < NUM_BARS; i++) barHeights.push(3);
+        var audioLevel = 0.5;
+        var levelTarget = 0.6;
+        var levelTimer = 0;
+
+        function draw() {
+          ctx.clearRect(0, 0, RECORDING_W, RECORDING_H);
+          drawCapsule(ctx, RECORDING_W, RECORDING_H, COL_BORDER_HV);
+
+          var btnSize = RECORDING_H - 8;
+
+          // X button
+          var xr = { x: 4, y: 4, w: btnSize, h: btnSize };
+          ctx.beginPath();
+          ctx.arc(xr.x + xr.w / 2, xr.y + xr.h / 2, xr.w / 2, 0, Math.PI * 2);
+          ctx.fillStyle = COL_X_BG; ctx.fill();
+          var m = xr.w * 0.3;
+          ctx.strokeStyle = COL_X_FG; ctx.lineWidth = 1.8; ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(xr.x + m, xr.y + m); ctx.lineTo(xr.x + xr.w - m, xr.y + xr.h - m);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(xr.x + xr.w - m, xr.y + m); ctx.lineTo(xr.x + m, xr.y + xr.h - m);
+          ctx.stroke();
+
+          // Stop button
+          var sr = { x: RECORDING_W - btnSize - 4, y: 4, w: btnSize, h: btnSize };
+          ctx.beginPath();
+          ctx.arc(sr.x + sr.w / 2, sr.y + sr.h / 2, sr.w / 2, 0, Math.PI * 2);
+          ctx.fillStyle = COL_STOP_BG; ctx.fill();
+          var sq = sr.w * 0.35;
+          ctx.fillStyle = COL_STOP_FG;
+          ctx.beginPath();
+          ctx.roundRect(sr.x + sr.w / 2 - sq / 2, sr.y + sr.h / 2 - sq / 2, sq, sq, 1.5);
+          ctx.fill();
+
+          // Voice bars — animated
+          var barsLeft = xr.x + xr.w + 4;
+          var barsRight = sr.x - 4;
+          var barsWidth = barsRight - barsLeft;
+          var totalBarsW = NUM_BARS * BAR_W + (NUM_BARS - 1) * BAR_GAP;
+          var bx = barsLeft + (barsWidth - totalBarsW) / 2;
+          var cy = RECORDING_H / 2;
+          var maxH = RECORDING_H - 10;
+          var minH = 3;
+
+          // Simulate fluctuating audio level
+          levelTimer++;
+          var levelInterval = isMobile ? 15 : 6;
+          if (levelTimer % levelInterval === 0) levelTarget = 0.25 + Math.random() * 0.65;
+          audioLevel += (levelTarget - audioLevel) * (isMobile ? 0.05 : 0.12);
+
+          ctx.fillStyle = COL_BAR;
+          for (var i = 0; i < NUM_BARS; i++) {
+            var target = minH + (maxH - minH) * audioLevel * (0.3 + Math.random() * 0.7);
+            barHeights[i] += (target - barHeights[i]) * (isMobile ? 0.15 : 0.4);
+            var bh = Math.max(2, barHeights[i]);
+            var x = bx + i * (BAR_W + BAR_GAP);
+            ctx.fillRect(x, cy - bh / 2, BAR_W, bh);
+          }
+
+          requestAnimationFrame(draw);
+        }
+        draw();
+      }
+
+      // Showcase recording pill
+      initRecordingPill('pill-recording', 280);
+      // Hero recording pill
+      initRecordingPill('pill-hero', 220);
+    })();
+
+    // Hero dropdown toggle
+    (function() {
+      var toggle = document.getElementById('hero-dl-toggle');
+      var menu = document.getElementById('hero-dl-menu');
+      if (!toggle || !menu) return;
+
+      toggle.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var isOpen = menu.classList.toggle('open');
+        toggle.classList.toggle('open', isOpen);
+      });
+
+      document.addEventListener('click', function(e) {
+        if (!menu.contains(e.target) && e.target !== toggle) {
+          menu.classList.remove('open');
+          toggle.classList.remove('open');
+        }
+      });
+
+      // Close menu when an item is clicked (browser follows link)
+      menu.querySelectorAll('.hero-dl-item').forEach(function(item) {
+        item.addEventListener('click', function() {
+          menu.classList.remove('open');
+          toggle.classList.remove('open');
+        });
+      });
+    })();
+
+    // GitHub Releases API — populate download cards with real links
+    (function() {
+      var REPO = 'Zbrooklyn/WhisperClick-Desktop-App';
+      var LATEST_URL = 'https://api.github.com/repos/' + REPO + '/releases/latest';
+      var ALL_URL = 'https://api.github.com/repos/' + REPO + '/releases?per_page=10';
+      var FALLBACK = 'https://github.com/' + REPO + '/releases/latest';
+
+      function formatBytes(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / 1048576).toFixed(1) + ' MB';
+      }
+
+      function matchAsset(asset, card) {
+        var pattern = card.dataset.assetPattern;
+        var exclude = card.dataset.assetExclude;
+        var name = asset.name.toLowerCase();
+        if (!name.includes(pattern.toLowerCase())) return false;
+        if (exclude && name.includes(exclude.toLowerCase())) return false;
+        return true;
+      }
+
+      var dlSvg = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1a1 1 0 0 1 1 1v9.586l2.293-2.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L9 11.586V2a1 1 0 0 1 1-1ZM3 15a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1a1 1 0 0 1 1-1Z"/></svg>';
+
+      // Populate a beta card (macOS or Linux)
+      function populateBetaCard(asset, version, fileId, metaId, dlBtnId) {
+        var fileEl = document.getElementById(fileId);
+        var meta = document.getElementById(metaId);
+        var dlBtn = document.getElementById(dlBtnId);
+        if (!fileEl || !meta || !dlBtn) return;
+
+        meta.innerHTML = '';
+        fileEl.textContent = asset.name;
+
+        if (version) {
+          var vBadge = document.createElement('span');
+          vBadge.className = 'package-version';
+          vBadge.textContent = version;
+          meta.appendChild(vBadge);
+        }
+
+        var sizeEl = document.createElement('span');
+        sizeEl.className = 'package-size';
+        sizeEl.textContent = formatBytes(asset.size);
+        meta.appendChild(sizeEl);
+
+        dlBtn.href = asset.browser_download_url;
+        dlBtn.innerHTML = dlSvg + ' Download ' + formatBytes(asset.size);
+      }
+
+      // 1. Fetch stable release (Windows cards)
+      fetch(LATEST_URL)
+        .then(function(res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        })
+        .then(function(release) {
+          var version = release.tag_name || release.name || '';
+          var assets = release.assets || [];
+          var cards = document.querySelectorAll('#download-packages .package-card');
+
+          var totalDownloads = 0;
+          assets.forEach(function(a) { totalDownloads += a.download_count || 0; });
+
+          cards.forEach(function(card) {
+            var meta = card.querySelector('.package-meta');
+            var fileEl = card.querySelector('.package-file');
+            var dlBtn = card.querySelector('.package-dl-btn');
+            var matched = null;
+
+            for (var i = 0; i < assets.length; i++) {
+              if (matchAsset(assets[i], card)) {
+                matched = assets[i];
+                break;
+              }
+            }
+
+            meta.innerHTML = '';
+
+            if (matched) {
+              fileEl.textContent = matched.name;
+
+              if (version) {
+                var vBadge = document.createElement('span');
+                vBadge.className = 'package-version';
+                vBadge.textContent = version;
+                meta.appendChild(vBadge);
+              }
+
+              var sizeEl = document.createElement('span');
+              sizeEl.className = 'package-size';
+              sizeEl.textContent = formatBytes(matched.size);
+              meta.appendChild(sizeEl);
+
+              if (matched.download_count > 0) {
+                var dlCount = document.createElement('span');
+                dlCount.className = 'package-size';
+                dlCount.textContent = matched.download_count.toLocaleString() + ' downloads';
+                meta.appendChild(dlCount);
+              }
+
+              dlBtn.href = matched.browser_download_url;
+              dlBtn.innerHTML = dlSvg + ' Download ' + formatBytes(matched.size);
+            } else {
+              dlBtn.href = FALLBACK;
+              dlBtn.textContent = 'View releases';
+            }
+          });
+
+          if (totalDownloads > 0) {
+            var totalEl = document.getElementById('download-total');
+            totalEl.innerHTML = '<strong>' + totalDownloads.toLocaleString() + '</strong> total downloads';
+          }
+
+          // Update hero button with version + direct link
+          var installerAsset = assets.find(function(a) {
+            return a.name.toLowerCase().includes('setup') && a.name.toLowerCase().includes('.exe');
+          });
+          var heroBtn = document.getElementById('hero-dl-btn');
+          var heroWinItem = document.getElementById('hero-dl-windows');
+          if (heroBtn) {
+            if (installerAsset) {
+              heroBtn.href = installerAsset.browser_download_url;
+              if (heroWinItem) heroWinItem.href = installerAsset.browser_download_url;
+            }
+            if (version) {
+              var vSpan = ' <span style="opacity:0.7;font-weight:400;font-size:0.85em;">' + version + '</span>';
+              var fullLabel = heroBtn.querySelector('.hero-dl-label-full');
+              var shortLabel = heroBtn.querySelector('.hero-dl-label-short');
+              if (fullLabel) fullLabel.innerHTML = 'Download for Windows' + vSpan;
+              if (shortLabel) shortLabel.innerHTML = 'Download' + vSpan;
+            }
+          }
+        })
+        .catch(function() {
+          document.querySelectorAll('#download-packages .package-meta').forEach(function(meta) {
+            meta.innerHTML = '';
+          });
+        });
+
+      // 2. Fetch all releases to find pre-release (macOS/Linux beta builds)
+      fetch(ALL_URL)
+        .then(function(res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        })
+        .then(function(releases) {
+          var preRelease = releases.find(function(r) { return r.prerelease; });
+          if (!preRelease) return;
+
+          var assets = preRelease.assets || [];
+          var version = preRelease.tag_name || preRelease.name || '';
+
+          // Find macOS DMG
+          var macAsset = assets.find(function(a) {
+            return /\.dmg$/i.test(a.name);
+          });
+
+          // Find Linux AppImage
+          var linuxAsset = assets.find(function(a) {
+            return /\.appimage$/i.test(a.name);
+          });
+
+          // Populate macOS card + hero dropdown item
+          if (macAsset) {
+            populateBetaCard(macAsset, version, 'macos-file', 'macos-meta', 'macos-dl-btn');
+            var heroMac = document.getElementById('hero-dl-macos');
+            if (heroMac) heroMac.href = macAsset.browser_download_url;
+          }
+
+          // Populate Linux card + hero dropdown item
+          if (linuxAsset) {
+            populateBetaCard(linuxAsset, version, 'linux-file', 'linux-meta', 'linux-dl-btn');
+            var heroLinux = document.getElementById('hero-dl-linux');
+            if (heroLinux) heroLinux.href = linuxAsset.browser_download_url;
+          }
+        })
+        .catch(function() {
+          // Pre-release fetch failed — clear skeletons, keep fallback links
+          ['macos-meta', 'linux-meta'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) el.innerHTML = '';
+          });
+        });
+    })();
+
+    // Download-started notification
+    (function() {
+      var notify = document.getElementById('dl-notify');
+      var retryLink = document.getElementById('dl-retry');
+      var dismissBtn = document.getElementById('dl-notify-dismiss');
+      var autoDismissTimer = null;
+      var lastDownloadUrl = null;
+
+      var notifyText = document.getElementById('dl-notify-text');
+      var directMsg = '<strong>Your download has started.</strong> Check your browser\'s download bar <span class="dl-notify-arrow">&#8595;</span> or press <strong>Ctrl+J</strong> to find it. <a href="#" id="dl-retry">Click here to try again</a> if it didn\'t start.';
+      var fallbackMsg = '<strong>Your download is starting.</strong> If the file doesn\'t download automatically, grab it from the releases page that just opened.';
+
+      function showNotify(url) {
+        lastDownloadUrl = url;
+        notifyText.innerHTML = url ? directMsg : fallbackMsg;
+        if (url) {
+          retryLink = document.getElementById('dl-retry');
+          retryLink.href = url;
+          retryLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (lastDownloadUrl) {
+              var a = document.createElement('a');
+              a.href = lastDownloadUrl;
+              a.download = '';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+            }
+          });
+        }
+        notify.classList.add('visible');
+        clearTimeout(autoDismissTimer);
+        autoDismissTimer = setTimeout(hideNotify, 15000);
+      }
+
+      function hideNotify() {
+        notify.classList.remove('visible');
+        clearTimeout(autoDismissTimer);
+      }
+
+      dismissBtn.addEventListener('click', hideNotify);
+
+      // Intercept clicks on download buttons (hero, nav, and package cards)
+      document.addEventListener('click', function(e) {
+        var link = e.target.closest('a[href]');
+        if (!link) return;
+        var href = link.href || '';
+
+        // Check if this is a download-related button
+        var isHeroDownload = (link.id === 'hero-dl-btn') ||
+          (link.classList.contains('hero-dl-item') && link.dataset.heroPlatform);
+        var isPackageDownload = link.classList.contains('package-dl-btn');
+        if (!isHeroDownload && !isPackageDownload) return;
+
+        var isDirectFile = /releases\/download\//.test(href) &&
+          (/\.exe$/i.test(href) || /\.zip$/i.test(href) || /\.msi$/i.test(href) || /\.dmg$/i.test(href) || /\.appimage$/i.test(href));
+
+        if (isDirectFile) {
+          // Direct download — browser handles the file, show notification
+          showNotify(href);
+        } else {
+          // API hasn't loaded yet — show notification, let the releases page open
+          showNotify(null);
+        }
+      });
+    })();
+  </script>
+
+</body>
+</html>

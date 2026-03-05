@@ -4,17 +4,21 @@ Voice-to-text for your desktop. One hotkey, instant paste — works with any app
 
 WhisperClick records your voice, transcribes it using OpenAI or Google Gemini, and pastes the result into whatever app you were using. No browser tab, no copy-paste — just talk and it types.
 
-## Download (Beta)
+## Download
 
-| Platform | Download | Notes |
-|----------|----------|-------|
-| **Windows** | [Setup Installer (.exe)](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest/download/WhisperClick-Setup-2.1.0-beta.9.exe) | Recommended — installs + auto-updates |
-| **Windows** | [Portable (.exe)](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest/download/WhisperClick-Portable-2.1.0-beta.9.exe) | No install needed, runs anywhere |
-| **macOS** | [DMG (Apple Silicon)](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest/download/WhisperClick-2.1.0-beta.9-arm64.dmg) | M1/M2/M3/M4 Macs |
-| **Linux** | [AppImage](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest/download/WhisperClick-2.1.0-beta.9.AppImage) | Works on most distributions |
+| Platform | Download | Status |
+|----------|----------|--------|
+| **Windows** | [Setup Installer (.exe)](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest) | Stable — fully tested |
+| **Windows** | [Portable (.exe)](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest) | Stable — fully tested |
+| **macOS** | [DMG (Apple Silicon)](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest) | Early access — core features working |
+| **Linux** | [AppImage](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest) | Early access — community testing welcome |
 
 > All downloads are on the [Releases page](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases).
 > The app auto-updates after install — you only need to download once.
+>
+> **macOS and Linux note:** Core transcription and recording work on all platforms.
+> Some platform-specific features (auto-paste, system tray behavior) may vary.
+> [Report issues](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/issues) to help us improve.
 
 ## How It Works
 
@@ -117,11 +121,11 @@ engine/            Python sidecar
   engine.py        Audio capture, transcription, model management
 ```
 
-## Beta Channel
+## Updates
 
-WhisperClick is currently in beta. The app checks for updates automatically and will notify you when a new version is available. You can also check manually in Settings > Updates.
+WhisperClick checks for updates automatically and notifies you when a new version is available. You can also check manually in Settings > Updates.
 
-All beta releases are [pre-releases on GitHub](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases).
+A beta channel is available for early access to new features. Switch channels in Settings > Updates.
 
 ## Feedback
 
@@ -129,4 +133,4 @@ Found a bug or have a feature request? [Open an issue](https://github.com/Zbrook
 
 ## License
 
-MIT
+[CC BY-NC-SA 4.0](LICENSE)

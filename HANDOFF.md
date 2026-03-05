@@ -4,9 +4,9 @@
 
 ## Current State
 
-**Status**: Production — live on beta channel, auto-updater functional.
+**Status**: Production — stable release, auto-updater functional.
 
-**Latest release**: v2.1.0-beta.9 (GitHub pre-release)
+**Latest release**: v2.0.0 (GitHub release)
 
 The Electron port uses V3's original `index.html`/`tailwind.css`/`lucide.min.js`
 frontend directly, with a pywebview API compatibility shim in `preload.js` that
@@ -128,7 +128,7 @@ Only 2 changes to the V3 frontend:
 ## CI/CD
 
 - **Workflow**: `.github/workflows/build.yml`
-- **Trigger**: Push to `electron-beta` branch
+- **Trigger**: Push to `main` branch
 - **Builds**: Windows (NSIS + portable), macOS (DMG, arm64), Linux (AppImage)
 - **Release**: Auto-creates GitHub pre-release with all artifacts
 - **Update manifest**: `latest.yml` (used by electron-updater with `allowPrerelease`)
@@ -136,8 +136,7 @@ Only 2 changes to the V3 frontend:
 
 ## Next Steps
 
-1. Live-test auto-updater flow (beta.5 → beta.7+)
-2. Fix 3 cross-platform test failures (Linux CI, `continue-on-error: true`)
-3. Code signing for Windows/macOS (removes SmartScreen/Gatekeeper warnings)
-4. Live streaming runtime (partial transcription during recording)
-5. Ship first stable release (`v2.2.0`)
+1. Fix 3 cross-platform test failures (Linux CI, `continue-on-error: true`)
+2. Code signing for Windows/macOS (removes SmartScreen/Gatekeeper warnings)
+3. Live streaming runtime (partial transcription during recording)
+4. See ROADMAP.md for full feature backlog
