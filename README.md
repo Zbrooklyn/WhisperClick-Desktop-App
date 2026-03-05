@@ -57,7 +57,10 @@ Right-click the pill for quick access to history, settings, or to hide it entire
   </tr>
   <tr>
     <td><strong>macOS</strong></td>
-    <td><a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest">DMG (Apple Silicon)</a></td>
+    <td>
+      <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest">DMG (Apple Silicon)</a> — M1/M2/M3/M4<br>
+      <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest">DMG (Intel)</a> — 2015–2020 Macs
+    </td>
     <td>Early access</td>
   </tr>
   <tr>
