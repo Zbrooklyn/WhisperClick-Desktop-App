@@ -8,3 +8,11 @@ venv/
 __pycache__/
 *.pyc
 coverage/
+
+# Internal dev docs (not for public repo)
+CLAUDE.md
+HANDOFF.md
+ROADMAP.md
+FEATURES.md
+TESTING.md
+VERIFICATION.md
