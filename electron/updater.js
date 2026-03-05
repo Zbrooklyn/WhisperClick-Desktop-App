@@ -98,10 +98,13 @@ function initUpdater(mainWindow, store) {
   });
 
   autoUpdater.on('error', (err) => {
-    sendStatus({
-      status: 'error',
-      message: err.message || 'Update check failed',
-    });
+    const msg = err.message || 'Update check failed';
+    // electron-updater says "No published versions" when already on latest pre-release
+    if (msg.includes('No published versions')) {
+      sendStatus({ status: 'up-to-date', version: app.getVersion() });
+      return;
+    }
+    sendStatus({ status: 'error', message: msg });
   });
 
   // --- IPC handlers ---
