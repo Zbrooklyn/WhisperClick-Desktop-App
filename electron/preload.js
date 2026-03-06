@@ -60,6 +60,13 @@ function settingsToV3(settings) {
 let latestDownloadProgress = null;
 let latestUpdateStatus = null;
 
+// Seed version immediately so the UI never shows stale/missing version
+ipcRenderer.invoke('get-app-info').then((info) => {
+  if (!latestUpdateStatus) {
+    latestUpdateStatus = { status: 'idle', currentVersion: info.version };
+  }
+}).catch(() => {});
+
 ipcRenderer.on('model-download-progress', (_e, data) => {
   const { current, total, model } = data || {};
   const prog = total > 0 ? current / total : 0;

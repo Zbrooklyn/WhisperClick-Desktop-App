@@ -14,7 +14,8 @@ let _store = null;
 function sendStatus(data) {
   if (_mainWindow && !_mainWindow.isDestroyed()) {
     data.currentVersion = app.getVersion();
-    data.channel = _store ? (_store.getSettings().updateChannel || 'beta') : 'beta';
+    const defaultChannel = app.getVersion().includes('beta') ? 'beta' : 'stable';
+    data.channel = _store ? (_store.getSettings().updateChannel || defaultChannel) : defaultChannel;
     _mainWindow.webContents.send('update-status', data);
   }
 }
@@ -125,7 +126,9 @@ function initUpdater(mainWindow, store) {
   });
 
   ipcMain.handle('install-update', () => {
-    autoUpdater.quitAndInstall(true, true);
+    // isSilent=false shows the NSIS installer briefly but relaunches reliably.
+    // isForceRunAfter=true ensures the app starts again after install.
+    autoUpdater.quitAndInstall(false, true);
   });
 
   ipcMain.handle('set-update-channel', (_, channel) => {
@@ -138,7 +141,8 @@ function initUpdater(mainWindow, store) {
 
   ipcMain.handle('get-update-channel', () => {
     const settings = _store.getSettings();
-    return { channel: settings.updateChannel || 'beta' };
+    const defaultChannel = app.getVersion().includes('beta') ? 'beta' : 'stable';
+    return { channel: settings.updateChannel || defaultChannel };
   });
 }
 
