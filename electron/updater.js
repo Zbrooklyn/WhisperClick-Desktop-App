@@ -10,6 +10,7 @@ const { autoUpdater } = require('electron-updater');
 
 let _mainWindow = null;
 let _store = null;
+let _sidecar = null;
 
 function sendStatus(data) {
   if (_mainWindow && !_mainWindow.isDestroyed()) {
@@ -24,9 +25,10 @@ function sendStatus(data) {
  * Initialize auto-updater events and IPC handlers.
  * Call once after mainWindow is created.
  */
-function initUpdater(mainWindow, store) {
+function initUpdater(mainWindow, store, sidecar) {
   _mainWindow = mainWindow;
   _store = store;
+  _sidecar = sidecar;
 
   // Config
   autoUpdater.autoDownload = false;
@@ -125,10 +127,12 @@ function initUpdater(mainWindow, store) {
     }
   });
 
-  ipcMain.handle('install-update', () => {
-    // isSilent=false shows the NSIS installer briefly but relaunches reliably.
-    // isForceRunAfter=true ensures the app starts again after install.
-    autoUpdater.quitAndInstall(false, true);
+  ipcMain.handle('install-update', async () => {
+    // Stop sidecar before installer runs — lingering child processes
+    // can prevent NSIS silent mode from relaunching the app.
+    if (_sidecar && _sidecar.isRunning) _sidecar.stop();
+    await new Promise(r => setTimeout(r, 500));
+    autoUpdater.quitAndInstall(true, true);
   });
 
   ipcMain.handle('set-update-channel', (_, channel) => {

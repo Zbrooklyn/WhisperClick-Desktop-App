@@ -864,7 +864,7 @@ app.whenReady().then(() => {
   }
 
   // Auto-updater
-  initUpdater(mainWindow, store);
+  initUpdater(mainWindow, store, sidecar);
   setTimeout(() => checkForUpdatesQuietly(), 10_000);
 
   // System tray — dynamic menu rebuilt on each right-click
