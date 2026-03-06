@@ -118,22 +118,88 @@ now functional.
 - **License key**: required to activate premium features in the paid build.
   Key checked at runtime before loading premium modules.
 
-### Needs Research / Decision
+### Research Complete — Awaiting Final Decisions
 
-- **License key provider**: Gumroad, LemonSqueezy, Keygen.sh, Paddle, or
-  self-hosted? Need to compare pricing, API quality, offline support.
-- **Offline validation**: Can the app validate a license without internet?
-  Options: cryptographic license keys (no server needed), periodic phone-home
-  with grace period, or hardware-locked keys.
-- **License expiry behavior**: Do premium features disable when the license
-  expires? Does the user keep the version they paid for but stop getting
-  updates? Perpetual vs subscription.
-- **Pricing model**: One-time purchase, annual subscription, or lifetime +
-  annual update tiers?
-- **Distribution**: Direct download from whisperclick.com with license key
-  emailed? Or marketplace (Gumroad, LemonSqueezy) handles delivery?
-- **Premium module loading**: How do premium modules hook into the core?
-  Dynamic `require()` from `premium/` at startup? Plugin registry pattern?
+#### License Key Providers (researched 2026-03-05)
+
+| | Gumroad | Lemon Squeezy | Keygen.sh | Paddle | Self-Hosted |
+|---|---|---|---|---|---|
+| Monthly cost | $0 | $0 | $0 (≤100 users) / $49+ | $0 | $5-15 hosting |
+| Per-txn fee | 10% + $0.50 | 5% + $0.50 | None (flat monthly) | 5% + $0.50 | Stripe: 2.9% + $0.30 |
+| Handles payments | Yes | Yes (MoR) | No | Yes (MoR) | No |
+| License keys | Yes | Yes | Yes | No (dropped) | You build |
+| Offline validation | No (cached) | No | Yes (Ed25519) | No | Yes (Ed25519) |
+| Tax/VAT handling | Yes | Yes (MoR) | No | Yes (MoR) | No |
+| Electron support | npm pkg | REST (easy) | Official example | None | DIY |
+
+**Paddle eliminated** — dropped license key management from current product.
+
+**Three viable paths:**
+- **Path A (Simplest):** Lemon Squeezy all-in-one. Payments + license keys +
+  tax handling. Online validation with local caching. ~5% + $0.50/sale.
+- **Path B (Best offline):** Lemon Squeezy or Stripe for payments + Keygen.sh
+  for licensing. Free tier covers first 100 users. Ed25519-signed offline
+  license files. $49/month when you outgrow free tier.
+- **Path C (Max control):** Stripe for payments + self-hosted Keygen CE
+  (open-source, free) or custom Ed25519 server. Full offline support,
+  lowest ongoing fees. A few days of dev work + maintenance.
+
+#### Offline Validation (researched 2026-03-05)
+
+Best approach: **Ed25519 signed license tokens**.
+- Server generates Ed25519 keypair at setup time.
+- On purchase, sign a JSON payload (`{ userId, email, licenseKey, product,
+  expiresAt, machineLimit }`) with private key.
+- App embeds public key, verifies signature locally — no network call.
+- Node.js `crypto.verify()` supports Ed25519 natively since Node 12.
+- Optional machine binding via `node-machine-id` for hardware fingerprint.
+- Hybrid: refresh license file when online (30-90 day TTL), trust locally
+  when offline until TTL expires.
+- Keygen.sh provides this out of the box. Self-hosted requires ~2 days work.
+
+#### Competitor Pricing (researched 2026-03-05)
+
+| App | Model | Price |
+|---|---|---|
+| Wispr Flow | Sub | Free (2K words/wk), Pro $12/mo annual |
+| Superwhisper | Sub + Lifetime | Free (small models), Pro $8.49/mo, Lifetime $249 |
+| MacWhisper | One-time | Free tier, Pro ~$70-80 |
+| Otter.ai | Sub | Free (300 min/mo), Pro $8.33/mo annual |
+| VoiceInk | One-time | $25-49 (by device count) |
+| Dragon | One-time / Sub | $699 perpetual, $55/mo cloud |
+| Descript | Sub | Free (1 hr), Hobbyist $12/mo, Creator $24/mo |
+| Rev | Sub + per-min | $14.99/mo (20 hrs), $0.25/min AI |
+
+**Sweet spot:** $8-15/month subscription or $69-150/year annual. One-time
+purchases range $25-80 for indie tools, $249 for lifetime premium.
+
+#### Pricing Model Options
+
+| Model | Pros | Cons |
+|---|---|---|
+| **One-time ($29-49)** | Simple, fair for local software, no subscription fatigue | No recurring revenue |
+| **Perpetual + updates ($29-49 + $15/yr)** | Recurring revenue, user keeps what they paid for | More licensing complexity |
+| **Subscription ($8-12/mo)** | Predictable MRR | Users resent "renting" local software |
+| **Lifetime ($149-249)** | Big upfront cash, early adopter magnet | Caps future revenue per user |
+
+**Industry norm for desktop dictation:** 7 of 9 competitors use freemium +
+subscription. MacWhisper is the only pure one-time purchase. Superwhisper
+offers all three (sub + lifetime + free).
+
+#### Conversion Expectations
+
+- Freemium desktop apps: **2-5%** free-to-paid
+- With time-limited trial: **15-25%**
+- 1,000 free users at 3% conversion × $39 = ~$1,170 revenue
+
+#### Needs Decision
+
+- [ ] **Which provider path?** A (Lemon Squeezy), B (LS + Keygen), or C (self-hosted)
+- [ ] **Which pricing model?** One-time, perpetual + updates, subscription, or hybrid
+- [ ] **Price point?** $29, $39, $49, or subscription at $X/mo
+- [ ] **Distribution:** whisperclick.com direct download? Gumroad/LS storefront?
+- [ ] **Premium module loading:** Dynamic `require()` from `premium/` at startup?
+  Plugin registry pattern? Simple conditional imports?
 
 ---
 

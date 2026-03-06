@@ -13,6 +13,7 @@ Key decisions:
   - torch excluded: 2+ GB optional dependency; engine falls back to CPU int8.
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -24,7 +25,11 @@ a = Analysis(
     [str(engine_dir / 'engine.py')],
     pathex=[str(engine_dir)],
     binaries=[],
-    datas=[],
+    datas=[
+        # faster-whisper Silero VAD model (required when vad_filter=True)
+        (os.path.join(os.path.dirname(__import__('faster_whisper').__file__), 'assets'),
+         os.path.join('faster_whisper', 'assets')),
+    ],
     hiddenimports=[
         # Audio
         'sounddevice',
