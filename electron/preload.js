@@ -65,6 +65,16 @@ ipcRenderer.invoke('get-app-info').then((info) => {
   if (!latestUpdateStatus) {
     latestUpdateStatus = { status: 'idle', currentVersion: info.version };
   }
+  // Inject version into footer as soon as DOM is ready
+  const setVersion = () => {
+    const el = document.getElementById('app-version');
+    if (el) el.textContent = 'v' + info.version;
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setVersion);
+  } else {
+    setVersion();
+  }
 }).catch(() => {});
 
 ipcRenderer.on('model-download-progress', (_e, data) => {
