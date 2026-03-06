@@ -18,6 +18,8 @@
 #   VERIFICATION.md  — Manual test checklist
 #   tools/           — Internal dev scripts
 #   docs/dev/        — Internal dev documentation
+#   electron/premium/ — Premium feature modules (private)
+#   src/frontend/premium/ — Premium frontend assets (private)
 
 set -euo pipefail
 
@@ -30,6 +32,8 @@ PRIVATE_FILES=(
   "VERIFICATION.md"
   "tools/"
   "docs/dev/"
+  "electron/premium/"
+  "src/frontend/premium/"
 )
 
 PUBLIC_REMOTE="public"
