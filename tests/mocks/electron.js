@@ -139,14 +139,24 @@ const app = {
 
 // --- ipcMain ---
 const _handlers = {};
+const _onListeners = {};
 const ipcMain = {
   handle: jest.fn((channel, handler) => {
     _handlers[channel] = handler;
   }),
+  on: jest.fn((channel, handler) => {
+    if (!_onListeners[channel]) _onListeners[channel] = [];
+    _onListeners[channel].push(handler);
+  }),
   _handlers,
+  _onListeners,
   _invoke: async (channel, ...args) => {
     if (_handlers[channel]) return _handlers[channel]({}, ...args);
     throw new Error(`No handler for ${channel}`);
+  },
+  _send: (channel, ...args) => {
+    const fns = _onListeners[channel] || [];
+    fns.forEach(fn => fn({}, ...args));
   },
 };
 
