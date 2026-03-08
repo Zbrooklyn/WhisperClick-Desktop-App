@@ -14,4 +14,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Cancel recording — discards audio, goes dormant
   cancelRecording: () => ipcRenderer.invoke('cancel-processing'),
+
+  // Click-through toggle — called on mouseenter/mouseleave of visible content
+  // so transparent areas pass clicks to apps behind the pill window.
+  setIgnoreMouse: (ignore) => ipcRenderer.send('pill-set-ignore-mouse', ignore),
 });

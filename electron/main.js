@@ -124,7 +124,9 @@ function createPillWindow() {
   });
 
   pillWindow.loadFile(path.join(__dirname, '../src/pill/pill.html'));
-  pillWindow.setIgnoreMouseEvents(false);
+  // Click-through: transparent areas pass clicks to apps behind the pill.
+  // The renderer toggles this off when the mouse enters visible content.
+  pillWindow.setIgnoreMouseEvents(true, { forward: true });
 
   pillWindow.on('closed', () => {
     pillWindow = null;
@@ -586,6 +588,18 @@ ipcMain.handle('show-settings', () => {
     mainWindow.webContents.executeJavaScript('openSettingsDrawer()').catch(() => {});
   }
 });
+// Pill click-through toggle — renderer calls these on mouseenter/mouseleave
+// of visible content so transparent areas pass clicks to apps behind.
+ipcMain.on('pill-set-ignore-mouse', (_, ignore) => {
+  if (pillWindow && !pillWindow.isDestroyed()) {
+    if (ignore) {
+      pillWindow.setIgnoreMouseEvents(true, { forward: true });
+    } else {
+      pillWindow.setIgnoreMouseEvents(false);
+    }
+  }
+});
+
 ipcMain.handle('hide-pill', () => {
   if (pillWindow) {
     pillWindow.close();

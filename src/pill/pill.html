@@ -40,7 +40,7 @@
       height: 14px;
       border-radius: 7px;
     }
-    .capsule:hover {
+    .capsule:hover, .capsule.hovered {
       border-color: rgba(255,255,255,0.15);
     }
 
@@ -59,7 +59,7 @@
       background: rgba(255,255,255,0.15);
       transition: background 200ms ease, height 200ms ease;
     }
-    .capsule:hover .mini-bar {
+    .capsule:hover .mini-bar, .capsule.hovered .mini-bar {
       background: rgba(207, 150, 115, 0.85);
     }
 
@@ -345,6 +345,19 @@
       document.getElementById('btn-cancel').addEventListener('click', (e) => {
         e.stopPropagation();
         window.electronAPI.cancelRecording();
+      });
+
+      // Click-through: transparent areas pass clicks to apps behind the pill.
+      // When the mouse enters visible content, disable click-through so the
+      // capsule is interactive. When it leaves, re-enable click-through.
+      // CSS :hover doesn't work in click-through mode, so we use .hovered class.
+      capsule.addEventListener('mouseenter', () => {
+        capsule.classList.add('hovered');
+        window.electronAPI.setIgnoreMouse(false);
+      });
+      capsule.addEventListener('mouseleave', () => {
+        capsule.classList.remove('hovered');
+        window.electronAPI.setIgnoreMouse(true);
       });
 
       // Right-click: native OS context menu via Electron Menu.popup()
