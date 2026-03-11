@@ -34,14 +34,16 @@ function initUpdater(mainWindow, store, sidecar) {
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
 
-  // Always read latest.yml (the only manifest electron-builder generates).
-  // Beta vs stable is controlled by allowPrerelease — beta users see pre-release
-  // versions, stable users only see stable versions.
+  // Channel determines which GitHub releases electron-updater considers.
+  // With GitHub provider, the channel matching logic only considers pre-releases
+  // when channel is "alpha" or "beta" — setting channel to "latest" skips them
+  // even with allowPrerelease=true. So we must set channel to "beta" explicitly.
+  // Falls back from beta.yml → latest.yml automatically if beta.yml doesn't exist.
   const settings = store.getSettings();
   const isBeta = settings.updateChannel
     ? settings.updateChannel === 'beta'
     : app.getVersion().includes('beta');
-  autoUpdater.channel = 'latest';
+  autoUpdater.channel = isBeta ? 'beta' : 'latest';
   autoUpdater.allowPrerelease = isBeta;
 
   // --- Events → renderer ---
@@ -139,6 +141,7 @@ function initUpdater(mainWindow, store, sidecar) {
     const valid = channel === 'stable' ? 'stable' : 'beta';
     const settings = _store.getSettings();
     _store.saveSettings({ ...settings, updateChannel: valid });
+    autoUpdater.channel = valid === 'beta' ? 'beta' : 'latest';
     autoUpdater.allowPrerelease = valid === 'beta';
     return { success: true, channel: valid };
   });

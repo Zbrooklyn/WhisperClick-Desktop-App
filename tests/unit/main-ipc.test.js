@@ -1059,12 +1059,14 @@ describe('hotkey and toggleRecording', () => {
   });
 
   test('hotkey falls back to toggleRecording when mainWindow destroyed', async () => {
-    // Drain any pending success→dormant timers from earlier transcription tests
-    await new Promise(r => setTimeout(r, 2000));
+    // Drain all pending timers (broadcastError has a 3s dormant timeout)
+    await new Promise(r => setTimeout(r, 4000));
 
-    // First ensure dormant state
+    // Force dormant state and verify
     pushSidecarEvent(initialFakeProc, 'cancelled', {});
     await tick(100);
+    const preState = await ipcMain._invoke('get-state');
+    expect(preState.state).toBe('dormant');
 
     mainWin._destroyed = true;
     mainWin.webContents.executeJavaScript.mockClear();
