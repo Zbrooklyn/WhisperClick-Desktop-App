@@ -1,5 +1,48 @@
 # Changelog
 
+## [2.0.7-beta] — 2026-03-10
+
+### Recording State Machine Fixes
+
+#### Fixed
+
+- **Stop-recording listener race condition** (`main.js`): Sidecar event listeners
+  are now registered BEFORE sending `stop_rec`, preventing missed transcription
+  events that caused the UI to hang for 120 seconds until timeout.
+
+- **Cancel-after-success bug** (`main.js`): `cancel-processing` is now idempotent —
+  returns early if state is already `success` or `dormant`, preventing a false
+  `cancelled` event from overriding a successful transcription.
+
+- **Pill cancel button guard** (`pill.html`): Cancel click handler now checks
+  `currentState` and only fires during `recording` or `processing`, preventing
+  accidental cancels when the pill is in success/error/dormant state.
+
+- **Hotkey debounce** (`main.js`): Added 300ms debounce guard in the main process
+  hotkey handler. The frontend already had its own debounce, but the main process
+  `toggleRecording()` fallback path (used when main window is hidden) had none.
+
+#### Added
+
+- **Pill state reconciliation** (`pill.html`): Polls `get-state` every 5 seconds
+  to detect and correct missed state broadcasts. Only corrects if pill is stuck
+  in `recording` or `processing` while the main process has moved on. Skips
+  `success`/`error` to avoid cutting short the visual feedback flash.
+
+## [2.0.6-beta] — 2026-03-08
+
+### Pill Click-Through Fix
+
+#### Fixed
+
+- **Pill invisible border blocking clicks** (`main.js`, `pill.html`): The 220x140
+  pill window was capturing all mouse events even though the visible capsule is
+  only 72x14. Applied Electron's `setIgnoreMouseEvents(true, { forward: true })`
+  pattern so transparent areas pass clicks to apps behind the pill. Pill uses
+  `mouseenter`/`mouseleave` + JS `.hovered` class (CSS `:hover` doesn't work in
+  click-through mode) to re-enable interactivity when the cursor is over the
+  capsule.
+
 ## [2.0.1] — 2026-02-28
 
 ### Production Hardening — 7 Port Gap Fixes

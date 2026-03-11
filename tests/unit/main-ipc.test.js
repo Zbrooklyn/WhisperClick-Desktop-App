@@ -1113,8 +1113,8 @@ describe('hotkey and toggleRecording', () => {
     let state = await ipcMain._invoke('get-state');
     expect(state.state).toBe('recording');
 
-    // Wait for start_rec response to complete
-    await tick(50);
+    // Wait for start_rec response + hotkey debounce (300ms) to expire
+    await tick(350);
 
     // Second toggle: recording → processing (async — waits for stop_rec response)
     hotkeyCallback();

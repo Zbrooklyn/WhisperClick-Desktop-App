@@ -195,6 +195,8 @@ function validateRecordingReadiness() {
 // --- Hotkey ---
 
 let currentHotkey = null;
+let lastHotkeyAt = 0;
+const HOTKEY_DEBOUNCE_MS = 300;
 
 function registerHotkey(accelerator) {
   // Normalize: V3 sends "Ctrl + Alt + R", Electron expects "Ctrl+Alt+R"
@@ -204,6 +206,12 @@ function registerHotkey(accelerator) {
   }
   try {
     const success = globalShortcut.register(normalized, () => {
+      // Debounce: prevent rapid double-fires from reaching the frontend or
+      // the toggleRecording() fallback, which has no internal debounce.
+      const now = Date.now();
+      if (now - lastHotkeyAt < HOTKEY_DEBOUNCE_MS) return;
+      lastHotkeyAt = now;
+
       // Pre-validate before routing — ensures pill always gets error feedback
       const validationError = validateRecordingReadiness();
       if (validationError) {

@@ -1,12 +1,13 @@
 # HANDOFF — WhisperClick Electron
 
-> Last updated: 2026-03-05
+> Last updated: 2026-03-10
 
 ## Current State
 
-**Status**: Production — stable release, auto-updater functional.
+**Status**: Beta — v2.0.7-beta (state machine fixes + pill click-through).
 
-**Latest release**: v2.0.0 (GitHub release)
+**Latest stable release**: v2.0.5
+**Latest beta release**: v2.0.7-beta
 
 The Electron port uses V3's original `index.html`/`tailwind.css`/`lucide.min.js`
 frontend directly, with a pywebview API compatibility shim in `preload.js` that
@@ -134,9 +135,33 @@ Only 2 changes to the V3 frontend:
 - **Update manifest**: `latest.yml` (used by electron-updater with `allowPrerelease`)
 - `generateUpdatesFilesForAllChannels` is set in `package.json` build config
 
+## Known Issues
+
+- 3 cross-platform test failures on Linux CI (`continue-on-error: true` as workaround)
+- No code signing for Windows/macOS (SmartScreen/Gatekeeper warnings on install)
+- Recording flow, audio playback, auto-paste, and visualizer need live testing with mic + API key
+- No free tier enforcement (no usage tracking, no feature gating) — see `docs/dev/free-version-edge-case-audit.md`
+
 ## Next Steps
 
 1. Fix 3 cross-platform test failures (Linux CI, `continue-on-error: true`)
 2. Code signing for Windows/macOS (removes SmartScreen/Gatekeeper warnings)
 3. Live streaming runtime (partial transcription during recording)
-4. See ROADMAP.md for full feature backlog
+4. Address edge cases from free version audit (max recording length, orphaned audio cleanup, min recording guard)
+5. See ROADMAP.md for full feature backlog
+
+## Completed
+
+- Full Electron port of V3 frontend with pywebview API shim
+- 34 IPC handlers matching all preload API methods
+- Python sidecar with auto-restart and JSON protocol
+- API key encryption via Electron safeStorage
+- Crash-safe atomic writes for settings and history
+- Auto-updater with beta/stable channel support
+- CI/CD: GitHub Actions builds Windows/macOS/Linux
+- 301 tests (281 Jest + 7 integration + 13 E2E) with coverage thresholds
+- v2.0.0 stable release published
+- Pill click-through fix — transparent areas pass clicks to apps behind (v2.0.6-beta)
+- Recording state machine race conditions fixed — listener ordering, cancel idempotency (v2.0.7-beta)
+- Pill state reconciliation — 5s poll self-corrects missed broadcasts (v2.0.7-beta)
+- Hotkey debounce in main process — 300ms guard prevents double-fires (v2.0.7-beta)
