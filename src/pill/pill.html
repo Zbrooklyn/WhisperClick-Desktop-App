@@ -342,8 +342,10 @@
       });
 
       // Cancel button: discard audio, go dormant (NOT transcribe)
+      // Guarded — only fires when actively recording or processing
       document.getElementById('btn-cancel').addEventListener('click', (e) => {
         e.stopPropagation();
+        if (currentState !== 'recording' && currentState !== 'processing') return;
         window.electronAPI.cancelRecording();
       });
 
@@ -365,6 +367,20 @@
         e.preventDefault();
         window.electronAPI.showContextMenu();
       });
+
+      // State reconciliation — poll every 5s to fix missed broadcasts.
+      // Only corrects if pill is stuck in an active state (recording/processing)
+      // while main process has moved on. Skips success/error to avoid cutting
+      // short the visual feedback flash.
+      setInterval(async () => {
+        try {
+          const { state } = await window.electronAPI.getState();
+          if (state !== currentState &&
+              (currentState === 'recording' || currentState === 'processing')) {
+            setState(state);
+          }
+        } catch {}
+      }, 5000);
 
       // Init
       (async () => {

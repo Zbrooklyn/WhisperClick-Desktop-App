@@ -1675,10 +1675,10 @@ describe('sidecar not running guards', () => {
     expect(result.error).toMatch(/not running/i);
   });
 
-  test('cancel-processing returns error when sidecar is down and not active', async () => {
+  test('cancel-processing returns error when not active (idempotent)', async () => {
     const result = await ipcMain._invoke('cancel-processing');
     expect(result.success).toBe(false);
-    expect(result.error).toMatch(/not ready/i);
+    expect(result.error).toMatch(/nothing to cancel/i);
   });
 
   test('verify-api-key falls back to format check when sidecar is down', async () => {

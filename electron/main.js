@@ -458,12 +458,7 @@ ipcMain.handle('stop-recording', async () => {
   if (!sidecar || !sidecar.isRunning) return { success: false, error: 'Backend not ready' };
   setAppState('processing');
   broadcastState();
-  try {
-    await sidecar.send('stop_rec');
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-  // Wait for transcription, error, or cancel event from sidecar
+  // Register listeners BEFORE sending stop_rec to avoid missing fast sidecar responses
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {
       cleanup();
@@ -492,21 +487,30 @@ ipcMain.handle('stop-recording', async () => {
     sidecar.once('transcription', onTranscription);
     sidecar.once('error', onError);
     sidecar.once('cancelled', onCancelled);
+
+    // Send stop_rec after listeners are attached
+    sidecar.send('stop_rec').catch((err) => {
+      cleanup();
+      resolve({ success: false, error: err.message });
+    });
   });
 });
 
-// Cancel in-flight processing
+// Cancel in-flight processing (idempotent — no-op if transcription already completed)
 ipcMain.handle('cancel-processing', async () => {
   const wasActive = appState === 'recording' || appState === 'processing';
 
-  // Immediately reset to dormant so the UI unblocks
-  if (wasActive) {
-    setAppState('dormant');
-    broadcastState();
+  if (!wasActive) {
+    // Already completed, errored, or dormant — nothing to cancel
+    return { success: false, error: 'Nothing to cancel' };
   }
 
+  // Immediately reset to dormant so the UI unblocks
+  setAppState('dormant');
+  broadcastState();
+
   if (!sidecar || !sidecar.isRunning) {
-    return wasActive ? { success: true } : { success: false, error: 'Backend not ready' };
+    return { success: true };
   }
   try {
     await sidecar.send('cancel');
