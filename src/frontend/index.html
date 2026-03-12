@@ -546,7 +546,7 @@
                     </div>
                     <div id="update-status-card" class="bg-stone-200/60 dark:bg-stone-800/60 rounded-lg p-2.5 space-y-2">
                         <div class="flex items-center justify-between">
-                            <span id="update-status-text" class="text-xs text-stone-500 dark:text-stone-400">No update info</span>
+                            <span id="update-status-text" class="text-xs text-stone-500 dark:text-stone-400">Checking…</span>
                             <button id="update-check-btn" onclick="checkForUpdates()" class="text-[10px] font-medium text-accent hover:underline">Check Now</button>
                         </div>
                         <p id="update-detail-text" class="text-[10px] text-stone-400 dark:text-stone-500 hidden"></p>
@@ -555,7 +555,7 @@
                         </div>
                         <p id="update-release-notes" class="text-[10px] text-stone-400 dark:text-stone-500 hidden max-h-20 overflow-y-auto"></p>
                         <button id="update-download-btn" onclick="downloadUpdate()" class="hidden w-full px-2 py-1 rounded-md text-[10px] font-medium bg-accent hover:bg-accent/90 text-white transition-colors">Download Update</button>
-                        <button id="update-install-btn" onclick="installUpdate()" class="hidden w-full px-2 py-1 rounded-md text-[10px] font-medium bg-green-600 hover:bg-green-700 text-white transition-colors">Restart &amp; Install</button>
+                        <button id="update-install-btn" onclick="installUpdate()" class="hidden w-full px-2 py-1 rounded-md text-[10px] font-medium bg-green-600 hover:bg-green-700 text-white transition-colors">Install &amp; Restart</button>
                     </div>
                 </div>
 
@@ -4710,6 +4710,7 @@
 
         // --- Auto-Updater UI ---
         let _updatePollTimer = null;
+        let _installInProgress = false;
 
         async function initUpdateUi() {
             if (!nativeBridgeReady) return;
@@ -4719,20 +4720,18 @@
                     updateChannelSelect.value = res.channel;
                 }
             } catch {}
+            // Immediate first hydration
+            try {
+                const data = await callNativeApi('get_update_status');
+                if (data) handleUpdateStatus(data);
+            } catch {}
             startUpdatePolling();
         }
 
         function startUpdatePolling() {
             if (_updatePollTimer) return;
-            // Immediate first check so card shows version on open
-            (async () => {
-                try {
-                    const data = await callNativeApi('get_update_status');
-                    if (data) handleUpdateStatus(data);
-                } catch {}
-            })();
             _updatePollTimer = setInterval(async () => {
-                if (!nativeBridgeReady) return;
+                if (!nativeBridgeReady || _installInProgress) return;
                 try {
                     const data = await callNativeApi('get_update_status');
                     if (data) handleUpdateStatus(data);
@@ -4741,7 +4740,7 @@
         }
 
         function handleUpdateStatus(data) {
-            if (!updateStatusText) return;
+            if (!updateStatusText || _installInProgress) return;
             const prevStatus = updateStatusText.dataset.status;
             updateStatusText.dataset.status = data.status;
             if (data.currentVersion) updateStatusText.dataset.currentVersion = data.currentVersion;
@@ -4760,14 +4759,15 @@
                 setTimeout(() => { card.style.backgroundColor = ''; }, 600);
             }
 
+            const spinnerSvg = '<svg class="animate-spin" style="width:12px;height:12px;" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="31.4 31.4" stroke-linecap="round"/></svg>';
+
             switch (data.status) {
                 case 'checking':
-                    updateStatusText.innerHTML = '<span class="inline-flex items-center gap-1.5"><i data-lucide="loader-2" style="width:12px;height:12px;animation:spin 1s linear infinite;"></i> Checking for updates...</span>';
-                    updateStatusText.style.opacity = '1';
-                    if (updateCheckBtn) { updateCheckBtn.textContent = 'Checking...'; updateCheckBtn.disabled = true; updateCheckBtn.style.opacity = '0.5'; }
+                    updateStatusText.innerHTML = `<span class="inline-flex items-center gap-1.5">${spinnerSvg} Checking for updates…</span>`;
+                    if (updateCheckBtn) { updateCheckBtn.textContent = 'Checking…'; updateCheckBtn.disabled = true; updateCheckBtn.style.opacity = '0.5'; }
                     break;
                 case 'available':
-                    updateStatusText.innerHTML = `<span class="inline-flex items-center gap-1.5"><i data-lucide="download" style="width:12px;height:12px;"></i> Update available: v${data.version}</span>`;
+                    updateStatusText.innerHTML = `<span class="inline-flex items-center gap-1.5"><i data-lucide="download" style="width:12px;height:12px;"></i> v${data.version} available</span>`;
                     {
                         let avDetail = data.currentVersion ? `You have v${data.currentVersion}` : '';
                         if (data.releaseDate) {
@@ -4786,17 +4786,17 @@
                     if (updateCheckBtn) { updateCheckBtn.textContent = 'Check Now'; updateCheckBtn.disabled = false; updateCheckBtn.style.opacity = ''; }
                     break;
                 case 'up-to-date':
-                    updateStatusText.innerHTML = `<span class="inline-flex items-center gap-1.5"><i data-lucide="check-circle-2" style="width:12px;height:12px;color:#22c55e;"></i> You're up to date</span>`;
+                    updateStatusText.innerHTML = `<span class="inline-flex items-center gap-1.5"><i data-lucide="check-circle-2" style="width:12px;height:12px;color:#22c55e;"></i> Up to date</span>`;
                     {
                         const utdVer = data.currentVersion || data.version;
-                        const channelStr = data.channel ? ` on ${data.channel} channel` : '';
-                        updateDetailText.textContent = `v${utdVer} is the latest${channelStr} · Checked just now`;
+                        const channelStr = data.channel ? ` (${data.channel})` : '';
+                        updateDetailText.textContent = `v${utdVer}${channelStr} · Checked just now`;
                         updateDetailText.classList.remove('hidden');
                     }
                     if (updateCheckBtn) { updateCheckBtn.textContent = 'Check Now'; updateCheckBtn.disabled = false; updateCheckBtn.style.opacity = ''; }
                     break;
                 case 'downloading':
-                    updateStatusText.textContent = `Downloading... ${data.percent || 0}%`;
+                    updateStatusText.innerHTML = `<span class="inline-flex items-center gap-1.5">${spinnerSvg} Downloading… ${data.percent || 0}%</span>`;
                     updateProgressBar?.classList.remove('hidden');
                     if (updateProgressFill) updateProgressFill.style.width = `${data.percent || 0}%`;
                     if (data.total) {
@@ -4804,9 +4804,10 @@
                         updateDetailText.textContent = `${mb(data.transferred)} / ${mb(data.total)} MB`;
                         updateDetailText.classList.remove('hidden');
                     }
+                    if (updateCheckBtn) { updateCheckBtn.disabled = true; updateCheckBtn.style.opacity = '0.5'; }
                     break;
                 case 'ready':
-                    updateStatusText.innerHTML = `<span class="inline-flex items-center gap-1.5"><i data-lucide="package-check" style="width:12px;height:12px;color:#22c55e;"></i> v${data.version} ready to install</span>`;
+                    updateStatusText.innerHTML = `<span class="inline-flex items-center gap-1.5"><i data-lucide="package-check" style="width:12px;height:12px;color:#22c55e;"></i> v${data.version} ready</span>`;
                     if (data.currentVersion) {
                         updateDetailText.textContent = `You have v${data.currentVersion}`;
                         updateDetailText.classList.remove('hidden');
@@ -4826,13 +4827,13 @@
                     const cv = data.currentVersion || '';
                     const ch = data.channel || '';
                     if (cv) {
-                        updateStatusText.textContent = `Current version: v${cv}`;
+                        updateStatusText.textContent = `v${cv}`;
                         if (ch) {
                             updateDetailText.textContent = `${ch.charAt(0).toUpperCase() + ch.slice(1)} channel`;
                             updateDetailText.classList.remove('hidden');
                         }
                     } else {
-                        updateStatusText.textContent = 'No update info';
+                        updateStatusText.textContent = 'Checking…';
                     }
                     if (updateCheckBtn) { updateCheckBtn.textContent = 'Check Now'; updateCheckBtn.disabled = false; updateCheckBtn.style.opacity = ''; }
                 }
@@ -4843,7 +4844,6 @@
 
         async function checkForUpdates() {
             if (!nativeBridgeReady) return;
-            // Immediate visual feedback — don't wait for 2s poll
             handleUpdateStatus({ status: 'checking', currentVersion: updateStatusText?.dataset.currentVersion });
             await callNativeApi('check_for_updates');
         }
@@ -4851,21 +4851,29 @@
         async function downloadUpdate() {
             if (!nativeBridgeReady) return;
             updateDownloadBtn?.classList.add('hidden');
+            const spinnerSvg = '<svg class="animate-spin" style="width:12px;height:12px;" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="31.4 31.4" stroke-linecap="round"/></svg>';
+            if (updateStatusText) {
+                updateStatusText.innerHTML = `<span class="inline-flex items-center gap-1.5">${spinnerSvg} Starting download…</span>`;
+            }
             await callNativeApi('download_update');
         }
 
         async function installUpdate() {
             if (!nativeBridgeReady) return;
-            // Show immediate feedback — NSIS extraction takes a few seconds
+            // Lock out polling so it can't reset our install UI
+            _installInProgress = true;
+            const spinnerSvg = '<svg class="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="31.4 31.4" stroke-linecap="round"/></svg>';
             if (updateInstallBtn) {
                 updateInstallBtn.disabled = true;
-                updateInstallBtn.innerHTML = '<span class="inline-flex items-center gap-1.5"><svg class="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="31.4 31.4" stroke-linecap="round"/></svg> Installing — app will restart…</span>';
+                updateInstallBtn.innerHTML = `<span class="inline-flex items-center gap-1.5">${spinnerSvg} Installing — app will restart…</span>`;
                 updateInstallBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
                 updateInstallBtn.classList.add('bg-stone-500', 'cursor-wait');
             }
             if (updateStatusText) {
-                updateStatusText.innerHTML = '<span class="inline-flex items-center gap-1.5"><svg class="animate-spin" style="width:12px;height:12px;" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="31.4 31.4" stroke-linecap="round"/></svg> Restarting…</span>';
+                const smallSpinner = '<svg class="animate-spin" style="width:12px;height:12px;" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="31.4 31.4" stroke-linecap="round"/></svg>';
+                updateStatusText.innerHTML = `<span class="inline-flex items-center gap-1.5">${smallSpinner} Restarting…</span>`;
             }
+            if (updateCheckBtn) { updateCheckBtn.disabled = true; updateCheckBtn.style.opacity = '0.5'; }
             await callNativeApi('install_update');
         }
 
