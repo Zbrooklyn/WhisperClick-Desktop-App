@@ -174,3 +174,167 @@ describe('createTray', () => {
     expect(labels).toContain('Quit');
   });
 });
+
+// ── Tray click modes ─────────────────────────────────────────────────
+
+describe('tray click modes', () => {
+  beforeEach(() => { jest.useFakeTimers(); });
+  afterEach(() => { jest.useRealTimers(); });
+
+  test('show mode: single click calls onShow', () => {
+    const { createTray } = loadTray();
+    const onShow = jest.fn();
+    const trayInst = createTray({
+      onShow,
+      onBuildMenu: async () => [],
+      getTrayClickAction: () => 'show',
+    });
+    trayInst.emit('click');
+    expect(onShow).toHaveBeenCalledTimes(1);
+  });
+
+  test('record mode: single click calls onToggleRecording after debounce', () => {
+    const { createTray } = loadTray();
+    const onShow = jest.fn();
+    const onToggleRecording = jest.fn();
+    const trayInst = createTray({
+      onShow,
+      onBuildMenu: async () => [],
+      onToggleRecording,
+      getTrayClickAction: () => 'record',
+    });
+    trayInst.emit('click');
+    expect(onToggleRecording).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(300);
+    expect(onToggleRecording).toHaveBeenCalledTimes(1);
+    expect(onShow).not.toHaveBeenCalled();
+  });
+
+  test('record mode: native double-click calls onShow and cancels toggle', () => {
+    const { createTray } = loadTray();
+    const onShow = jest.fn();
+    const onToggleRecording = jest.fn();
+    const trayInst = createTray({
+      onShow,
+      onBuildMenu: async () => [],
+      onToggleRecording,
+      getTrayClickAction: () => 'record',
+    });
+    // Windows fires click first, then double-click
+    trayInst.emit('click');
+    trayInst.emit('double-click');
+    jest.advanceTimersByTime(300);
+    expect(onShow).toHaveBeenCalledTimes(1);
+    expect(onToggleRecording).not.toHaveBeenCalled();
+  });
+
+  test('record mode: double-click while active cancels without opening window', () => {
+    const { createTray } = loadTray();
+    const onShow = jest.fn();
+    const onCancelRecording = jest.fn();
+    const trayInst = createTray({
+      onShow,
+      onBuildMenu: async () => [],
+      onToggleRecording: jest.fn(),
+      onCancelRecording,
+      getIsRecordingActive: () => true,
+      getTrayClickAction: () => 'record',
+    });
+    trayInst.emit('double-click');
+    expect(onCancelRecording).toHaveBeenCalledTimes(1);
+    expect(onShow).not.toHaveBeenCalled();
+  });
+
+  test('record mode: double-click while dormant opens window without canceling', () => {
+    const { createTray } = loadTray();
+    const onShow = jest.fn();
+    const onCancelRecording = jest.fn();
+    const trayInst = createTray({
+      onShow,
+      onBuildMenu: async () => [],
+      onToggleRecording: jest.fn(),
+      onCancelRecording,
+      getIsRecordingActive: () => false,
+      getTrayClickAction: () => 'record',
+    });
+    trayInst.emit('double-click');
+    expect(onShow).toHaveBeenCalledTimes(1);
+    expect(onCancelRecording).not.toHaveBeenCalled();
+  });
+
+  test('no getTrayClickAction defaults to show mode', () => {
+    const { createTray } = loadTray();
+    const onShow = jest.fn();
+    const trayInst = createTray({
+      onShow,
+      onBuildMenu: async () => [],
+    });
+    trayInst.emit('click');
+    expect(onShow).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ── Balloon and flash ────────────────────────────────────────────────
+
+describe('tray balloon and flash', () => {
+  beforeEach(() => { jest.useFakeTimers(); });
+  afterEach(() => { jest.useRealTimers(); });
+
+  test('showTrayBalloon calls displayBalloon on tray', () => {
+    const { createTray, showTrayBalloon } = loadTray();
+    const trayInst = createTray({
+      onShow: () => {},
+      onBuildMenu: async () => [],
+    });
+    showTrayBalloon('Test Title', 'Test content');
+    expect(trayInst.lastBalloon).toEqual({
+      iconType: 'error',
+      title: 'Test Title',
+      content: 'Test content',
+      noSound: false,
+    });
+  });
+
+  test('flashTrayError sets error icon then restores after 2s', () => {
+    const { createTray, flashTrayError } = loadTray();
+    const trayInst = createTray({
+      onShow: () => {},
+      onBuildMenu: async () => [],
+    });
+    const originalIcon = trayInst.icon;
+    flashTrayError('Error tooltip');
+    expect(trayInst.toolTip).toBe('Error tooltip');
+    // Icon should have changed (error color)
+    expect(trayInst.icon).not.toBe(originalIcon);
+
+    jest.advanceTimersByTime(2000);
+    // Should restore to dormant
+    expect(trayInst.toolTip).toBe('WhisperClick');
+  });
+
+  test('balloon-click triggers onBalloonClick', () => {
+    const { createTray } = loadTray();
+    const onBalloonClick = jest.fn();
+    const trayInst = createTray({
+      onShow: () => {},
+      onBuildMenu: async () => [],
+      onBalloonClick,
+    });
+    trayInst.emit('balloon-click');
+    expect(onBalloonClick).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ── Tooltip updates ──────────────────────────────────────────────────
+
+describe('updateTrayTooltip', () => {
+  test('updates tray tooltip text', () => {
+    const { createTray, updateTrayTooltip } = loadTray();
+    const trayInst = createTray({
+      onShow: () => {},
+      onBuildMenu: async () => [],
+    });
+    updateTrayTooltip('WhisperClick — Recording...');
+    expect(trayInst.toolTip).toBe('WhisperClick — Recording...');
+  });
+});

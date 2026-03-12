@@ -319,6 +319,13 @@
                             <div class="w-3 h-3 bg-white rounded-full absolute top-1 left-1 transition-transform translate-x-5"></div>
                         </button>
                     </div>
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-sm dark:text-stone-300">Tray Click</span>
+                        <select id="tray-click-action-select" class="bg-stone-200 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-md px-2 py-1 text-xs dark:text-stone-200 focus:outline-none focus:ring-2 focus:ring-accent">
+                            <option value="show">Open Window</option>
+                            <option value="record">Toggle Recording</option>
+                        </select>
+                    </div>
                     <div class="flex items-center justify-between">
                         <span class="text-sm dark:text-stone-300">Global Hotkey</span>
                         <div class="flex items-center gap-2">
@@ -940,6 +947,7 @@
         const soundToggle = document.getElementById('sound-toggle');
         const pillMonitorRow = document.getElementById('pill-monitor-row');
         const pillMonitorSelect = document.getElementById('pill-monitor-select');
+        const trayClickActionSelect = document.getElementById('tray-click-action-select');
 
         // --- Logic ---
 
@@ -1682,6 +1690,14 @@
                 await callNativeApi('save_settings', { pill_monitor: settingVal });
             }
         });
+
+        if (trayClickActionSelect) {
+            trayClickActionSelect.addEventListener('change', async () => {
+                if (nativeBridgeReady) {
+                    await callNativeApi('save_settings', { tray_click_action: trayClickActionSelect.value });
+                }
+            });
+        }
 
         function readSettingsFromStorage() {
             try {
@@ -2589,6 +2605,9 @@
                     applySwitchState(soundToggle, settings.sound_enabled !== false);
                     updatePillMonitorVisibility(!!settings.show_pill_widget);
                     populatePillMonitorDropdown(settings.pill_monitor || 'auto');
+                    if (trayClickActionSelect && settings.tray_click_action) {
+                        trayClickActionSelect.value = settings.tray_click_action;
+                    }
 
                     // Restore API provider/model/speech settings from backend
                     if (settings.api_provider && apiProviderSelect) {

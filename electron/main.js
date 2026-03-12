@@ -2,7 +2,7 @@ const { app, BrowserWindow, ipcMain, screen, globalShortcut, clipboard, Menu } =
 const path = require('path');
 const Store = require('./store');
 const Sidecar = require('./sidecar');
-const { createTray, updateTrayIcon } = require('./tray');
+const { createTray, updateTrayIcon, updateTrayTooltip, showTrayBalloon, flashTrayError } = require('./tray');
 const { initUpdater, checkForUpdatesQuietly } = require('./updater');
 
 // --- Single instance lock ---
@@ -70,6 +70,10 @@ function createMainWindow() {
   // Pill visibility follows main window: pill shows when window is hidden, hides when shown
   mainWindow.on('show', () => {
     if (pillWindow && !pillWindow.isDestroyed()) pillWindow.hide();
+    // Reset settings drawer so window always reopens to main view
+    mainWindow.webContents.executeJavaScript(
+      'document.getElementById("settings-drawer")?.classList.add("translate-x-full")'
+    ).catch(() => {});
   });
   mainWindow.on('restore', () => {
     if (pillWindow && !pillWindow.isDestroyed()) pillWindow.hide();
@@ -146,6 +150,11 @@ function broadcastState() {
   if (mainWindow) mainWindow.webContents.send('state-update', payload);
   if (pillWindow) pillWindow.webContents.send('state-update', payload);
   updateTrayIcon(appState);
+  // Update tray tooltip to reflect current state
+  const prefix = isDev ? 'WhisperClick [DEV]' : 'WhisperClick';
+  if (appState === 'recording') updateTrayTooltip(`${prefix} — Recording...`);
+  else if (appState === 'processing') updateTrayTooltip(`${prefix} — Processing...`);
+  else updateTrayTooltip(prefix);
 }
 
 let _lastLevelBroadcast = 0;
@@ -245,6 +254,18 @@ function registerHotkey(accelerator) {
   } catch {
     return false;
   }
+}
+
+async function trayToggleRecording() {
+  const validationError = validateRecordingReadiness();
+  if (validationError) {
+    showTrayBalloon('Recording Error', validationError);
+    flashTrayError('WhisperClick — Setup required');
+    return;
+  }
+  // Capture foreground window before toggle
+  if (sidecar && sidecar.isRunning) sidecar.send('capture_fg').catch(() => {});
+  await toggleRecording();
 }
 
 async function toggleRecording() {
@@ -909,6 +930,25 @@ app.whenReady().then(() => {
   tray = createTray({
     onShow: () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } },
     onBuildMenu: () => buildRichMenuTemplate({ includeQuit: true }),
+    onToggleRecording: () => trayToggleRecording(),
+    onCancelRecording: async () => {
+      if (appState === 'recording' || appState === 'processing') {
+        setAppState('dormant');
+        broadcastState();
+        if (sidecar && sidecar.isRunning) {
+          try { await sidecar.send('cancel'); } catch { /* ignore */ }
+        }
+      }
+    },
+    getIsRecordingActive: () => appState === 'recording' || appState === 'processing',
+    onBalloonClick: () => {
+      if (mainWindow) {
+        mainWindow.show();
+        mainWindow.focus();
+        mainWindow.webContents.executeJavaScript('openSettingsDrawer()').catch(() => {});
+      }
+    },
+    getTrayClickAction: () => store.getSettings().trayClickAction || 'show',
     isDev,
   });
 

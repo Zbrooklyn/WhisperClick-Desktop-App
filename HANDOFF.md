@@ -1,13 +1,13 @@
 # HANDOFF — WhisperClick Electron
 
-> Last updated: 2026-03-10
+> Last updated: 2026-03-12
 
 ## Current State
 
-**Status**: Beta — v2.0.10-beta (performance: store caching + level throttle).
+**Status**: Beta — v2.0.11-beta (tray click recording mode).
 
 **Latest stable release**: v2.0.5
-**Latest beta release**: v2.0.10-beta
+**Latest beta release**: v2.0.11-beta
 
 The Electron port uses V3's original `index.html`/`tailwind.css`/`lucide.min.js`
 frontend directly, with a pywebview API compatibility shim in `preload.js` that

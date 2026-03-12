@@ -28,6 +28,7 @@ const DEFAULT_SETTINGS = {
   onboardingComplete: false,
   autoDownloadUpdates: false,
   updateChannel: 'beta',
+  trayClickAction: 'show',
   openaiApiKey: '',
   geminiApiKey: '',
 };

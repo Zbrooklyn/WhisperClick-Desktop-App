@@ -50,6 +50,7 @@ class Tray {
   setContextMenu(menu) { this.contextMenu = menu; }
   popUpContextMenu(menu) { this.lastPopupMenu = menu; }
   setImage(img) { this.icon = img; }
+  displayBalloon(opts) { this.lastBalloon = opts; }
   on(event, fn) {
     if (!this._listeners[event]) this._listeners[event] = [];
     this._listeners[event].push(fn);

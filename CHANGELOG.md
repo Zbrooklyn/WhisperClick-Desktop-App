@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.0.11-beta] — 2026-03-12
+
+### Feature — Tray Click Recording Mode
+
+#### Added
+
+- **Tray click action setting** (`trayClickAction`): New dropdown in Quick Settings
+  lets users choose between "Open Window" (default) and "Toggle Recording". In record
+  mode, single-click the tray icon to start/stop recording with zero UI footprint.
+- **Double-click behavior**: In record mode, double-click opens the main window when
+  dormant, or cancels an active recording without opening the window.
+- **Tray-native error feedback**: When recording can't start (no API key, sidecar down),
+  shows a native Windows balloon notification and flashes the tray icon red for 2 seconds
+  instead of popping up the main window. Clicking the balloon opens settings.
+- **Dynamic tray tooltips**: Tooltip updates to reflect current state ("Recording...",
+  "Processing...") for at-a-glance status.
+
+#### Fixed
+
+- **Settings drawer persists after window hide/show**: Closing the window with settings
+  open and reopening it no longer shows stale settings drawer — resets to main view.
+
 ## [2.0.10-beta] — 2026-03-11
 
 ### Performance — Store Caching & Level Throttle

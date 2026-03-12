@@ -30,6 +30,7 @@ const V3_TO_ELECTRON = {
   pill_monitor: 'pillMonitor',
   audio_retention_days: 'audioRetentionDays',
   auto_download_updates: 'autoDownloadUpdates',
+  tray_click_action: 'trayClickAction',
 };
 
 const ELECTRON_TO_V3 = {};

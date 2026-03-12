@@ -198,7 +198,7 @@ const STATE_COLORS = {
   error: '#DC6450',
 };
 
-function createTray({ onShow, onBuildMenu, isDev = false }) {
+function createTray({ onShow, onBuildMenu, onToggleRecording, onCancelRecording, getIsRecordingActive, onBalloonClick, getTrayClickAction, isDev = false }) {
   const defaultColor = isDev ? '#60A5FA' : '#CF9673';
   const icon = getTintedIcon(defaultColor) || generateFallbackIcon(defaultColor);
   tray = new Tray(icon);
@@ -210,7 +210,54 @@ function createTray({ onShow, onBuildMenu, isDev = false }) {
     const menu = Menu.buildFromTemplate(template);
     tray.popUpContextMenu(menu);
   });
-  tray.on('click', onShow);
+
+  // Click behavior: 'show' mode opens window; 'record' mode toggles recording
+  // In 'record' mode, double-click opens window instead.
+  // On Windows, Electron fires 'double-click' natively — the second click never
+  // reaches the 'click' handler, so we must listen for both events.
+  let clickTimeout = null;
+
+  tray.on('click', () => {
+    const mode = getTrayClickAction ? getTrayClickAction() : 'show';
+
+    if (mode === 'record') {
+      // Delay single-click action to let double-click cancel it
+      if (clickTimeout) return; // Already waiting
+      clickTimeout = setTimeout(() => {
+        clickTimeout = null;
+        if (onToggleRecording) onToggleRecording();
+      }, 300);
+    } else {
+      onShow();
+    }
+  });
+
+  tray.on('double-click', () => {
+    const mode = getTrayClickAction ? getTrayClickAction() : 'show';
+
+    if (mode === 'record') {
+      // Cancel the pending single-click toggle
+      if (clickTimeout) {
+        clearTimeout(clickTimeout);
+        clickTimeout = null;
+      }
+      const isActive = getIsRecordingActive ? getIsRecordingActive() : false;
+      if (isActive) {
+        // Mid-recording: cancel without opening window (stay in tray mode)
+        if (onCancelRecording) onCancelRecording();
+      } else {
+        // Dormant: open window
+        onShow();
+      }
+    } else {
+      onShow();
+    }
+  });
+
+  // Balloon click opens settings
+  tray.on('balloon-click', () => {
+    if (onBalloonClick) onBalloonClick();
+  });
 
   return tray;
 }
@@ -222,4 +269,29 @@ function updateTrayIcon(state) {
   tray.setImage(icon);
 }
 
-module.exports = { createTray, updateTrayIcon };
+function updateTrayTooltip(text) {
+  if (tray) tray.setToolTip(text);
+}
+
+function showTrayBalloon(title, content) {
+  if (!tray) return;
+  tray.displayBalloon({ iconType: 'error', title, content, noSound: false });
+}
+
+let _flashTimer = null;
+function flashTrayError(tooltipOverride) {
+  if (!tray) return;
+  const errorIcon = getTintedIcon('#DC6450') || generateFallbackIcon('#DC6450');
+  tray.setImage(errorIcon);
+  if (tooltipOverride) tray.setToolTip(tooltipOverride);
+
+  clearTimeout(_flashTimer);
+  _flashTimer = setTimeout(() => {
+    const dormantIcon = getTintedIcon('#CF9673') || generateFallbackIcon('#CF9673');
+    tray.setImage(dormantIcon);
+    tray.setToolTip('WhisperClick');
+    _flashTimer = null;
+  }, 2000);
+}
+
+module.exports = { createTray, updateTrayIcon, updateTrayTooltip, showTrayBalloon, flashTrayError };
