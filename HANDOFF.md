@@ -4,10 +4,10 @@
 
 ## Current State
 
-**Status**: Beta — v2.0.7-beta (state machine fixes + pill click-through).
+**Status**: Beta — v2.0.10-beta (performance: store caching + level throttle).
 
 **Latest stable release**: v2.0.5
-**Latest beta release**: v2.0.7-beta
+**Latest beta release**: v2.0.10-beta
 
 The Electron port uses V3's original `index.html`/`tailwind.css`/`lucide.min.js`
 frontend directly, with a pywebview API compatibility shim in `preload.js` that
@@ -165,3 +165,5 @@ Only 2 changes to the V3 frontend:
 - Recording state machine race conditions fixed — listener ordering, cancel idempotency (v2.0.7-beta)
 - Pill state reconciliation — 5s poll self-corrects missed broadcasts (v2.0.7-beta)
 - Hotkey debounce in main process — 300ms guard prevents double-fires (v2.0.7-beta)
+- Store in-memory caching — eliminates 15-70ms sync disk reads on every getSettings/getHistory call (v2.0.10-beta)
+- Audio level IPC throttle — capped at 20fps, reduces event loop flooding during recording (v2.0.10-beta)

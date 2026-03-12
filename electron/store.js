@@ -40,6 +40,11 @@ class Store {
     this.settingsPath = path.join(configDir, 'settings.json');
     this.historyPath = path.join(configDir, 'history.json');
     this._ensureDir();
+    // In-memory caches — lazy-loaded on first access, updated on every mutation.
+    // Eliminates synchronous disk reads from the hot path (getSettings is called
+    // on every IPC handler, tray menu build, pill visibility check, etc.).
+    this._settingsCache = null;
+    this._historyCache = null;
   }
 
   _ensureDir() {
@@ -95,18 +100,22 @@ class Store {
   // --- Settings ---
 
   getSettings() {
-    const raw = this._safeReadJSON(this.settingsPath, { ...DEFAULT_SETTINGS });
-    const settings = { ...DEFAULT_SETTINGS, ...raw };
-    // Decrypt API keys after reading
-    for (const field of KEY_FIELDS) {
-      settings[field] = this._decryptKey(settings[field]);
+    if (!this._settingsCache) {
+      const raw = this._safeReadJSON(this.settingsPath, { ...DEFAULT_SETTINGS });
+      const settings = { ...DEFAULT_SETTINGS, ...raw };
+      for (const field of KEY_FIELDS) {
+        settings[field] = this._decryptKey(settings[field]);
+      }
+      this._settingsCache = settings;
     }
-    return settings;
+    return { ...this._settingsCache };
   }
 
   saveSettings(settings) {
     this._ensureDir();
-    // Encrypt API keys before writing
+    // Update cache immediately (decrypted values)
+    this._settingsCache = { ...settings };
+    // Write encrypted version to disk
     const toWrite = { ...settings };
     for (const field of KEY_FIELDS) {
       toWrite[field] = this._encryptKey(toWrite[field]);
@@ -121,13 +130,17 @@ class Store {
 
   resetAll() {
     this.saveSettings({ ...DEFAULT_SETTINGS });
+    this._historyCache = [];
     this._saveHistory([]);
   }
 
   // --- History ---
 
   getHistory() {
-    return this._safeReadJSON(this.historyPath, []);
+    if (!this._historyCache) {
+      this._historyCache = this._safeReadJSON(this.historyPath, []);
+    }
+    return [...this._historyCache];
   }
 
   addHistory(entry) {
@@ -161,6 +174,7 @@ class Store {
 
   _saveHistory(history) {
     this._ensureDir();
+    this._historyCache = history;
     this._atomicWrite(this.historyPath, JSON.stringify(history, null, 2));
   }
 }

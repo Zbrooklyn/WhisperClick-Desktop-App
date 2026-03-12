@@ -148,7 +148,13 @@ function broadcastState() {
   updateTrayIcon(appState);
 }
 
+let _lastLevelBroadcast = 0;
+const LEVEL_THROTTLE_MS = 50; // Cap at ~20fps — still smooth for visualizer
+
 function broadcastLevel(level) {
+  const now = Date.now();
+  if (now - _lastLevelBroadcast < LEVEL_THROTTLE_MS) return;
+  _lastLevelBroadcast = now;
   if (mainWindow) mainWindow.webContents.send('level-update', level);
   if (pillWindow) pillWindow.webContents.send('level-update', level);
 }
@@ -479,6 +485,7 @@ ipcMain.handle('stop-recording', async () => {
       sidecar.removeListener('transcription', onTranscription);
       sidecar.removeListener('error', onError);
       sidecar.removeListener('cancelled', onCancelled);
+      sidecar.removeListener('exit', onExit);
     }
     function onTranscription(data) {
       cleanup();
@@ -492,9 +499,14 @@ ipcMain.handle('stop-recording', async () => {
       cleanup();
       resolve({ success: false, error: 'Cancelled' });
     }
+    function onExit() {
+      cleanup();
+      resolve({ success: false, error: 'Backend crashed during processing' });
+    }
     sidecar.once('transcription', onTranscription);
     sidecar.once('error', onError);
     sidecar.once('cancelled', onCancelled);
+    sidecar.once('exit', onExit);
 
     // Send stop_rec after listeners are attached
     sidecar.send('stop_rec').catch((err) => {

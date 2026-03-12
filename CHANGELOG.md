@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.0.10-beta] — 2026-03-11
+
+### Performance — Store Caching & Level Throttle
+
+#### Fixed
+
+- **Store reads blocked event loop on every call** (`store.js`): Added in-memory
+  cache for settings and history. `getSettings()` and `getHistory()` now return
+  from cache (0ms) instead of hitting disk (15-70ms per call). Cache is lazy-loaded
+  on first access and updated on every mutation. Disk writes still happen
+  synchronously for crash safety, but reads are instant. This eliminates the
+  primary cause of UI freezing when the settings drawer, tray menu, pill visibility
+  checks, and recording handlers all call `getSettings()` in rapid succession.
+
+- **Audio level IPC spam during recording** (`main.js`): `broadcastLevel()` now
+  throttled to 20fps (50ms interval). The sidecar fires level events as fast as
+  the audio stream produces them (~100-200/sec). Each event triggered two IPC sends
+  (main window + pill), flooding the event loop. 20fps is still visually smooth for
+  the visualizer animation.
+
 ## [2.0.7-beta] — 2026-03-10
 
 ### Recording State Machine Fixes
