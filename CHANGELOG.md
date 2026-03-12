@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.0.13-beta] — 2026-03-12
+
+### UX — Update Install Feedback
+
+#### Fixed
+
+- **"Restart & Install" button** now shows a spinner and "Installing — app will restart…"
+  immediately on click, with the button disabled to prevent double-clicks. Previously
+  there was no feedback during the few seconds NSIS takes to extract and relaunch.
+
 ## [2.0.12-beta] — 2026-03-12
 
 ### Feature — Debug File Logger
