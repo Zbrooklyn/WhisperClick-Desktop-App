@@ -587,6 +587,20 @@
                     </div>
                 </div>
 
+                <!-- Advanced -->
+                <div class="space-y-3 pb-5 border-b border-stone-200 dark:border-stone-700">
+                    <h3 class="text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider">Advanced</h3>
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <span class="text-sm dark:text-stone-300">Debug Logging</span>
+                            <p class="text-[10px] text-stone-500 dark:text-stone-400">Writes diagnostic info to debug.log in the config folder</p>
+                        </div>
+                        <button id="debug-logging-toggle" onclick="toggleSwitch(this)" class="w-10 h-5 bg-stone-300 dark:bg-stone-600 rounded-full relative transition-colors focus:outline-none shrink-0" data-checked="false">
+                            <div class="w-3 h-3 bg-white rounded-full absolute top-1 left-1 transition-transform"></div>
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Danger Zone -->
                 <div class="space-y-3 pb-5 border-b border-stone-200 dark:border-stone-700">
                     <h3 class="text-xs font-bold text-red-500 uppercase tracking-wider">Danger Zone</h3>
@@ -948,6 +962,7 @@
         const pillMonitorRow = document.getElementById('pill-monitor-row');
         const pillMonitorSelect = document.getElementById('pill-monitor-select');
         const trayClickActionSelect = document.getElementById('tray-click-action-select');
+        const debugLoggingToggle = document.getElementById('debug-logging-toggle');
 
         // --- Logic ---
 
@@ -1650,6 +1665,7 @@
                 show_pill_widget: isSwitchOn(pillWidgetToggle),
                 sound_enabled: isSwitchOn(soundToggle),
                 auto_download_updates: isSwitchOn(autoDownloadToggle),
+                debug_logging: isSwitchOn(debugLoggingToggle),
                 mode: currentMode,
                 model: getLocalNameFromLabel(localToolbarModel)
             };
@@ -2633,6 +2649,7 @@
                         audioRetentionSelect.value = String(settings.audioRetentionDays);
                     }
                     applySwitchState(autoDownloadToggle, !!settings.auto_download_updates);
+                    applySwitchState(debugLoggingToggle, !!settings.debug_logging);
 
                     // Init update channel from backend
                     initUpdateUi();

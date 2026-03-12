@@ -4,10 +4,10 @@
 
 ## Current State
 
-**Status**: Beta — v2.0.11-beta (tray click recording mode).
+**Status**: Beta — v2.0.12-beta (debug file logger).
 
 **Latest stable release**: v2.0.5
-**Latest beta release**: v2.0.11-beta
+**Latest beta release**: v2.0.12-beta
 
 The Electron port uses V3's original `index.html`/`tailwind.css`/`lucide.min.js`
 frontend directly, with a pywebview API compatibility shim in `preload.js` that
@@ -62,6 +62,7 @@ electron/
   store.js         — JSON file settings/history persistence
   updater.js       — Auto-updater (electron-updater, beta/stable channels)
   tray.js          — System tray icon and menu
+  logger.js        — Debug file logger (5MB rotation, toggled via settings)
 
 src/frontend/      — V3 frontend (copied verbatim, 2 lines changed)
   index.html       — Main UI (4800+ lines, inline JS)
@@ -159,7 +160,7 @@ Only 2 changes to the V3 frontend:
 - Crash-safe atomic writes for settings and history
 - Auto-updater with beta/stable channel support
 - CI/CD: GitHub Actions builds Windows/macOS/Linux
-- 301 tests (281 Jest + 7 integration + 13 E2E) with coverage thresholds
+- 412 tests with coverage thresholds
 - v2.0.0 stable release published
 - Pill click-through fix — transparent areas pass clicks to apps behind (v2.0.6-beta)
 - Recording state machine race conditions fixed — listener ordering, cancel idempotency (v2.0.7-beta)
@@ -167,3 +168,4 @@ Only 2 changes to the V3 frontend:
 - Hotkey debounce in main process — 300ms guard prevents double-fires (v2.0.7-beta)
 - Store in-memory caching — eliminates 15-70ms sync disk reads on every getSettings/getHistory call (v2.0.10-beta)
 - Audio level IPC throttle — capped at 20fps, reduces event loop flooding during recording (v2.0.10-beta)
+- Debug file logger — 25 instrumentation points across main.js, 5MB rotation, runtime toggle in settings (v2.0.12-beta)

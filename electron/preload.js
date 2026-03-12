@@ -31,6 +31,7 @@ const V3_TO_ELECTRON = {
   audio_retention_days: 'audioRetentionDays',
   auto_download_updates: 'autoDownloadUpdates',
   tray_click_action: 'trayClickAction',
+  debug_logging: 'debugLogging',
 };
 
 const ELECTRON_TO_V3 = {};

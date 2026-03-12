@@ -4,6 +4,7 @@ const Store = require('./store');
 const Sidecar = require('./sidecar');
 const { createTray, updateTrayIcon, updateTrayTooltip, showTrayBalloon, flashTrayError } = require('./tray');
 const { initUpdater, checkForUpdatesQuietly } = require('./updater');
+const log = require('./logger');
 
 // --- Single instance lock ---
 const gotLock = app.requestSingleInstanceLock();
@@ -140,9 +141,11 @@ function createPillWindow() {
 // --- State machine ---
 
 function setAppState(state, message) {
+  const prev = appState;
   appState = state;
   if (message !== undefined) appStateMessage = message;
   else if (state === 'dormant' || state === 'success') appStateMessage = '';
+  log.state(prev, state, message);
 }
 
 function broadcastState() {
@@ -169,6 +172,7 @@ function broadcastLevel(level) {
 }
 
 function broadcastError(message) {
+  log.error(`broadcastError: ${message}`);
   setAppState('error', message);
   broadcastState();
   setTimeout(() => {
@@ -224,8 +228,12 @@ function registerHotkey(accelerator) {
       // Debounce: prevent rapid double-fires from reaching the frontend or
       // the toggleRecording() fallback, which has no internal debounce.
       const now = Date.now();
-      if (now - lastHotkeyAt < HOTKEY_DEBOUNCE_MS) return;
+      if (now - lastHotkeyAt < HOTKEY_DEBOUNCE_MS) {
+        log.info(`Hotkey debounced (${now - lastHotkeyAt}ms since last)`);
+        return;
+      }
       lastHotkeyAt = now;
+      log.ipc('hotkey', `fired (state=${appState})`);
 
       // Pre-validate before routing — ensures pill always gets error feedback
       const validationError = validateRecordingReadiness();
@@ -257,8 +265,10 @@ function registerHotkey(accelerator) {
 }
 
 async function trayToggleRecording() {
+  log.tray('toggle-recording', `state=${appState}`);
   const validationError = validateRecordingReadiness();
   if (validationError) {
+    log.tray('toggle-recording', `blocked: ${validationError}`);
     showTrayBalloon('Recording Error', validationError);
     flashTrayError('WhisperClick — Setup required');
     return;
@@ -269,6 +279,7 @@ async function trayToggleRecording() {
 }
 
 async function toggleRecording() {
+  log.info(`toggleRecording called (state=${appState})`);
   if (appState === 'recording') {
     // Stop recording
     if (sidecar && sidecar.isRunning) {
@@ -287,6 +298,8 @@ async function toggleRecording() {
         await sidecar.send('start_rec');
       } catch { /* ignore */ }
     }
+  } else {
+    log.warn(`toggleRecording ignored — unexpected state: ${appState}`);
   }
 }
 
@@ -317,6 +330,7 @@ function configureSidecar() {
 // Settings
 ipcMain.handle('get-settings', () => store.getSettings());
 ipcMain.handle('save-settings', (_, patch) => {
+  log.ipc('save-settings', Object.keys(patch).join(', '));
   const prev = store.getSettings();
   const settings = { ...prev, ...patch };
   store.saveSettings(settings);
@@ -350,6 +364,10 @@ ipcMain.handle('save-settings', (_, patch) => {
   } else if (!settings.showPill && pillWindow) {
     pillWindow.close();
   }
+  // Toggle debug logging at runtime
+  if (patch.debugLogging !== undefined) {
+    log.setEnabled(!!settings.debugLogging);
+  }
   // Push relevant changes to sidecar
   const sidecarFields = ['mode', 'language', 'localModel', 'provider', 'apiModel',
     'openaiApiKey', 'geminiApiKey', 'customBaseUrl', 'soundEnabled',
@@ -377,6 +395,7 @@ ipcMain.handle('get-state', () => ({ state: appState, message: appStateMessage }
 
 // Pill recording — routes through the V3 frontend so both share one state machine
 ipcMain.handle('pill-toggle-recording', async () => {
+  log.ipc('pill-toggle-recording', `state=${appState}`);
   // Pre-validate before routing — ensures pill always gets error feedback
   const validationError = validateRecordingReadiness();
   if (validationError) {
@@ -473,6 +492,7 @@ ipcMain.handle('verify-api-key', async (_, provider, key, baseUrl) => {
 
 // Start recording — separate from toggle, used by V3 frontend
 ipcMain.handle('start-recording', async () => {
+  log.ipc('start-recording', `state=${appState}`);
   if (!sidecar || !sidecar.isRunning) {
     broadcastError('Backend not ready — restarting…');
     return { success: false, error: 'Backend not ready' };
@@ -483,6 +503,7 @@ ipcMain.handle('start-recording', async () => {
     await sidecar.send('start_rec');
     return { success: true };
   } catch (err) {
+    log.error(`start-recording failed: ${err.message}`);
     broadcastError(err.message || 'Failed to start recording');
     return { success: false, error: err.message };
   }
@@ -490,12 +511,14 @@ ipcMain.handle('start-recording', async () => {
 
 // Stop recording — blocks until transcription completes (V3 frontend expects this)
 ipcMain.handle('stop-recording', async () => {
+  log.ipc('stop-recording', `state=${appState}`);
   if (!sidecar || !sidecar.isRunning) return { success: false, error: 'Backend not ready' };
   setAppState('processing');
   broadcastState();
   // Register listeners BEFORE sending stop_rec to avoid missing fast sidecar responses
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {
+      log.error('stop-recording: 120s timeout reached');
       cleanup();
       broadcastError('Processing timed out');
       resolve({ success: false, error: 'Processing timed out' });
@@ -509,18 +532,22 @@ ipcMain.handle('stop-recording', async () => {
       sidecar.removeListener('exit', onExit);
     }
     function onTranscription(data) {
+      log.ipc('stop-recording', `transcription received (${(data.text || '').length} chars)`);
       cleanup();
       resolve({ success: true, text: data.text });
     }
     function onError(data) {
+      log.error(`stop-recording: sidecar error — ${data.message || 'unknown'}`);
       cleanup();
       resolve({ success: false, error: data.message || 'Transcription failed' });
     }
     function onCancelled() {
+      log.ipc('stop-recording', 'cancelled by user');
       cleanup();
       resolve({ success: false, error: 'Cancelled' });
     }
     function onExit() {
+      log.error('stop-recording: sidecar exited during processing');
       cleanup();
       resolve({ success: false, error: 'Backend crashed during processing' });
     }
@@ -539,6 +566,7 @@ ipcMain.handle('stop-recording', async () => {
 
 // Cancel in-flight processing (idempotent — no-op if transcription already completed)
 ipcMain.handle('cancel-processing', async () => {
+  log.ipc('cancel-processing', `state=${appState}`);
   const wasActive = appState === 'recording' || appState === 'processing';
 
   if (!wasActive) {
@@ -915,6 +943,9 @@ app.whenReady().then(() => {
   store = new Store(configDir);
   const settings = store.getSettings();
 
+  // Initialize debug logger (writes to configDir/debug.log when enabled)
+  log.init(configDir, settings.debugLogging);
+
   createMainWindow();
   // Create pill but keep it hidden — it shows when main window is hidden/minimized
   if (settings.showPill) {
@@ -932,6 +963,7 @@ app.whenReady().then(() => {
     onBuildMenu: () => buildRichMenuTemplate({ includeQuit: true }),
     onToggleRecording: () => trayToggleRecording(),
     onCancelRecording: async () => {
+      log.tray('cancel-recording', `state=${appState}`);
       if (appState === 'recording' || appState === 'processing') {
         setAppState('dormant');
         broadcastState();
@@ -962,7 +994,7 @@ app.whenReady().then(() => {
   let sidecarRestartCount = 0;
 
   sidecar.on('ready', () => {
-    console.log('Sidecar ready — pushing initial config');
+    log.sidecar('ready', 'pushing initial config');
     sidecarRestartCount = 0;
     configureSidecar();
   });
@@ -970,6 +1002,7 @@ app.whenReady().then(() => {
   sidecar.on('level', (data) => broadcastLevel(data.level));
 
   sidecar.on('transcription', (data) => {
+    log.sidecar('transcription', `${(data.text || '').length} chars, provider=${data.provider || '?'}`);
     setAppState('success');
     broadcastState();
     if (data.text) {
@@ -1020,6 +1053,7 @@ app.whenReady().then(() => {
   });
 
   sidecar.on('cancelled', () => {
+    log.sidecar('cancelled');
     setAppState('dormant');
     broadcastState();
   });
@@ -1029,6 +1063,7 @@ app.whenReady().then(() => {
   });
 
   sidecar.on('error', (data) => {
+    log.sidecar('error', data.message || 'unknown');
     broadcastError(data.message || 'Something went wrong');
     if (mainWindow) mainWindow.webContents.send('sidecar-error', data);
   });
@@ -1036,7 +1071,7 @@ app.whenReady().then(() => {
   const MAX_SIDECAR_RESTARTS = 3;
 
   sidecar.on('exit', (code) => {
-    console.log(`Sidecar exited with code ${code}`);
+    log.sidecar('exit', `code=${code}`);
     if (isQuitting) return;
 
     // If recording or processing was in progress, reset state and notify user
@@ -1047,22 +1082,23 @@ app.whenReady().then(() => {
     if (code !== 0 && code !== null && sidecarRestartCount < MAX_SIDECAR_RESTARTS) {
       sidecarRestartCount++;
       const delay = 1000 * sidecarRestartCount;
-      console.log(`Restarting sidecar in ${delay}ms (attempt ${sidecarRestartCount}/${MAX_SIDECAR_RESTARTS})`);
+      log.sidecar('restart', `in ${delay}ms (attempt ${sidecarRestartCount}/${MAX_SIDECAR_RESTARTS})`);
       setTimeout(() => {
         if (isQuitting) return;
-        try { sidecar.start(); } catch (err) { console.error('Restart failed:', err.message); }
+        try { sidecar.start(); } catch (err) { log.error(`Sidecar restart failed: ${err.message}`); }
       }, delay);
     } else if (sidecarRestartCount >= MAX_SIDECAR_RESTARTS) {
-      console.error('Sidecar crashed too many times — giving up');
+      log.error('Sidecar crashed too many times — giving up');
       broadcastError('Backend failed to start — restart the app');
     }
   });
 
   // Start sidecar
   try {
+    log.sidecar('start', `engine=${enginePath}`);
     sidecar.start();
   } catch (err) {
-    console.error('Failed to start sidecar:', err.message);
+    log.error(`Failed to start sidecar: ${err.message}`);
   }
 });
 

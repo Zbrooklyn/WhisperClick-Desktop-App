@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.0.12-beta] — 2026-03-12
+
+### Feature — Debug File Logger
+
+#### Added
+
+- **Debug logging** (`debugLogging`): New toggle in Settings → Advanced enables
+  diagnostic file logging to `debug.log` in the app's config directory. Captures
+  state transitions, IPC calls, tray actions, sidecar events, and errors.
+- **Log rotation**: Automatically rotates at 5MB (renames to `debug.log.1`).
+- **25 instrumentation points** across `main.js`: state machine transitions, hotkey
+  fires/debounces, tray toggle/cancel, all recording IPC handlers, sidecar lifecycle
+  (ready/exit/restart/error), and settings saves.
+- **Runtime toggle**: Enable/disable logging from settings without restarting the app.
+- **13 unit tests** for the logger module (write, rotate, toggle, all log levels).
+
 ## [2.0.11-beta] — 2026-03-12
 
 ### Feature — Tray Click Recording Mode
