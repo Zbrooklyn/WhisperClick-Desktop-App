@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.0.20-beta] — 2026-03-13
+## [2.0.22-beta] — 2026-03-13
 
 ### UX — Collapsible Settings Sections
 
@@ -12,6 +12,12 @@
   sections (Language & Output, Advanced, Updates, Planned Features, Debug, Danger Zone)
   start collapsed to reduce visual clutter.
 - **Smooth transitions**: Chevron rotates 90° on collapse with CSS transition.
+
+#### Fixed
+
+- **DOM nesting validated**: Sections with pre-existing inner wrappers (Advanced,
+  Planned Features) reuse those wrappers instead of adding new ones, preventing
+  the nesting breakage from the earlier attempt (2.0.20/2.0.21).
 
 ## [2.0.19-beta] — 2026-03-13
 
