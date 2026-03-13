@@ -21,6 +21,8 @@ module.exports = {
         'fade-in': 'fadeIn 0.2s ease-out',
         'slide-up': 'slideUp 0.3s ease-out',
         'fade-slide-down': 'fadeSlideDown 0.15s ease-out',
+        'banner-in': 'bannerIn 0.25s ease-out',
+        'banner-out': 'bannerOut 0.2s ease-in forwards',
       },
       keyframes: {
         'audio-idle-pulse': {
@@ -50,6 +52,14 @@ module.exports = {
         slideUp: {
           from: { transform: 'translateY(100%)' },
           to: { transform: 'translateY(0)' },
+        },
+        bannerIn: {
+          from: { opacity: '0', transform: 'translateY(-100%)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        bannerOut: {
+          from: { opacity: '1', transform: 'translateY(0)' },
+          to: { opacity: '0', transform: 'translateY(-100%)' },
         },
       },
     },

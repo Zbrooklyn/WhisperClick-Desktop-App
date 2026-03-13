@@ -57,7 +57,7 @@
     <div id="app-frame" class="w-full h-full bg-stone-50 dark:bg-stone-850 flex flex-col overflow-hidden relative" style="border: none; box-shadow: none;">
 
         <!-- Top Banner Notification -->
-        <div id="banner-container" class="absolute top-0 left-0 right-0 z-[100] pointer-events-none"></div>
+        <div id="banner-container" class="absolute top-10 left-0 right-0 z-[100] pointer-events-none"></div>
 
         <!-- Onboarding Overlay -->
         <div id="onboarding-overlay" class="hidden absolute inset-0 z-[200] bg-stone-50 dark:bg-stone-850 flex items-center justify-center" style="top: 41px;">
@@ -3948,31 +3948,41 @@
             return d.innerHTML;
         }
         function showToast(message, type = 'success') {
-            const iconName = type === 'success' ? 'check' : 'info';
-            const accentColor = type === 'success' ? 'text-green-500' : 'text-accent';
-            const borderColor = type === 'success' ? 'border-l-green-500' : 'border-l-accent';
+            const iconName = type === 'error' ? 'alert-circle' : type === 'success' ? 'check' : 'info';
+            const isError = type === 'error';
 
             const banner = document.createElement('div');
             banner.className = `flex items-center gap-2.5 px-4 py-2 text-xs font-medium pointer-events-auto
                 bg-stone-100/95 dark:bg-stone-800/95 backdrop-blur-sm
                 border-b border-stone-200 dark:border-stone-700
-                border-l-[3px] ${borderColor}
                 text-stone-700 dark:text-stone-200
                 shadow-sm animate-banner-in`;
             const bIcon = document.createElement('i');
             bIcon.setAttribute('data-lucide', iconName);
-            bIcon.className = `w-3.5 h-3.5 ${accentColor} shrink-0`;
+            bIcon.className = 'w-3.5 h-3.5 text-accent shrink-0';
             const bMsg = document.createElement('span');
             bMsg.textContent = message;
-            bMsg.className = 'truncate';
+            bMsg.className = 'truncate flex-1';
             banner.appendChild(bIcon);
             banner.appendChild(bMsg);
+
+            const dismissBanner = () => {
+                banner.classList.replace('animate-banner-in', 'animate-banner-out');
+                setTimeout(() => banner.remove(), 250);
+            };
+
+            if (isError) {
+                const closeBtn = document.createElement('button');
+                closeBtn.className = 'shrink-0 p-0.5 rounded hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors';
+                closeBtn.innerHTML = '<i data-lucide="x" class="w-3 h-3 text-stone-400 dark:text-stone-500"></i>';
+                closeBtn.onclick = dismissBanner;
+                banner.appendChild(closeBtn);
+            } else {
+                setTimeout(dismissBanner, 6000);
+            }
+
             bannerContainer.appendChild(banner);
             lucide.createIcons();
-            setTimeout(() => {
-                banner.classList.replace('animate-banner-in', 'animate-banner-out');
-                setTimeout(() => banner.remove(), 300);
-            }, 3000);
         }
 
         // Viz
