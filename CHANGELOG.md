@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.0.15-beta] — 2026-03-13
+
+### Improvement — Audio Cleanup on History Delete
+
+#### Fixed
+
+- **Delete history now deletes audio**: Deleting a single history entry or clearing
+  all history now also removes the associated `.ogg` audio files from disk. Previously
+  only the JSON metadata was removed, leaving orphaned audio files.
+
 ## [2.0.14-beta] — 2026-03-12
 
 ### Bugfix — Installer Fails When App Is Running

@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, screen, globalShortcut, clipboard, Menu } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const Store = require('./store');
 const Sidecar = require('./sidecar');
 const { createTray, updateTrayIcon, updateTrayTooltip, showTrayBalloon, flashTrayError } = require('./tray');
@@ -388,8 +389,25 @@ ipcMain.handle('reset-settings', () => {
 
 // History
 ipcMain.handle('get-history', () => store.getHistory());
-ipcMain.handle('delete-history', (_, id) => store.deleteHistory(id));
-ipcMain.handle('clear-history', () => store.clearHistory());
+ipcMain.handle('delete-history', (_, id) => {
+  // Delete associated audio file before removing the history entry
+  const history = store.getHistory();
+  const entry = history.find(h => h.id === id);
+  if (entry && entry.audio_file) {
+    try { fs.unlinkSync(entry.audio_file); } catch { /* already gone */ }
+  }
+  return store.deleteHistory(id);
+});
+ipcMain.handle('clear-history', () => {
+  // Delete all associated audio files before clearing history
+  const history = store.getHistory();
+  for (const entry of history) {
+    if (entry.audio_file) {
+      try { fs.unlinkSync(entry.audio_file); } catch { /* already gone */ }
+    }
+  }
+  return store.clearHistory();
+});
 
 // State
 ipcMain.handle('get-state', () => ({ state: appState, message: appStateMessage }));
@@ -611,7 +629,6 @@ ipcMain.handle('get-audio', async (_, historyId) => {
   const history = store.getHistory();
   const entry = history.find(h => String(h.id) === String(historyId));
   if (!entry || !entry.audio_file) return { success: false, error: 'No audio file' };
-  const fs = require('fs');
   try {
     const audioPath = entry.audio_file;
     if (!fs.existsSync(audioPath)) return { success: false, error: 'Audio file not found' };
@@ -633,7 +650,6 @@ ipcMain.handle('export-transcription', async (_, text, format) => {
     filters: [{ name: 'Text Files', extensions: [ext] }],
   });
   if (result.canceled || !result.filePath) return { success: false, error: 'Cancelled' };
-  const fs = require('fs');
   fs.writeFileSync(result.filePath, text, 'utf8');
   return { success: true, path: result.filePath };
 });
