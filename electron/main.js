@@ -89,6 +89,7 @@ function createMainWindow() {
   });
 
   mainWindow.on('close', (e) => {
+    if (isQuitting) return; // Let close proceed during quit/update
     const settings = store.getSettings();
     if (settings.closeBehavior === 'tray' && tray) {
       e.preventDefault();
@@ -1100,6 +1101,10 @@ app.whenReady().then(() => {
   } catch (err) {
     log.error(`Failed to start sidecar: ${err.message}`);
   }
+});
+
+app.on('before-quit', () => {
+  isQuitting = true;
 });
 
 app.on('will-quit', () => {

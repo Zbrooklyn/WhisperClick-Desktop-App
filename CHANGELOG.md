@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.0.14-beta] — 2026-03-12
+
+### Bugfix — Installer Fails When App Is Running
+
+#### Fixed
+
+- **Close-to-tray blocking quit during updates**: When `closeBehavior` was set to
+  "tray", `app.quit()` (called by `quitAndInstall()`) would trigger the window close
+  handler, which intercepted it and hid the window instead of closing it. The app never
+  fully exited, leaving files locked, causing the NSIS installer to fail silently.
+- **Added `before-quit` handler**: Sets `isQuitting = true` before Electron tries to
+  close windows, so the close-to-tray handler allows the close to proceed during
+  quit/update flows.
+- This fixes both the auto-update install path and explains manual installer failures
+  when WhisperClick was still running in the system tray.
+
 ## [2.0.13-beta] — 2026-03-12
 
 ### UX — Update Install Feedback

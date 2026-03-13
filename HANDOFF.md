@@ -4,10 +4,10 @@
 
 ## Current State
 
-**Status**: Beta — v2.0.13-beta (update install UX feedback).
+**Status**: Beta — v2.0.14-beta (installer quit fix).
 
 **Latest stable release**: v2.0.5
-**Latest beta release**: v2.0.13-beta
+**Latest beta release**: v2.0.14-beta
 
 The Electron port uses V3's original `index.html`/`tailwind.css`/`lucide.min.js`
 frontend directly, with a pywebview API compatibility shim in `preload.js` that
@@ -169,3 +169,5 @@ Only 2 changes to the V3 frontend:
 - Store in-memory caching — eliminates 15-70ms sync disk reads on every getSettings/getHistory call (v2.0.10-beta)
 - Audio level IPC throttle — capped at 20fps, reduces event loop flooding during recording (v2.0.10-beta)
 - Debug file logger — 25 instrumentation points across main.js, 5MB rotation, runtime toggle in settings (v2.0.12-beta)
+- Update UI polish — spinners, install lock, cleaner copy (v2.0.13-beta)
+- Installer quit fix — close-to-tray was blocking app.quit() during updates, leaving files locked (v2.0.14-beta)
