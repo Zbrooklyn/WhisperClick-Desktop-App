@@ -95,6 +95,10 @@ ipcRenderer.on('update-status', (_e, data) => {
   latestUpdateStatus = data;
 });
 
+ipcRenderer.on('update-success', (_e, data) => {
+  window.dispatchEvent(new CustomEvent('update-success', { detail: data }));
+});
+
 ipcRenderer.on('pill-hidden', () => {
   // Dispatch a custom event so the frontend can sync the pill toggle
   window.dispatchEvent(new CustomEvent('pill-hidden'));

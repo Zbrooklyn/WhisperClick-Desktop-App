@@ -7,6 +7,8 @@
 
 const { ipcMain, app, Notification } = require('electron');
 const { autoUpdater } = require('electron-updater');
+const path = require('path');
+const fs = require('fs');
 
 let _mainWindow = null;
 let _store = null;
@@ -130,6 +132,11 @@ function initUpdater(mainWindow, store, sidecar) {
   });
 
   ipcMain.handle('install-update', async () => {
+    // Write marker so post-update launch can show success message
+    try {
+      const markerPath = path.join(app.getPath('userData'), 'update-marker.json');
+      fs.writeFileSync(markerPath, JSON.stringify({ from: app.getVersion() }));
+    } catch { /* non-critical */ }
     // Stop sidecar before installer runs — lingering child processes
     // can prevent NSIS silent mode from relaunching the app.
     if (_sidecar && _sidecar.isRunning) _sidecar.stop();
@@ -164,4 +171,26 @@ function checkForUpdatesQuietly() {
   }
 }
 
-module.exports = { initUpdater, checkForUpdatesQuietly };
+/**
+ * Check if this launch follows a successful update.
+ * Returns { updated: true, from: 'x.y.z' } or { updated: false }.
+ * Deletes the marker after reading so it only fires once.
+ */
+function checkUpdateMarker() {
+  const markerPath = path.join(app.getPath('userData'), 'update-marker.json');
+  try {
+    if (!fs.existsSync(markerPath)) return { updated: false };
+    const data = JSON.parse(fs.readFileSync(markerPath, 'utf8'));
+    fs.unlinkSync(markerPath);
+    const current = app.getVersion();
+    if (data.from && data.from !== current) {
+      return { updated: true, from: data.from, to: current };
+    }
+    return { updated: false };
+  } catch {
+    try { fs.unlinkSync(markerPath); } catch { /* ignore */ }
+    return { updated: false };
+  }
+}
+
+module.exports = { initUpdater, checkForUpdatesQuietly, checkUpdateMarker };

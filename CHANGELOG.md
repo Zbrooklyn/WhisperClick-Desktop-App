@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.0.16-beta] — 2026-03-13
+
+### UX — Install Update Confirmation & Post-Update Notification
+
+#### Added
+
+- **Install confirmation modal**: Clicking "Install & Restart" now shows a confirmation
+  dialog explaining the app will close and restart. Cancel or confirm before proceeding.
+- **Post-update system notification**: After a successful update, a Windows notification
+  shows "WhisperClick Updated — Successfully updated to vX.Y.Z". Clicking the
+  notification opens the main window. Also shows an in-app toast if the window is visible.
+- **Update marker**: Writes a marker file before quitting so the app detects a post-update
+  launch and shows the success notification exactly once.
+
 ## [2.0.15-beta] — 2026-03-13
 
 ### Improvement — Audio Cleanup on History Delete

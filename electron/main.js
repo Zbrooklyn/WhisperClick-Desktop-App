@@ -1,10 +1,10 @@
-const { app, BrowserWindow, ipcMain, screen, globalShortcut, clipboard, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, globalShortcut, clipboard, Menu, Notification } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const Store = require('./store');
 const Sidecar = require('./sidecar');
 const { createTray, updateTrayIcon, updateTrayTooltip, showTrayBalloon, flashTrayError } = require('./tray');
-const { initUpdater, checkForUpdatesQuietly } = require('./updater');
+const { initUpdater, checkForUpdatesQuietly, checkUpdateMarker } = require('./updater');
 const log = require('./logger');
 
 // --- Single instance lock ---
@@ -973,6 +973,31 @@ app.whenReady().then(() => {
   // Auto-updater
   initUpdater(mainWindow, store, sidecar);
   setTimeout(() => checkForUpdatesQuietly(), 10_000);
+  // Re-check every 4 hours
+  setInterval(() => checkForUpdatesQuietly(), 4 * 60 * 60 * 1000);
+
+  // Post-update success notification (system notification since app may start in tray)
+  const updateResult = checkUpdateMarker();
+  if (updateResult.updated) {
+    log.info(`Post-update launch: ${updateResult.from} → ${updateResult.to}`);
+    if (Notification.isSupported()) {
+      const n = new Notification({
+        title: 'WhisperClick Updated',
+        body: `Successfully updated to v${updateResult.to}`,
+      });
+      n.on('click', () => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.show();
+          mainWindow.focus();
+        }
+      });
+      n.show();
+    }
+    // Also send to renderer in case window is visible
+    mainWindow.webContents.once('did-finish-load', () => {
+      mainWindow.webContents.send('update-success', updateResult);
+    });
+  }
 
   // System tray — dynamic menu rebuilt on each right-click
   tray = createTray({
