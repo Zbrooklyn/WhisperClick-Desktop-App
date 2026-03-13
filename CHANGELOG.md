@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.0.20-beta] — 2026-03-13
+
+### UX — Collapsible Settings Sections
+
+#### Added
+
+- **Collapsible settings sections**: All 8 settings sections now have toggle headers
+  with animated chevrons. Click any section header to expand/collapse it.
+- **Default state**: Quick Settings and Provider & API Keys open by default. All other
+  sections (Language & Output, Advanced, Updates, Planned Features, Debug, Danger Zone)
+  start collapsed to reduce visual clutter.
+- **Smooth transitions**: Chevron rotates 90° on collapse with CSS transition.
+
 ## [2.0.19-beta] — 2026-03-13
 
 ### Bugfix — Recording State Desync Across Tray/Pill/Hotkey + Tray Auto-Paste
