@@ -84,6 +84,7 @@ class BrowserWindow {
     this.webContents = {
       send: jest.fn(),
       executeJavaScript: jest.fn().mockResolvedValue(undefined),
+      once: jest.fn((event, cb) => { cb(); }),
     };
     // jest.fn() wrappers for assertability
     this.loadFile = jest.fn().mockResolvedValue(undefined);

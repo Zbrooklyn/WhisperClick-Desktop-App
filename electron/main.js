@@ -82,11 +82,17 @@ function createMainWindow() {
   });
   mainWindow.on('hide', () => {
     const settings = store.getSettings();
-    if (settings.showPill && pillWindow && !pillWindow.isDestroyed()) pillWindow.show();
+    if (settings.showPill) {
+      if (!pillWindow || pillWindow.isDestroyed()) createPillWindow();
+      else pillWindow.show();
+    }
   });
   mainWindow.on('minimize', () => {
     const settings = store.getSettings();
-    if (settings.showPill && pillWindow && !pillWindow.isDestroyed()) pillWindow.show();
+    if (settings.showPill) {
+      if (!pillWindow || pillWindow.isDestroyed()) createPillWindow();
+      else pillWindow.show();
+    }
   });
 
   mainWindow.on('close', (e) => {
@@ -134,8 +140,15 @@ function createPillWindow() {
   // Click-through: transparent areas pass clicks to apps behind the pill.
   // The renderer toggles this off when the mouse enters visible content.
   pillWindow.setIgnoreMouseEvents(true, { forward: true });
+  // Push current state to the pill once it loads (handles recreation after destruction)
+  pillWindow.webContents.once('did-finish-load', () => {
+    if (pillWindow && !pillWindow.isDestroyed()) {
+      pillWindow.webContents.send('state-update', { state: appState, message: appStateMessage });
+    }
+  });
 
   pillWindow.on('closed', () => {
+    log.info('Pill window closed/destroyed');
     pillWindow = null;
   });
 }

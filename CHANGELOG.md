@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.0.17-beta] — 2026-03-13
+
+### Bugfix — Pill Widget Not Always Showing
+
+#### Fixed
+
+- **Pill auto-recreate**: If the pill window was destroyed (display change, crash, etc.),
+  it is now automatically recreated when the main window is hidden or minimized.
+  Previously, the pill would stay gone until manually toggled off and on.
+- **State sync on recreation**: Recreated pill immediately receives the current app state
+  so it shows the correct recording/processing/dormant UI.
+
 ## [2.0.16-beta] — 2026-03-13
 
 ### UX — Install Update Confirmation & Post-Update Notification
