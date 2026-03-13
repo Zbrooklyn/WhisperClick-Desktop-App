@@ -288,8 +288,7 @@ async function trayToggleRecording() {
     flashTrayError('WhisperClick — Setup required');
     return;
   }
-  // Capture foreground window before toggle
-  if (sidecar && sidecar.isRunning) sidecar.send('capture_fg').catch(() => {});
+  // Foreground window already captured by onCaptureTarget in tray click handler
   await toggleRecording();
 }
 
@@ -437,6 +436,13 @@ ipcMain.handle('pill-toggle-recording', async () => {
 
   // Capture foreground before toggle — pill is non-focusable so target app is still fg
   if (sidecar && sidecar.isRunning) sidecar.send('capture_fg').catch(() => {});
+
+  // If already recording (started by tray or hotkey), stop directly — don't route
+  // through the frontend which may not know about the externally-started recording.
+  if (appState === 'recording') {
+    await toggleRecording();
+    return;
+  }
 
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.executeJavaScript('triggerTrustedHotkeyToggle()').catch(() => {});
@@ -1036,6 +1042,9 @@ app.whenReady().then(() => {
       }
     },
     getTrayClickAction: () => store.getSettings().trayClickAction || 'show',
+    onCaptureTarget: () => {
+      if (sidecar && sidecar.isRunning) sidecar.send('capture_fg').catch(() => {});
+    },
     isDev,
   });
 

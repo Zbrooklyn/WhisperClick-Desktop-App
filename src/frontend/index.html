@@ -3045,6 +3045,35 @@
             updatePillMonitorVisibility(false);
         });
 
+        // Sync frontend state with externally-triggered recording changes
+        // (tray toggle, pill toggle when window was hidden, hotkey via direct path).
+        // Without this, the frontend's isRecording stays false when tray starts a
+        // recording, and the next pill/hotkey toggle tries to START again → "Already recording".
+        window.addEventListener('state-update', (e) => {
+            const { state } = e.detail || {};
+            if (state === 'recording' && !isRecording) {
+                isRecording = true;
+                seconds = 0;
+                timerEl.innerText = "00:00";
+                timerInterval = setInterval(() => {
+                    seconds++;
+                    timerEl.innerText = formatTime(seconds);
+                }, 1000);
+                setListeningUi();
+            } else if (state === 'processing' && isRecording) {
+                isRecording = false;
+                recordingDurationSecs = seconds;
+                clearInterval(timerInterval);
+                beginProcessingState();
+                setProcessingUi();
+            } else if (state === 'dormant' && (isRecording || isProcessing)) {
+                isRecording = false;
+                clearInterval(timerInterval);
+                endProcessingState();
+                setIdleUi();
+            }
+        });
+
         // Post-update success toast
         window.addEventListener('update-success', (e) => {
             const { from, to } = e.detail;

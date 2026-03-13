@@ -198,7 +198,7 @@ const STATE_COLORS = {
   error: '#DC6450',
 };
 
-function createTray({ onShow, onBuildMenu, onToggleRecording, onCancelRecording, getIsRecordingActive, onBalloonClick, getTrayClickAction, isDev = false }) {
+function createTray({ onShow, onBuildMenu, onToggleRecording, onCancelRecording, getIsRecordingActive, onBalloonClick, getTrayClickAction, onCaptureTarget, isDev = false }) {
   const defaultColor = isDev ? '#60A5FA' : '#CF9673';
   const icon = getTintedIcon(defaultColor) || generateFallbackIcon(defaultColor);
   tray = new Tray(icon);
@@ -221,6 +221,11 @@ function createTray({ onShow, onBuildMenu, onToggleRecording, onCancelRecording,
     const mode = getTrayClickAction ? getTrayClickAction() : 'show';
 
     if (mode === 'record') {
+      // Capture the user's foreground window IMMEDIATELY — before the 300ms
+      // double-click delay, and before Windows shifts focus to the tray area.
+      // This lets auto-paste restore focus to the correct text field.
+      if (onCaptureTarget) onCaptureTarget();
+
       // Delay single-click action to let double-click cancel it
       if (clickTimeout) return; // Already waiting
       clickTimeout = setTimeout(() => {

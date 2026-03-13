@@ -104,6 +104,12 @@ ipcRenderer.on('pill-hidden', () => {
   window.dispatchEvent(new CustomEvent('pill-hidden'));
 });
 
+// Forward state-update so the frontend stays in sync with externally-triggered
+// recording changes (tray toggle, pill toggle, hotkey when window is hidden).
+ipcRenderer.on('state-update', (_e, data) => {
+  window.dispatchEvent(new CustomEvent('state-update', { detail: data }));
+});
+
 // ---------------------------------------------------------------------------
 // Expose window.pywebview.api
 // ---------------------------------------------------------------------------
