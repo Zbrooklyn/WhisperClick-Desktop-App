@@ -1,5 +1,39 @@
 # Changelog
 
+## [2.0.19-beta] — 2026-03-13
+
+### Bugfix — Recording State Desync Across Tray/Pill/Hotkey + Tray Auto-Paste
+
+#### Fixed
+
+- **"Already recording" error**: Starting a recording from the tray and then clicking the
+  pill to stop it would trigger "Already recording" instead of stopping. Root cause: the
+  `state-update` event was never forwarded through the preload to the frontend, so the
+  frontend's `isRecording` variable stayed `false` after tray-initiated recordings. The pill
+  routed through the frontend which tried to start a second recording.
+- **Frontend state sync**: `state-update` is now forwarded via preload → CustomEvent. The
+  frontend syncs `isRecording`, the timer, and UI (listening/processing/idle) with externally-
+  triggered state changes from tray, pill, or hotkey.
+- **Pill direct stop**: `pill-toggle-recording` now calls `toggleRecording()` directly when
+  `appState` is already `recording`, bypassing the frontend routing that caused the desync.
+- **Tray auto-paste not working**: `capture_fg` (foreground window capture) was called 300ms
+  after the tray click (inside the double-click delay). By then, Windows had shifted focus to
+  the tray area. Now captured immediately on tray click, before the delay.
+
+## [2.0.18-beta] — 2026-03-13
+
+### UX — Polished Notification Ribbon
+
+#### Changed
+
+- **No colored borders**: Removed green/blue/red left border accents. Notifications now use
+  the stone/accent palette consistently with the rest of the app.
+- **6-second auto-dismiss**: Success and info toasts dismiss after 6 seconds (was 3 seconds).
+- **Manual dismiss for errors**: Error toasts stay until the user clicks the X button.
+  Previously all toasts auto-dismissed, including errors.
+- **Slide animation**: Banners slide down from the header and slide back up on dismiss
+  (bannerIn/bannerOut keyframes added to Tailwind config).
+
 ## [2.0.17-beta] — 2026-03-13
 
 ### Bugfix — Pill Widget Not Always Showing
