@@ -16,8 +16,8 @@
   <meta property="og:title" content="WhisperClick — AI Voice-to-Text for Windows, macOS &amp; Linux">
   <meta property="og:description" content="AI speech-to-text that runs offline with Whisper AI or cloud APIs. One hotkey, instant transcription, pasted at your cursor.">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://zbrooklyn.github.io/WhisperClick-Desktop-App/">
-  <meta property="og:image" content="https://zbrooklyn.github.io/WhisperClick-Desktop-App/assets/app-dark.png">
+  <meta property="og:url" content="https://whisperclick.com/">
+  <meta property="og:image" content="https://whisperclick.com/assets/app-dark.png">
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1618,6 +1618,71 @@
     .developer-code .comment { color: var(--text-muted); }
 
     /* ═══════════════════════════════════════════════════
+       SUPPORT
+       ═══════════════════════════════════════════════════ */
+    .support {
+      padding: 80px 0;
+      border-top: 1px solid var(--border-dim);
+    }
+    .support-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+    }
+    .support-card {
+      background: var(--bg-raised);
+      border: 1px solid var(--border-dim);
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .support-card:hover {
+      border-color: var(--border);
+      transform: translateY(-2px);
+    }
+    .support-card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: var(--accent-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+    .support-card-icon svg {
+      width: 20px;
+      height: 20px;
+      color: var(--accent);
+    }
+    .support-card h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .support-card p {
+      font-size: 0.88rem;
+      color: var(--text-dim);
+      line-height: 1.6;
+      margin-bottom: 14px;
+    }
+    .support-card a {
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .support-card a svg {
+      width: 14px;
+      height: 14px;
+      transition: transform 0.2s;
+    }
+    .support-card a:hover svg {
+      transform: translateX(3px);
+    }
+
+    /* ═══════════════════════════════════════════════════
        FOOTER
        ═══════════════════════════════════════════════════ */
     footer {
@@ -1697,6 +1762,7 @@
       .feature-grid { grid-template-columns: repeat(2, 1fr); }
       .developer-inner { flex-direction: column; }
       .developer-code { width: 100%; }
+      .support-grid { grid-template-columns: repeat(2, 1fr); }
       .steps-row { grid-template-columns: repeat(2, 1fr); gap: 32px; }
       .steps-row::before { display: none; }
       .download-packages { grid-template-columns: 1fr; max-width: 400px; }
@@ -1792,6 +1858,8 @@
       .developer { padding: 56px 0; }
       .developer-text h2 { font-size: 1.4rem; }
       .developer-code pre { font-size: 0.78rem; padding: 14px; }
+      .support { padding: 64px 0; }
+      .support-grid { grid-template-columns: 1fr; max-width: 400px; margin: 0 auto; }
       footer { padding: 32px 0 28px; }
     }
 
@@ -2672,6 +2740,70 @@ venv\Scripts\activate
   </section>
 
   <!-- ════════════════════════════════════════════════════
+       SUPPORT
+       ════════════════════════════════════════════════════ -->
+  <section class="support" id="support">
+    <div class="container">
+      <div class="section-header reveal">
+        <span class="section-label">Support</span>
+        <h2 class="section-title">Help &amp; resources</h2>
+        <p class="section-subtitle">Everything you need to get up and running.</p>
+      </div>
+      <div class="support-grid stagger">
+
+        <div class="support-card reveal">
+          <div class="support-card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          </div>
+          <h3>Getting started</h3>
+          <p>Set up your API key, choose a model, and start transcribing in under two minutes.</p>
+          <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/wiki/Getting-Started" target="_blank" rel="noopener">
+            Read the guide
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </a>
+        </div>
+
+        <div class="support-card reveal">
+          <div class="support-card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <h3>FAQ</h3>
+          <p>Common questions about API keys, local models, hotkeys, and troubleshooting.</p>
+          <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/wiki/FAQ" target="_blank" rel="noopener">
+            View FAQ
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </a>
+        </div>
+
+        <div class="support-card reveal">
+          <div class="support-card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <h3>Report a bug</h3>
+          <p>Found something that doesn't work right? Open an issue and we'll take a look.</p>
+          <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/issues" target="_blank" rel="noopener">
+            Open an issue
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </a>
+        </div>
+
+        <div class="support-card reveal">
+          <div class="support-card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="m14.5 4-5 16"/></svg>
+          </div>
+          <h3>Source code</h3>
+          <p>Browse the codebase, submit pull requests, or build from source yourself.</p>
+          <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App" target="_blank" rel="noopener">
+            View on GitHub
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
        FOOTER
        ════════════════════════════════════════════════════ -->
   <footer>
@@ -2696,6 +2828,8 @@ venv\Scripts\activate
           <h4>Resources</h4>
           <ul>
             <li><a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App" target="_blank" rel="noopener">GitHub</a></li>
+            <li><a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/wiki/Getting-Started" target="_blank" rel="noopener">Getting started</a></li>
+            <li><a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/wiki/FAQ" target="_blank" rel="noopener">FAQ</a></li>
             <li><a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/blob/main/PRIVACY.md" target="_blank" rel="noopener">Privacy policy</a></li>
             <li><a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/blob/main/SECURITY.md" target="_blank" rel="noopener">Security</a></li>
           </ul>

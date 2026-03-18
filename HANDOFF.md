@@ -149,7 +149,9 @@ Only 2 changes to the V3 frontend:
 2. Code signing for Windows/macOS (removes SmartScreen/Gatekeeper warnings)
 3. Live streaming runtime (partial transcription during recording)
 4. Address edge cases from free version audit (max recording length, orphaned audio cleanup, min recording guard)
-5. See ROADMAP.md for full feature backlog
+5. Create GitHub Organization (e.g., `WhisperClickApp`) and transfer public repo to it — auto-redirects all URLs. Do this when ready to go official, not before.
+6. Finalize and ship Auto-Enter feature (3 modes: Off, Button, Auto) — code complete, needs more local testing
+7. See ROADMAP.md for full feature backlog
 
 ## Completed
 

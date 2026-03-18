@@ -206,6 +206,44 @@
     .capsule.error .recording-ui { display: none; }
     .capsule.error .dormant-bars { display: flex; }
 
+    /* State: Enter button */
+    .capsule.enter-ready {
+      width: 72px;
+      height: 28px;
+      border-radius: 14px;
+      border-color: rgba(220, 100, 80, 0.6);
+      cursor: pointer;
+    }
+    .capsule.enter-ready:hover, .capsule.enter-ready.hovered {
+      border-color: rgba(220, 100, 80, 0.9);
+      box-shadow: 0 0 8px rgba(220, 100, 80, 0.3);
+    }
+    .capsule.enter-ready .dormant-bars { display: none; }
+    .capsule.enter-ready .recording-ui { display: none; }
+    .capsule.enter-ready .enter-ui { display: flex; }
+    .capsule.enter-ready ~ .tooltip { display: none !important; }
+
+    .enter-ui {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      width: 100%;
+      height: 100%;
+    }
+    .enter-ui svg {
+      width: 14px;
+      height: 14px;
+      color: #DC6450;
+    }
+    .enter-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #DC6450;
+    }
+
     /* Error tooltip variant — always visible during error state */
     .tooltip.tooltip-error {
       color: #F87171;
@@ -232,8 +270,15 @@
       </button>
       <div class="voice-bars" id="voice-bars"></div>
       <button class="btn-stop" id="btn-stop" title="Stop recording">
-        <div class="stop-icon"></div>
+        <div class="stop-icon" id="stop-square"></div>
+        <svg id="stop-enter-icon" class="stop-enter-icon" style="display:none" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg>
       </button>
+    </div>
+
+    <!-- Enter button UI -->
+    <div class="enter-ui" id="enter-ui">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg>
+      <span class="enter-label">Send</span>
     </div>
   </div>
 
@@ -275,18 +320,30 @@
 
       // State
       let currentState = 'dormant';
+      let autoEnterMode = 'off';
       let shrinkTimeout = null;
       const defaultTooltipHTML = tooltip.innerHTML;
+      const stopSquare = document.getElementById('stop-square');
+      const stopEnterIcon = document.getElementById('stop-enter-icon');
 
       function setState(state, message) {
         currentState = state;
         capsule.className = 'capsule ' + state;
 
+        // Hide tooltip during active states (recording/processing hide via CSS,
+        // but :hover can linger after click — force-hide for non-dormant states)
+        if (state !== 'dormant') {
+          tooltip.style.display = 'none';
+        } else {
+          tooltip.style.display = '';
+        }
+
         // Update tooltip based on state
         if (state === 'error' && message) {
           tooltip.innerHTML = message;
           tooltip.classList.add('tooltip-error');
-        } else {
+          tooltip.style.display = ''; // errors should show tooltip
+        } else if (state === 'dormant') {
           tooltip.innerHTML = defaultTooltipHTML;
           tooltip.classList.remove('tooltip-error');
         }
@@ -321,8 +378,19 @@
       }
 
       // IPC listeners
+      function updateStopIcon() {
+        const showEnter = autoEnterMode === 'auto';
+        stopSquare.style.display = showEnter ? 'none' : '';
+        stopEnterIcon.style.display = showEnter ? '' : 'none';
+      }
+
       window.electronAPI.onStateUpdate((data) => {
         if (shrinkTimeout) { clearTimeout(shrinkTimeout); shrinkTimeout = null; }
+        // Track auto-enter mode from state broadcasts
+        if (data.autoEnterMode) autoEnterMode = data.autoEnterMode;
+        updateStopIcon();
+        // Don't override enter-ready state when dormant arrives
+        if (data.state === 'dormant' && currentState === 'enter-ready') return;
         setState(data.state, data.message);
       });
 
@@ -332,7 +400,14 @@
 
       // Click handling
       capsule.addEventListener('click', (e) => {
-        if (e.target.closest('.btn-cancel') || e.target.closest('.btn-stop')) return;
+        if (e.target.closest('.btn-cancel') || e.target.closest('.btn-stop') || e.target.closest('.enter-ui')) return;
+        // If enter button is showing, clicking capsule triggers enter
+        if (currentState === 'enter-ready') {
+          if (enterTimeout) clearTimeout(enterTimeout);
+          window.electronAPI.simulateEnter();
+          setState('dormant');
+          return;
+        }
         window.electronAPI.toggleRecording();
       });
 
@@ -366,6 +441,30 @@
       capsule.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         window.electronAPI.showContextMenu();
+      });
+
+      // Enter button support
+      let enterTimeout = null;
+
+      window.electronAPI.onShowEnterButton((data) => {
+        if (shrinkTimeout) { clearTimeout(shrinkTimeout); shrinkTimeout = null; }
+        currentState = 'enter-ready';
+        capsule.className = 'capsule enter-ready';
+        tooltip.innerHTML = defaultTooltipHTML;
+        tooltip.classList.remove('tooltip-error');
+        // Auto-dismiss: 2s for short recordings, up to 5s for long ones
+        const dur = (data && data.duration) || 0;
+        const dismissMs = Math.min(2000 + (dur * 100), 5000);
+        if (enterTimeout) clearTimeout(enterTimeout);
+        enterTimeout = setTimeout(() => setState('dormant'), dismissMs);
+      });
+
+      document.getElementById('enter-ui').addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (currentState !== 'enter-ready') return;
+        if (enterTimeout) clearTimeout(enterTimeout);
+        window.electronAPI.simulateEnter();
+        setState('dormant');
       });
 
       // State reconciliation — poll every 5s to fix missed broadcasts.

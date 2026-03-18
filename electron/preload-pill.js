@@ -18,4 +18,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Click-through toggle — called on mouseenter/mouseleave of visible content
   // so transparent areas pass clicks to apps behind the pill window.
   setIgnoreMouse: (ignore) => ipcRenderer.send('pill-set-ignore-mouse', ignore),
+
+  // Auto-Enter: show enter button after transcription
+  onShowEnterButton: (cb) => ipcRenderer.on('show-enter-button', (_, data) => cb(data)),
+  simulateEnter: () => ipcRenderer.invoke('simulate-enter'),
 });

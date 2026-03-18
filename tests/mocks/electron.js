@@ -99,6 +99,7 @@ class BrowserWindow {
     this.unmaximize = jest.fn(() => { this._maximized = false; });
     this.isMaximized = jest.fn(() => this._maximized);
     this.isMinimized = jest.fn(() => false);
+    this.isVisible = jest.fn(() => !this._destroyed);
     this.isDestroyed = jest.fn(() => this._destroyed);
     this.setAlwaysOnTop = jest.fn();
     this.setBackgroundColor = jest.fn();

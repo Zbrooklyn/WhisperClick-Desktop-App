@@ -1,5 +1,52 @@
 # Changelog
 
+## [2.1.0] — 2026-03-17
+
+### Feature — Auto-Enter Mode
+
+#### Added
+
+- **Auto-Enter setting**: Three modes (Off, Button, Auto) — after transcription pastes,
+  optionally press Enter automatically or show a clickable Enter button.
+- **Button mode**: Record button transforms to red Enter (↵) icon after transcription.
+  Click to send. Auto-dismisses after 2–5 seconds based on recording length.
+- **Auto mode**: Enter fires automatically after paste with smart delay
+  (300ms + 5ms per character, max 3 seconds).
+- **Pill widget Enter support**: Stop button shows ↵ icon in Auto mode.
+  Button mode shows enter-ready state on the pill with click-to-send.
+- **Sidecar `press_enter` command**: Simulates Enter keypress via `keybd_event`.
+
+### Stability & Bug Fixes
+
+#### Fixed
+
+- **Pill widget disappearing**: Added `isDestroyed()` guards to all broadcast functions.
+  Fixed settings toggle race condition. Pill now repositions to primary display center
+  on every show. Added `show: false` to prevent flash on creation.
+- **Phantom clock**: Timer no longer runs when reopening the app in dormant state.
+  `broadcastState()` fires on window show/restore. Dormant handler always clears timer.
+- **Tooltip lingering**: Force-hidden during active states (recording, processing,
+  success, enter-ready) to prevent stale `:hover` tooltip display.
+- **EPIPE crash dialog**: Suppressed broken pipe errors on stdout/stderr from
+  auto-updater console.info calls in dev mode.
+- **App state stuck on success**: Dormant transition timer was being skipped in
+  button mode. Now always transitions to dormant (6s delay in button mode).
+- **Double-timer prevention**: `clearInterval` before every `setInterval` call
+  prevents overlapping timers from state transitions.
+
+### Website & Documentation
+
+#### Added
+
+- **Getting Started guide** (`docs/GETTING-STARTED.md`): Download, setup, usage, tips.
+- **FAQ & Troubleshooting** (`docs/FAQ.md`): 23 Q&As covering common issues.
+- **Website support section**: 4-card grid with docs, FAQ, bug reports, source links.
+- **Marketing content**: Product Hunt, Reddit, Show HN, AlternativeTo, dev.to, Twitter drafts.
+
+#### Fixed
+
+- **Open Graph URLs**: Updated `og:url` and `og:image` from old GitHub Pages URL to `whisperclick.com`.
+
 ## [2.0.22-beta] — 2026-03-13
 
 ### UX — Collapsible Settings Sections

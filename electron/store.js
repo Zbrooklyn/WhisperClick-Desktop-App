@@ -14,6 +14,7 @@ const DEFAULT_SETTINGS = {
   theme: 'dark',
   alwaysOnTop: false,
   autoPaste: true,
+  autoEnterMode: 'off',
   showPill: false,
   closeBehavior: 'tray',
   autoStart: false,

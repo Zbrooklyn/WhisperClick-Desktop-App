@@ -7,6 +7,11 @@ const { createTray, updateTrayIcon, updateTrayTooltip, showTrayBalloon, flashTra
 const { initUpdater, checkForUpdatesQuietly, checkUpdateMarker } = require('./updater');
 const log = require('./logger');
 
+// Suppress EPIPE errors on stdout/stderr (broken pipe when parent process closes)
+// This prevents crash dialogs from electron-updater's console.info calls
+process.stdout?.on('error', (err) => { if (err.code !== 'EPIPE') throw err; });
+process.stderr?.on('error', (err) => { if (err.code !== 'EPIPE') throw err; });
+
 // --- Single instance lock ---
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
@@ -72,6 +77,8 @@ function createMainWindow() {
   // Pill visibility follows main window: pill shows when window is hidden, hides when shown
   mainWindow.on('show', () => {
     if (pillWindow && !pillWindow.isDestroyed()) pillWindow.hide();
+    // Sync frontend state so timer/UI matches actual backend state
+    broadcastState();
     // Reset settings drawer so window always reopens to main view
     mainWindow.webContents.executeJavaScript(
       'document.getElementById("settings-drawer")?.classList.add("translate-x-full")'
@@ -79,21 +86,28 @@ function createMainWindow() {
   });
   mainWindow.on('restore', () => {
     if (pillWindow && !pillWindow.isDestroyed()) pillWindow.hide();
+    broadcastState();
   });
-  mainWindow.on('hide', () => {
+  function showPillOnPrimaryDisplay() {
     const settings = store.getSettings();
-    if (settings.showPill) {
-      if (!pillWindow || pillWindow.isDestroyed()) createPillWindow();
-      else pillWindow.show();
+    if (!settings.showPill) return;
+    if (!pillWindow || pillWindow.isDestroyed()) {
+      createPillWindow();
+    } else {
+      // Reposition to primary display bottom-center (handles monitor changes)
+      const display = screen.getPrimaryDisplay();
+      const { width: screenW, height: screenH } = display.workAreaSize;
+      const { x: areaX, y: areaY } = display.workArea;
+      pillWindow.setPosition(
+        areaX + Math.round((screenW - PILL_WIDTH) / 2),
+        areaY + screenH - PILL_HEIGHT - 10
+      );
+      pillWindow.show();
+      broadcastState();
     }
-  });
-  mainWindow.on('minimize', () => {
-    const settings = store.getSettings();
-    if (settings.showPill) {
-      if (!pillWindow || pillWindow.isDestroyed()) createPillWindow();
-      else pillWindow.show();
-    }
-  });
+  }
+  mainWindow.on('hide', showPillOnPrimaryDisplay);
+  mainWindow.on('minimize', showPillOnPrimaryDisplay);
 
   mainWindow.on('close', (e) => {
     if (isQuitting) return; // Let close proceed during quit/update
@@ -129,6 +143,7 @@ function createPillWindow() {
     skipTaskbar: true,
     focusable: false,  // V3 uses WA_ShowWithoutActivating — pill must not steal focus
     hasShadow: false,
+    show: false, // Don't show until ready — avoids flash and race conditions
     webPreferences: {
       preload: path.join(__dirname, 'preload-pill.js'),
       contextIsolation: true,
@@ -140,9 +155,11 @@ function createPillWindow() {
   // Click-through: transparent areas pass clicks to apps behind the pill.
   // The renderer toggles this off when the mouse enters visible content.
   pillWindow.setIgnoreMouseEvents(true, { forward: true });
-  // Push current state to the pill once it loads (handles recreation after destruction)
+  // Push current state once it loads; show only if main window is hidden
   pillWindow.webContents.once('did-finish-load', () => {
     if (pillWindow && !pillWindow.isDestroyed()) {
+      const mainHidden = !mainWindow || mainWindow.isDestroyed() || !mainWindow.isVisible();
+      if (mainHidden) pillWindow.show();
       pillWindow.webContents.send('state-update', { state: appState, message: appStateMessage });
     }
   });
@@ -164,9 +181,10 @@ function setAppState(state, message) {
 }
 
 function broadcastState() {
-  const payload = { state: appState, message: appStateMessage };
-  if (mainWindow) mainWindow.webContents.send('state-update', payload);
-  if (pillWindow) pillWindow.webContents.send('state-update', payload);
+  const autoEnterMode = store ? store.getSettings().autoEnterMode : 'off';
+  const payload = { state: appState, message: appStateMessage, autoEnterMode };
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('state-update', payload);
+  if (pillWindow && !pillWindow.isDestroyed()) pillWindow.webContents.send('state-update', payload);
   updateTrayIcon(appState);
   // Update tray tooltip to reflect current state
   const prefix = isDev ? 'WhisperClick [DEV]' : 'WhisperClick';
@@ -182,8 +200,8 @@ function broadcastLevel(level) {
   const now = Date.now();
   if (now - _lastLevelBroadcast < LEVEL_THROTTLE_MS) return;
   _lastLevelBroadcast = now;
-  if (mainWindow) mainWindow.webContents.send('level-update', level);
-  if (pillWindow) pillWindow.webContents.send('level-update', level);
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('level-update', level);
+  if (pillWindow && !pillWindow.isDestroyed()) pillWindow.webContents.send('level-update', level);
 }
 
 function broadcastError(message) {
@@ -373,9 +391,9 @@ ipcMain.handle('save-settings', (_, patch) => {
     registerHotkey(settings.hotkey);
   }
   // Toggle pill visibility
-  if (settings.showPill && !pillWindow) {
+  if (settings.showPill && (!pillWindow || pillWindow.isDestroyed())) {
     createPillWindow();
-  } else if (!settings.showPill && pillWindow) {
+  } else if (!settings.showPill && pillWindow && !pillWindow.isDestroyed()) {
     pillWindow.close();
   }
   // Toggle debug logging at runtime
@@ -641,6 +659,11 @@ ipcMain.handle('paste-last-transcript', () => {
   clipboard.writeText(text);
   setTimeout(() => simulatePaste(), 150);
   return { success: true, text };
+});
+
+ipcMain.handle('simulate-enter', () => {
+  simulateEnter();
+  return { success: true };
 });
 
 // Audio playback — read audio file from disk and return as base64
@@ -965,6 +988,17 @@ function simulatePaste() {
   }
 }
 
+function simulateEnter() {
+  if (process.platform === 'win32') {
+    if (sidecar && sidecar.isRunning) {
+      sidecar.send('press_enter').catch(() => {});
+    }
+  } else if (process.platform === 'darwin') {
+    const { exec } = require('child_process');
+    exec('osascript -e \'tell application "System Events" to keystroke return\'');
+  }
+}
+
 // --- App lifecycle ---
 
 app.on('second-instance', () => {
@@ -983,10 +1017,9 @@ app.whenReady().then(() => {
   log.init(configDir, settings.debugLogging);
 
   createMainWindow();
-  // Create pill but keep it hidden — it shows when main window is hidden/minimized
+  // Pre-create pill (hidden via show:false) — it shows when main window is hidden/minimized
   if (settings.showPill) {
     createPillWindow();
-    if (pillWindow) pillWindow.hide();
   }
 
   // Auto-updater
@@ -1086,17 +1119,31 @@ app.whenReady().then(() => {
     }
     // Auto-paste: copy to clipboard and simulate Ctrl+V
     const currentSettings = store.getSettings();
-    if (currentSettings.autoPaste && data.text) {
+    const didPaste = currentSettings.autoPaste && data.text;
+    if (didPaste) {
       clipboard.writeText(data.text);
       // Small delay to ensure focus is on the target app
       setTimeout(() => {
         simulatePaste();
+        // Auto-enter: press Enter after paste with smart delay
+        if (currentSettings.autoEnterMode === 'auto') {
+          const charDelay = Math.min(300 + (data.text.length * 5), 3000);
+          setTimeout(() => simulateEnter(), charDelay);
+        }
       }, 150);
     }
+    // Notify pill of button mode for enter button display (only if something was pasted)
+    if (didPaste && currentSettings.autoEnterMode === 'button') {
+      const dur = data.duration || 0;
+      if (pillWindow && !pillWindow.isDestroyed()) pillWindow.webContents.send('show-enter-button', { duration: dur });
+    }
+    // Transition to dormant — delayed longer in button mode so enter button has time
+    const enterButtonActive = didPaste && currentSettings.autoEnterMode === 'button';
+    const dormantDelay = enterButtonActive ? 6000 : 1500;
     setTimeout(() => {
       setAppState('dormant');
       broadcastState();
-    }, 1500);
+    }, dormantDelay);
   });
 
   sidecar.on('translation', (data) => {

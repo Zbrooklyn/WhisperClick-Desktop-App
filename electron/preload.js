@@ -31,6 +31,7 @@ const V3_TO_ELECTRON = {
   audio_retention_days: 'audioRetentionDays',
   auto_download_updates: 'autoDownloadUpdates',
   tray_click_action: 'trayClickAction',
+  auto_enter_mode: 'autoEnterMode',
   debug_logging: 'debugLogging',
 };
 
@@ -108,6 +109,10 @@ ipcRenderer.on('pill-hidden', () => {
 // recording changes (tray toggle, pill toggle, hotkey when window is hidden).
 ipcRenderer.on('state-update', (_e, data) => {
   window.dispatchEvent(new CustomEvent('state-update', { detail: data }));
+});
+
+ipcRenderer.on('show-enter-button', () => {
+  window.dispatchEvent(new CustomEvent('show-enter-button'));
 });
 
 // ---------------------------------------------------------------------------
@@ -256,6 +261,10 @@ contextBridge.exposeInMainWorld('pywebview', {
 
     async paste_last_transcript() {
       return await ipcRenderer.invoke('paste-last-transcript');
+    },
+
+    async simulate_enter() {
+      return await ipcRenderer.invoke('simulate-enter');
     },
 
     // ── Window controls ───────────────────────────────────────────────────

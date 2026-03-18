@@ -485,6 +485,16 @@ def handle_command(msg):
     elif cmd == "paste":
         _do_paste(msg_id, msg.get("wc_focused", False))
 
+    elif cmd == "press_enter":
+        try:
+            import ctypes
+            VK_RETURN, KEYEVENTF_KEYUP = 0x0D, 0x02
+            ctypes.windll.user32.keybd_event(VK_RETURN, 0, 0, 0)
+            ctypes.windll.user32.keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, 0)
+        except Exception:
+            _log.debug("press_enter failed", exc_info=True)
+        send_ok(msg_id)
+
     # --- API key verification (HTTP) ---
 
     elif cmd == "verify_key":
