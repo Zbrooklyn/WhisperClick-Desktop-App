@@ -226,7 +226,7 @@ function validateRecordingReadiness() {
   if (appState === 'processing') {
     return null; // Let cancel logic handle it
   }
-  if (appState !== 'dormant') {
+  if (appState !== 'dormant' && appState !== 'success') {
     return null; // Already recording — stop logic will handle it
   }
   const s = store.getSettings();
@@ -560,6 +560,7 @@ ipcMain.handle('start-recording', async () => {
     return { success: true };
   } catch (err) {
     log.error(`start-recording failed: ${err.message}`);
+    setAppState('dormant');
     broadcastError(err.message || 'Failed to start recording');
     return { success: false, error: err.message };
   }
