@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.1.1] — 2026-03-17
+
+### Fixed
+
+- **"Already recording" after transcription**: Recording was blocked when `appState` was
+  still `'success'` (1.5–6s window after transcription). Now `success` is treated as ready
+  for new recordings. Also resets `appState` to dormant if `start_rec` fails.
+
 ## [2.1.0] — 2026-03-17
 
 ### Feature — Auto-Enter Mode
