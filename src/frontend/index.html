@@ -3723,8 +3723,8 @@
             }
 
             const now = Date.now();
-            if (now < nextAllowedToggleAt) {
-                return;
+            if (now < nextAllowedToggleAt && !isProcessing) {
+                return; // Debounce — but always allow cancel during processing
             }
             if (now - lastToggleInvocationAt < 160) {
                 return;

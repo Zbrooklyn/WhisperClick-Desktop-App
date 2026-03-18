@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.1.2] — 2026-03-18
+
+### Fixed
+
+- **Cancel button (X) not working during processing**: The 900ms debounce after
+  stopping was blocking cancel clicks. Now debounce is bypassed when in processing
+  state, allowing immediate cancellation.
+
 ## [2.1.1] — 2026-03-17
 
 ### Fixed
