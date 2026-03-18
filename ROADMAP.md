@@ -1,6 +1,6 @@
 # Roadmap — WhisperClick Electron
 
-> Last updated: 2026-03-06
+> Last updated: 2026-03-18
 
 ---
 
@@ -29,6 +29,17 @@
 # Free Version Roadmap
 
 Everything needed to ship a polished, complete free product.
+
+## Phase F0 — State Machine Refactor (Priority)
+
+Recurring state bugs (v2.1.0–v2.1.2) stem from implicit state management.
+Full design: `docs/dev/state-machine-refactor.md`. Branch: `feature/state-machine`.
+
+- [ ] **Phase 1**: Extract state machine module — defined states, transitions, guards
+- [ ] **Phase 2**: Single input gate — replace 5 overlapping debounce/guard layers
+- [ ] **Phase 3**: Pill as dumb terminal — zero local state, render payloads from main
+- [ ] **Phase 4**: Frontend state simplification — remove isRecording/isProcessing flags
+- [ ] **Phase 5**: Event-driven transitions — replace timer-based with event + fallback
 
 ## Phase F1 — Stability & CI
 

@@ -148,12 +148,19 @@ Only 2 changes to the V3 frontend:
 
 ## Next Steps
 
-1. Fix 3 cross-platform test failures (Linux CI, `continue-on-error: true`)
-2. Code signing for Windows/macOS (removes SmartScreen/Gatekeeper warnings)
-3. Live streaming runtime (partial transcription during recording)
-4. Address edge cases from free version audit (max recording length, orphaned audio cleanup, min recording guard)
-5. Create GitHub Organization (e.g., `WhisperClickApp`) and transfer public repo to it — auto-redirects all URLs. Do this when ready to go official, not before.
-6. See ROADMAP.md for full feature backlog
+1. **State machine refactor** — 5-phase refactor to eliminate recurring state bugs.
+   Design doc: `docs/dev/state-machine-refactor.md`. Branch: `feature/state-machine`.
+   - Phase 1: Extract state machine module (`electron/state-machine.js`) ← IN PROGRESS
+   - Phase 2: Single input gate (replace 5 debounce layers)
+   - Phase 3: Pill as dumb terminal (zero local state)
+   - Phase 4: Frontend state simplification (remove isRecording/isProcessing)
+   - Phase 5: Event-driven transitions (replace timer-based)
+2. Fix 3 cross-platform test failures (Linux CI, `continue-on-error: true`)
+3. Code signing for Windows/macOS (removes SmartScreen/Gatekeeper warnings)
+4. Live streaming runtime (partial transcription during recording)
+5. Address edge cases from free version audit (max recording length, orphaned audio cleanup, min recording guard)
+6. Create GitHub Organization (e.g., `WhisperClickApp`) and transfer public repo to it — auto-redirects all URLs. Do this when ready to go official, not before.
+7. See ROADMAP.md for full feature backlog
 
 ## Completed
 
