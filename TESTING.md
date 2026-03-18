@@ -3,7 +3,7 @@
 ## Quick Start
 
 ```bash
-npm test                  # All unit + integration tests (261 tests, ~5s)
+npm test                  # All unit + integration tests (399 tests, ~5s)
 npm run test:unit         # Unit tests only
 npm run test:integration  # Integration tests only
 npm run test:e2e          # E2E tests (13 tests, launches mock sidecar)
@@ -31,7 +31,7 @@ tests/
     app.e2e.test.js       # 13 tests — mock sidecar JSON protocol
 ```
 
-**Total: 261 Jest + 13 E2E = 274 tests**
+**Total: 399 Jest + 13 E2E = 412 tests**
 
 ## Coverage Summary
 

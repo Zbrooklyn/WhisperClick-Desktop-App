@@ -6,7 +6,7 @@ Golden principles for AI-assisted development. Every agent session must follow t
 
 1. **Read** `HANDOFF.md` for current state, known issues, and next actions.
 2. **Read** `FEATURES.md` for complete feature inventory and API method list.
-3. **Run** `npm test` after every code change (294 tests, ~5s).
+3. **Run** `npm test` after every code change (412 tests).
 4. **Run** `npm test -- --coverage` before committing to enforce thresholds.
 
 ## Architecture
@@ -22,7 +22,7 @@ electron/
   tray.js           # System tray icon and menu
 
 src/frontend/       # V3 frontend (copied from WhisperClick V3, minimal changes)
-  index.html        # Main UI (4350+ lines, inline JS)
+  index.html        # Main UI (4800+ lines, inline JS)
   css/tailwind.css  # Pre-built Tailwind CSS
   js/lucide.min.js  # Lucide icon library
 
@@ -34,7 +34,7 @@ engine/
 
 tests/
   mocks/electron.js # Comprehensive Electron API mock
-  unit/             # 281 Jest tests
+  unit/             # 399 Jest tests
   integration/      # 12 recording-flow tests
   e2e/              # 13 mock-sidecar tests
 ```
@@ -94,6 +94,9 @@ V3 uses `snake_case`; Electron store uses `camelCase`. The preload translates au
 | `api_base_url`       | `customBaseUrl`   |
 | `pill_monitor`       | `pillMonitor`     |
 | `audio_retention_days` | `audioRetentionDays` |
+| `auto_enter_mode`    | `autoEnterMode`     |
+| `tray_click_action`  | `trayClickAction`   |
+| `debug_logging`      | `debugLogging`      |
 
 Fields not in this table (e.g., `mode`, `hotkey`, `theme`) pass through unchanged.
 
@@ -158,7 +161,7 @@ These must never appear in new code:
 
 ## Testing
 
-- **Primary suite:** `npm test` (294 tests: 281 Jest + 13 E2E)
+- **Primary suite:** `npm test` (412 tests)
 - **Unit only:** `npm run test:unit`
 - **Integration:** `npm run test:integration`
 - **E2E:** `npm run test:e2e` (spawns mock sidecar)

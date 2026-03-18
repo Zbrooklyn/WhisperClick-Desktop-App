@@ -1,13 +1,13 @@
 # HANDOFF — WhisperClick Electron
 
-> Last updated: 2026-03-12
+> Last updated: 2026-03-18
 
 ## Current State
 
-**Status**: Beta — v2.0.14-beta (installer quit fix).
+**Status**: Stable — v2.1.1
 
-**Latest stable release**: v2.0.5
-**Latest beta release**: v2.0.14-beta
+**Latest stable release**: v2.1.1
+**Latest beta release**: v2.0.22-beta (superseded by v2.1.0 stable)
 
 The Electron port uses V3's original `index.html`/`tailwind.css`/`lucide.min.js`
 frontend directly, with a pywebview API compatibility shim in `preload.js` that
@@ -102,6 +102,9 @@ translates automatically:
 | `model`            | `localModel`      |
 | `audio_retention_days` | `audioRetentionDays` |
 | `auto_download_updates` | `autoDownloadUpdates` |
+| `auto_enter_mode` | `autoEnterMode` |
+| `tray_click_action` | `trayClickAction` |
+| `debug_logging` | `debugLogging` |
 
 ### Recording Flow
 
@@ -150,8 +153,7 @@ Only 2 changes to the V3 frontend:
 3. Live streaming runtime (partial transcription during recording)
 4. Address edge cases from free version audit (max recording length, orphaned audio cleanup, min recording guard)
 5. Create GitHub Organization (e.g., `WhisperClickApp`) and transfer public repo to it — auto-redirects all URLs. Do this when ready to go official, not before.
-6. Finalize and ship Auto-Enter feature (3 modes: Off, Button, Auto) — code complete, needs more local testing
-7. See ROADMAP.md for full feature backlog
+6. See ROADMAP.md for full feature backlog
 
 ## Completed
 
@@ -173,3 +175,9 @@ Only 2 changes to the V3 frontend:
 - Debug file logger — 25 instrumentation points across main.js, 5MB rotation, runtime toggle in settings (v2.0.12-beta)
 - Update UI polish — spinners, install lock, cleaner copy (v2.0.13-beta)
 - Installer quit fix — close-to-tray was blocking app.quit() during updates, leaving files locked (v2.0.14-beta)
+- v2.1.0: Auto-Enter feature (3 modes: Off, Button, Auto) with pill widget integration
+- v2.1.0: Pill widget stability fixes (isDestroyed guards, repositioning, show:false)
+- v2.1.0: Phantom clock fix (broadcastState on show/restore, dormant handler always clears timer)
+- v2.1.0: EPIPE crash suppression, tooltip force-hide, og:url fix
+- v2.1.0: Getting Started guide, FAQ, website support section, marketing content
+- v2.1.1: Fix "already recording" when appState stuck on success

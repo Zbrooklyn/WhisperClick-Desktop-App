@@ -216,3 +216,21 @@ Run these in order to catch the most common issues:
 9. Press Ctrl+Alt+R — both show recording
 10. Right-click tray → Settings — drawer opens
 11. Right-click tray → Quit — app fully exits, no orphan processes
+
+---
+
+### Auto-Enter Mode
+
+- [ ] Settings: Auto-Enter dropdown appears in Quick Settings with Off/Button/Auto options
+- [ ] Settings: Changing Auto-Enter mode persists across app restart
+- [ ] Off mode: No enter behavior after transcription (default)
+- [ ] Button mode: Record button transforms to red Enter (↵) after successful transcription
+- [ ] Button mode: Clicking Enter button simulates Enter keypress and returns to idle
+- [ ] Button mode: Enter button auto-dismisses after 2–5 seconds
+- [ ] Auto mode: Enter fires automatically after transcription with smart delay
+- [ ] Auto mode: Pill stop button shows ↵ icon instead of square during recording
+- [ ] Pill (Button mode): Shows enter-ready state after transcription (red border, ↵ + Send)
+- [ ] Pill (Button mode): Clicking pill in enter-ready state fires Enter
+- [ ] Pill (Auto mode): Dormant state not overridden by enter-ready
+- [ ] Back-to-back recording: Can start new recording immediately after transcription completes
+- [ ] No "Already recording" error when starting recording after recent transcription

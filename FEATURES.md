@@ -1,7 +1,7 @@
 # Features — WhisperClick Electron
 
 > Complete inventory of every user-facing feature and function.
-> Last updated: 2026-02-28 (v2.0.1)
+> Last updated: 2026-03-18 (v2.1.1)
 
 ---
 
@@ -285,7 +285,29 @@ Ctrl+Alt+R, Ctrl+Alt+W, Ctrl+Alt+S, F9, F10, Shift+F9, Ctrl+F10
 
 ---
 
-## 13. API Methods (Preload Bridge)
+## 13. Auto-Enter Mode
+
+After transcription completes and text is pasted, WhisperClick can optionally press Enter:
+
+| Mode | Behavior |
+|------|----------|
+| Off (default) | Nothing — user presses Enter themselves |
+| Button | Record button transforms to red Enter (↵) icon. Click to send. Auto-dismisses after 2–5s based on recording length |
+| Auto | Enter fires automatically after smart delay (300ms + 5ms per character, max 3s) |
+
+**Pill widget integration:**
+- Auto mode: stop button shows ↵ icon during recording
+- Button mode: pill shows enter-ready state after transcription (red border, ↵ + "Send" label)
+
+**Implementation:**
+- Setting: `auto_enter_mode` / `autoEnterMode` (values: `off`, `button`, `auto`)
+- Sidecar command: `press_enter` — simulates Enter keypress via `keybd_event`
+- IPC: `simulate-enter` (main process), `show-enter-button` (to pill renderer)
+- Smart delay: `Math.min(300 + (text.length * 5), 3000)` ms
+
+---
+
+## 14. API Methods (Preload Bridge)
 
 The frontend communicates via `window.pywebview.api` — a compatibility shim that routes to Electron IPC.
 
