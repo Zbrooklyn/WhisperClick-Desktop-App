@@ -667,6 +667,10 @@ describe('pill-toggle-recording', () => {
   test('routes through mainWindow JS execution', async () => {
     mainWin._destroyed = false; // Reset from window-close test
     mainWin.webContents.executeJavaScript.mockClear();
+    // Ensure sidecar is running and API key is set (validation requires both)
+    pushSidecarEvent(initialFakeProc, 'ready', { version: '1.0' });
+    await tick(50);
+    await ipcMain._invoke('save-settings', { openaiApiKey: 'sk-test-key' });
     await ipcMain._invoke('pill-toggle-recording');
     expect(mainWin.webContents.executeJavaScript).toHaveBeenCalledWith(
       'triggerTrustedHotkeyToggle()'

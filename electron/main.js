@@ -6,6 +6,7 @@ const Sidecar = require('./sidecar');
 const { createTray, updateTrayIcon, updateTrayTooltip, showTrayBalloon, flashTrayError } = require('./tray');
 const { initUpdater, checkForUpdatesQuietly, checkUpdateMarker } = require('./updater');
 const log = require('./logger');
+const { StateMachine } = require('./state-machine');
 
 // Suppress EPIPE errors on stdout/stderr (broken pipe when parent process closes)
 // This prevents crash dialogs from electron-updater's console.info calls
@@ -25,8 +26,9 @@ let pillWindow = null;
 let tray = null;
 let store = null;
 let sidecar = null;
-let appState = 'dormant'; // dormant | recording | processing | success | error
-let appStateMessage = '';  // Human-readable context for current state (e.g. error details)
+// State machine — single source of truth for app state
+const sm = new StateMachine('dormant', { logger: (...args) => log.info(...args) });
+
 let isQuitting = false;
 
 const isDev = !app.isPackaged;
@@ -160,7 +162,7 @@ function createPillWindow() {
     if (pillWindow && !pillWindow.isDestroyed()) {
       const mainHidden = !mainWindow || mainWindow.isDestroyed() || !mainWindow.isVisible();
       if (mainHidden) pillWindow.show();
-      pillWindow.webContents.send('state-update', { state: appState, message: appStateMessage });
+      pillWindow.webContents.send('state-update', { state: sm.state, message: sm.message });
     }
   });
 
@@ -170,26 +172,36 @@ function createPillWindow() {
   });
 }
 
-// --- State machine ---
+// --- State transitions ---
 
+/**
+ * Transition app state via the state machine.
+ * For Phase 1 compatibility, this wraps sm.transition() with the same
+ * signature as the old setAppState(). Invalid transitions are logged
+ * but use sm.reset() as fallback to avoid stuck states.
+ */
 function setAppState(state, message) {
-  const prev = appState;
-  appState = state;
-  if (message !== undefined) appStateMessage = message;
-  else if (state === 'dormant' || state === 'success') appStateMessage = '';
-  log.state(prev, state, message);
+  if (!sm.transition(state, message)) {
+    // Invalid transition — force reset to avoid stuck states
+    // This preserves existing behavior where setAppState always succeeded
+    log.warn(`[state] Forced transition: ${sm.state} → ${state} (invalid but forced for compatibility)`);
+    sm.reset(message);
+    if (state !== 'dormant') {
+      sm.transition(state, message);
+    }
+  }
 }
 
 function broadcastState() {
   const autoEnterMode = store ? store.getSettings().autoEnterMode : 'off';
-  const payload = { state: appState, message: appStateMessage, autoEnterMode };
+  const payload = { state: sm.state, message: sm.message, autoEnterMode };
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('state-update', payload);
   if (pillWindow && !pillWindow.isDestroyed()) pillWindow.webContents.send('state-update', payload);
-  updateTrayIcon(appState);
+  updateTrayIcon(sm.state);
   // Update tray tooltip to reflect current state
   const prefix = isDev ? 'WhisperClick [DEV]' : 'WhisperClick';
-  if (appState === 'recording') updateTrayTooltip(`${prefix} — Recording...`);
-  else if (appState === 'processing') updateTrayTooltip(`${prefix} — Processing...`);
+  if (sm.state === 'recording') updateTrayTooltip(`${prefix} — Recording...`);
+  else if (sm.state === 'processing') updateTrayTooltip(`${prefix} — Processing...`);
   else updateTrayTooltip(prefix);
 }
 
@@ -223,10 +235,10 @@ function validateRecordingReadiness() {
   if (!sidecar || !sidecar.isRunning) {
     return 'Backend not ready — restarting…';
   }
-  if (appState === 'processing') {
+  if (sm.state === 'processing') {
     return null; // Let cancel logic handle it
   }
-  if (appState !== 'dormant' && appState !== 'success') {
+  if (sm.state !== 'dormant' && sm.state !== 'success') {
     return null; // Already recording — stop logic will handle it
   }
   const s = store.getSettings();
@@ -266,7 +278,7 @@ function registerHotkey(accelerator) {
         return;
       }
       lastHotkeyAt = now;
-      log.ipc('hotkey', `fired (state=${appState})`);
+      log.ipc('hotkey', `fired (state=${sm.state})`);
 
       // Pre-validate before routing — ensures pill always gets error feedback
       const validationError = validateRecordingReadiness();
@@ -298,7 +310,7 @@ function registerHotkey(accelerator) {
 }
 
 async function trayToggleRecording() {
-  log.tray('toggle-recording', `state=${appState}`);
+  log.tray('toggle-recording', `state=${sm.state}`);
   const validationError = validateRecordingReadiness();
   if (validationError) {
     log.tray('toggle-recording', `blocked: ${validationError}`);
@@ -311,8 +323,8 @@ async function trayToggleRecording() {
 }
 
 async function toggleRecording() {
-  log.info(`toggleRecording called (state=${appState})`);
-  if (appState === 'recording') {
+  log.info(`toggleRecording called (state=${sm.state})`);
+  if (sm.state === 'recording') {
     // Stop recording
     if (sidecar && sidecar.isRunning) {
       try {
@@ -321,7 +333,7 @@ async function toggleRecording() {
     }
     setAppState('processing');
     broadcastState();
-  } else if (appState === 'dormant') {
+  } else if (sm.state === 'dormant') {
     // Start recording
     setAppState('recording');
     broadcastState();
@@ -331,7 +343,7 @@ async function toggleRecording() {
       } catch { /* ignore */ }
     }
   } else {
-    log.warn(`toggleRecording ignored — unexpected state: ${appState}`);
+    log.warn(`toggleRecording ignored — unexpected state: ${sm.state}`);
   }
 }
 
@@ -440,11 +452,11 @@ ipcMain.handle('clear-history', () => {
 });
 
 // State
-ipcMain.handle('get-state', () => ({ state: appState, message: appStateMessage }));
+ipcMain.handle('get-state', () => ({ state: sm.state, message: sm.message }));
 
 // Pill recording — routes through the V3 frontend so both share one state machine
 ipcMain.handle('pill-toggle-recording', async () => {
-  log.ipc('pill-toggle-recording', `state=${appState}`);
+  log.ipc('pill-toggle-recording', `state=${sm.state}`);
   // Pre-validate before routing — ensures pill always gets error feedback
   const validationError = validateRecordingReadiness();
   if (validationError) {
@@ -457,7 +469,7 @@ ipcMain.handle('pill-toggle-recording', async () => {
 
   // If already recording (started by tray or hotkey), stop directly — don't route
   // through the frontend which may not know about the externally-started recording.
-  if (appState === 'recording') {
+  if (sm.state === 'recording') {
     await toggleRecording();
     return;
   }
@@ -548,7 +560,7 @@ ipcMain.handle('verify-api-key', async (_, provider, key, baseUrl) => {
 
 // Start recording — separate from toggle, used by V3 frontend
 ipcMain.handle('start-recording', async () => {
-  log.ipc('start-recording', `state=${appState}`);
+  log.ipc('start-recording', `state=${sm.state}`);
   if (!sidecar || !sidecar.isRunning) {
     broadcastError('Backend not ready — restarting…');
     return { success: false, error: 'Backend not ready' };
@@ -568,7 +580,7 @@ ipcMain.handle('start-recording', async () => {
 
 // Stop recording — blocks until transcription completes (V3 frontend expects this)
 ipcMain.handle('stop-recording', async () => {
-  log.ipc('stop-recording', `state=${appState}`);
+  log.ipc('stop-recording', `state=${sm.state}`);
   if (!sidecar || !sidecar.isRunning) return { success: false, error: 'Backend not ready' };
   setAppState('processing');
   broadcastState();
@@ -623,8 +635,8 @@ ipcMain.handle('stop-recording', async () => {
 
 // Cancel in-flight processing (idempotent — no-op if transcription already completed)
 ipcMain.handle('cancel-processing', async () => {
-  log.ipc('cancel-processing', `state=${appState}`);
-  const wasActive = appState === 'recording' || appState === 'processing';
+  log.ipc('cancel-processing', `state=${sm.state}`);
+  const wasActive = sm.state === 'recording' || sm.state === 'processing';
 
   if (!wasActive) {
     // Already completed, errored, or dormant — nothing to cancel
@@ -750,8 +762,8 @@ ipcMain.handle('hide-pill', () => {
 // Shared rich context menu template (used by pill right-click AND tray)
 // ---------------------------------------------------------------------------
 async function buildRichMenuTemplate({ includePillItems = false, includeQuit = false } = {}) {
-  const isRecording = appState === 'recording';
-  const isProcessing = appState === 'processing';
+  const isRecording = sm.state === 'recording';
+  const isProcessing = sm.state === 'processing';
   const settings = store.getSettings();
   const history = store.getHistory();
 
@@ -1058,8 +1070,8 @@ app.whenReady().then(() => {
     onBuildMenu: () => buildRichMenuTemplate({ includeQuit: true }),
     onToggleRecording: () => trayToggleRecording(),
     onCancelRecording: async () => {
-      log.tray('cancel-recording', `state=${appState}`);
-      if (appState === 'recording' || appState === 'processing') {
+      log.tray('cancel-recording', `state=${sm.state}`);
+      if (sm.state === 'recording' || sm.state === 'processing') {
         setAppState('dormant');
         broadcastState();
         if (sidecar && sidecar.isRunning) {
@@ -1067,7 +1079,7 @@ app.whenReady().then(() => {
         }
       }
     },
-    getIsRecordingActive: () => appState === 'recording' || appState === 'processing',
+    getIsRecordingActive: () => sm.state === 'recording' || sm.state === 'processing',
     onBalloonClick: () => {
       if (mainWindow) {
         mainWindow.show();
@@ -1187,7 +1199,7 @@ app.whenReady().then(() => {
     if (isQuitting) return;
 
     // If recording or processing was in progress, reset state and notify user
-    if (appState === 'recording' || appState === 'processing') {
+    if (sm.state === 'recording' || sm.state === 'processing') {
       broadcastError('Backend crashed — recording lost');
     }
 
