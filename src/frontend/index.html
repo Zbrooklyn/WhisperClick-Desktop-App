@@ -3030,19 +3030,17 @@
             if (document.visibilityState !== 'visible') return;
             if (!nativeBridgeReady) return;
             try {
+                // Request fresh state from main — the state-update event handler
+                // will reconcile any drift. No local state mutation here.
                 const state = await callNativeApi('get_recording_state');
                 if (!state) return;
-                // Backend says not recording but frontend thinks it is
+                // If backend and frontend disagree, ack any transient state
+                // to trigger a fresh broadcast from main
                 if (!state.is_recording && currentAppState === 'recording') {
-                    clearInterval(timerInterval);
-                    currentAppState = 'dormant';
-                    setIdleUi();
+                    callNativeApi('ack_state').catch(() => {});
                 }
-                // Backend cancel was requested but frontend still shows processing
                 if (state.cancel_requested && currentAppState === 'processing') {
-                    clearInterval(timerInterval);
-                    endProcessingState();
-                    setIdleUi();
+                    callNativeApi('cancel_processing').catch(() => {});
                 }
             } catch (_) {}
         });
