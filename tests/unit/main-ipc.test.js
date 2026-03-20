@@ -1829,10 +1829,10 @@ describe('sidecar not running guards', () => {
     expect(result.error).toMatch(/not ready/i);
   });
 
-  test('stop-recording returns error when sidecar is down', async () => {
+  test('stop-recording returns error when not recording', async () => {
     const result = await ipcMain._invoke('stop-recording');
     expect(result.success).toBe(false);
-    expect(result.error).toMatch(/not ready/i);
+    expect(result.error).toMatch(/not recording/i);
   });
 
   test('list-models returns error when sidecar is down', async () => {

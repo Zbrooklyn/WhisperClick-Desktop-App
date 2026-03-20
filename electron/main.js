@@ -251,6 +251,8 @@ function canAcceptAction(action) {
     if (sm.state !== 'recording') {
       return { allowed: false, error: 'Not recording' };
     }
+    // Don't check sidecar here — if sidecar crashed mid-recording,
+    // we still need to allow stop to clean up state. Handler checks sidecar.
     return { allowed: true, actualAction: 'stop' };
   }
 
@@ -258,6 +260,7 @@ function canAcceptAction(action) {
     if (!sm.canCancel) {
       return { allowed: false, error: 'Nothing to cancel' };
     }
+    // Cancel can succeed even without sidecar (just reset state)
     return { allowed: true, actualAction: 'cancel' };
   }
 
@@ -618,7 +621,11 @@ ipcMain.handle('start-recording', async () => {
 // Stop recording — blocks until transcription completes (V3 frontend expects this)
 ipcMain.handle('stop-recording', async () => {
   log.ipc('stop-recording', `state=${sm.state}`);
-  if (!sidecar || !sidecar.isRunning) return { success: false, error: 'Backend not ready' };
+  const gate = canAcceptAction('stop');
+  if (!gate.allowed) {
+    log.warn(`stop-recording rejected: ${gate.error}`);
+    return { success: false, error: gate.error };
+  }
   setAppState('processing');
   broadcastState();
   // Register listeners BEFORE sending stop_rec to avoid missing fast sidecar responses

@@ -133,6 +133,11 @@ beforeAll(async () => {
   });
 });
 
+// Ensure API key stays set across all tests (some tests reset settings or restart sidecar)
+beforeEach(async () => {
+  await ipcMain._invoke('save-settings', { openaiApiKey: 'sk-test-stress' });
+});
+
 afterAll(() => {
   if (cleanupSidecar) cleanupSidecar();
   try { realFs.rmSync(TEST_CONFIG_BASE, { recursive: true, force: true }); } catch {}
