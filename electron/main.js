@@ -909,6 +909,8 @@ async function buildRichMenuTemplate({ includePillItems = false, includeQuit = f
       label: isRecording ? 'Stop Recording' : (isProcessing ? 'Processing…' : 'Start Recording'),
       enabled: !isProcessing,
       click: () => {
+        const gate = canAcceptAction('toggle');
+        if (!gate.allowed) return;
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.executeJavaScript('triggerTrustedHotkeyToggle()').catch(() => {});
         } else {
