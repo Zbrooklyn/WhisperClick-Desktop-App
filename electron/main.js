@@ -505,21 +505,51 @@ ipcMain.handle('clear-history', () => {
 // State
 ipcMain.handle('get-state', () => ({ state: sm.state, message: sm.message }));
 
-// Pill recording — routes through the V3 frontend so both share one state machine
-ipcMain.handle('pill-toggle-recording', async () => {
-  log.ipc('pill-toggle-recording', `state=${sm.state}`);
+// Pill click — pill sends what was clicked, main decides the action
+ipcMain.handle('pill-clicked', async (_, action) => {
+  log.ipc('pill-clicked', `action=${action} state=${sm.state}`);
 
-  // Single input gate
+  if (action === 'enter') {
+    // Enter button clicked — simulate Enter keystroke, then go dormant
+    simulateEnter();
+    setAppState('dormant');
+    broadcastState();
+    return;
+  }
+
+  if (action === 'cancel') {
+    const gate = canAcceptAction('cancel');
+    if (!gate.allowed) return { success: false, error: gate.error };
+    // Reset state immediately so UI unblocks
+    setAppState('dormant');
+    broadcastState();
+    // Await sidecar cancel — matches cancel-processing behavior exactly
+    if (!sidecar || !sidecar.isRunning) return { success: true };
+    try {
+      await sidecar.send('cancel');
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }
+
+  if (action === 'stop') {
+    const gate = canAcceptAction('stop');
+    if (!gate.allowed) return;
+    await toggleRecording();
+    return;
+  }
+
+  // action === 'capsule' — dormant click or fallback
+  // Capture foreground before starting — pill is non-focusable so target app is still fg
+  if (sidecar && sidecar.isRunning) sidecar.send('capture_fg').catch(() => {});
+
   const gate = canAcceptAction('toggle');
   if (!gate.allowed) {
     broadcastError(gate.error);
     return;
   }
 
-  // Capture foreground before toggle — pill is non-focusable so target app is still fg
-  if (sidecar && sidecar.isRunning) sidecar.send('capture_fg').catch(() => {});
-
-  // Stop/cancel go direct; start routes through frontend
   if (gate.actualAction === 'stop' || gate.actualAction === 'cancel') {
     await toggleRecording();
   } else if (mainWindow && !mainWindow.isDestroyed()) {
@@ -735,6 +765,7 @@ ipcMain.handle('paste-last-transcript', () => {
   return { success: true, text };
 });
 
+// Legacy — pill no longer calls this directly (pill-clicked 'enter' handles it)
 ipcMain.handle('simulate-enter', () => {
   simulateEnter();
   return { success: true };
