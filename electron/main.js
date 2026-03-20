@@ -565,6 +565,11 @@ ipcMain.handle('start-recording', async () => {
     broadcastError('Backend not ready — restarting…');
     return { success: false, error: 'Backend not ready' };
   }
+  // Reject duplicate starts — prevents sidecar "Already recording" from queued clicks
+  if (sm.state === 'recording' || sm.state === 'processing') {
+    log.warn(`start-recording rejected — already in ${sm.state} state`);
+    return { success: false, error: `Already ${sm.state}` };
+  }
   setAppState('recording');
   broadcastState();
   try {
@@ -572,6 +577,12 @@ ipcMain.handle('start-recording', async () => {
     return { success: true };
   } catch (err) {
     log.error(`start-recording failed: ${err.message}`);
+    // If sidecar thinks it's already recording (stale state from a previous
+    // double-click or queued start), cancel it so the next attempt works.
+    if (err.message && /already recording/i.test(err.message)) {
+      log.warn('Sidecar has stale recording — sending cancel to reset');
+      sidecar.send('cancel').catch(() => {});
+    }
     setAppState('dormant');
     broadcastError(err.message || 'Failed to start recording');
     return { success: false, error: err.message };
@@ -1027,7 +1038,7 @@ app.whenReady().then(() => {
   const settings = store.getSettings();
 
   // Initialize debug logger (writes to configDir/debug.log when enabled)
-  log.init(configDir, settings.debugLogging);
+  log.init(configDir, settings.debugLogging, isDev);
 
   createMainWindow();
   // Pre-create pill (hidden via show:false) — it shows when main window is hidden/minimized

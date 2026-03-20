@@ -13,11 +13,16 @@ const MAX_LOG_SIZE = 5 * 1024 * 1024; // 5MB
 
 let _logPath = null;
 let _enabled = false;
+let _isDev = false;
 let _fd = null;
 
-function init(configDir, enabled) {
+function init(configDir, enabled, isDev) {
+  // Close previous session if any
+  _close();
   _logPath = path.join(configDir, 'debug.log');
-  _enabled = !!enabled;
+  _isDev = !!isDev;
+  // Always enable logging in dev mode
+  _enabled = _isDev || !!enabled;
   if (_enabled) _open();
 }
 
@@ -55,11 +60,13 @@ function _close() {
 }
 
 function _write(level, msg) {
-  if (!_fd) return;
   const ts = new Date().toISOString();
-  const line = `[${ts}] [${level}] ${msg}\n`;
+  const line = `[${ts}] [${level}] ${msg}`;
+  // Always print to console in dev mode
+  if (_isDev) console.log(line);
+  if (!_fd) return;
   try {
-    fs.writeSync(_fd, line);
+    fs.writeSync(_fd, line + '\n');
   } catch {
     // If write fails, close and give up
     _close();
