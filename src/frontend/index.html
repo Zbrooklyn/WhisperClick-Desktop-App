@@ -842,9 +842,8 @@
         let pendingText = "";
         // (MediaRecorder/stream state removed — all recording goes through native backend)
         let recordingDurationSecs = 0;
-        let lastToggleInvocationAt = 0;
-        let lastToggleEventStamp = 0;
-        let nextAllowedToggleAt = 0;
+        let lastToggleEventStamp = 0;  // DOM event dedup (prevents same event firing twice)
+        let lastToggleAt = 0;          // Single click debounce (200ms)
         let hasCompletedRecording = false;
         let processingStartedAt = 0;
         let processingFallbackTimer = null;
@@ -3638,7 +3637,6 @@
                     showToast(response?.error || "Unable to start recording", "info");
                     return;
                 }
-                nextAllowedToggleAt = Date.now() + 250;
                 isRecording = true;
                 seconds = 0;
                 timerEl.innerText = "00:00";
@@ -3659,7 +3657,6 @@
             recordingDurationSecs = seconds;
             clearInterval(timerInterval);
             beginProcessingState();
-            nextAllowedToggleAt = Date.now() + 900;
             setProcessingUi();
             let succeeded = false;
             try {
@@ -3714,6 +3711,7 @@
             if (!isTrustedEvent || (!isTrustedClick && !isTrustedHotkey && !isTrustedBridgeHotkey)) {
                 return;
             }
+            // DOM event dedup — prevents same event from firing twice (bubbling)
             const eventStamp = Number(triggerEvent.timeStamp || 0);
             if (eventStamp > 0 && Math.abs(eventStamp - lastToggleEventStamp) < 1) {
                 return;
@@ -3722,14 +3720,14 @@
                 lastToggleEventStamp = eventStamp;
             }
 
+            // Single click debounce (200ms) — prevents rapid double-clicks.
+            // The main process gate (canAcceptAction) is the real authority;
+            // this just prevents unnecessary IPC round-trips.
             const now = Date.now();
-            if (now < nextAllowedToggleAt && !isProcessing) {
-                return; // Debounce — but always allow cancel during processing
-            }
-            if (now - lastToggleInvocationAt < 160) {
+            if (now - lastToggleAt < 200) {
                 return;
             }
-            lastToggleInvocationAt = now;
+            lastToggleAt = now;
 
             if (isProcessing) {
                 // Cancel in-flight transcription — await backend confirmation

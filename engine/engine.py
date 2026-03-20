@@ -374,8 +374,14 @@ def handle_command(msg):
 
     elif cmd == "start_rec":
         if _recording:
-            send_error(msg_id, "Already recording")
-            return
+            # Main process gate should prevent this. If we get here, cancel
+            # the stale recording and start fresh instead of erroring out.
+            _log.warning("start_rec while already recording — cancelling stale recording")
+            try:
+                recorder.stop()
+            except Exception:
+                pass
+            _recording = False
         try:
             transcriber.clear_cancel_request()
             recorder.start()
@@ -395,7 +401,8 @@ def handle_command(msg):
 
     elif cmd == "stop_rec":
         if not _recording:
-            send_error(msg_id, "Not recording")
+            _log.warning("stop_rec while not recording — ignoring")
+            send_ok(msg_id, duration=0)
             return
         _recording = False
         if _level_thread:
