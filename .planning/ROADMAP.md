@@ -11,7 +11,7 @@
 **Requirements:** PILL-01, PILL-02, PILL-03, PILL-04
 
 **Success Criteria:**
-1. Pill receives `{ shape, level, autoEnterMode, dismissMs }` payloads and renders them
+1. Pill receives `{ shape, level, autoEnterMode, message }` payloads and renders them
 2. No `currentState`, `enterTimeout`, `shrinkTimeout`, or state-tracking variables in pill.html
 3. Pill click sends generic event to main — main decides the action via canAcceptAction
 4. All pill visual states (dormant, recording, processing, success, enter-ready) work identically to current behavior
@@ -55,7 +55,7 @@
 ## Cross-Phase Requirements
 
 **VERI-01 through VERI-04** apply to all phases:
-- All 460+ tests pass after every phase
+- All tests pass after every phase (`npm test` exits 0)
 - No behavior changes — identical UX
 - Live testing after each phase
 - Clean debug log (no forced resets)
