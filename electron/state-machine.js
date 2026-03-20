@@ -20,13 +20,14 @@ const STATES = {
 
 // Valid transitions: from → [allowed destinations]
 const TRANSITIONS = {
-  // Phase 1: permissive transitions for compatibility with existing code.
-  // Phase 2+ will tighten these to only valid paths.
-  dormant:    ['recording', 'error', 'success', 'processing'], // success/processing for compat
-  recording:  ['processing', 'dormant', 'error', 'success'],   // dormant = cancel
-  processing: ['success', 'dormant', 'error'],                  // dormant = cancel/timeout
-  success:    ['dormant', 'recording'],                          // can start new recording
-  error:      ['dormant', 'recording'],                          // can recover from error
+  // Phase 2: tightened transitions — only valid paths allowed.
+  // The single input gate (canAcceptAction) prevents invalid commands
+  // from reaching the state machine or sidecar.
+  dormant:    ['recording', 'error'],              // start recording, or sidecar/API error
+  recording:  ['processing', 'dormant', 'error', 'success'],  // stop → processing, cancel → dormant, fast transcription → success
+  processing: ['success', 'dormant', 'error'],     // transcription → success, cancel → dormant
+  success:    ['dormant', 'recording'],             // timeout → dormant, immediate re-record
+  error:      ['dormant', 'recording'],             // recover → dormant, or start fresh
 };
 
 class StateMachine {

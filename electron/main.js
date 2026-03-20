@@ -176,20 +176,16 @@ function createPillWindow() {
 
 /**
  * Transition app state via the state machine.
- * For Phase 1 compatibility, this wraps sm.transition() with the same
- * signature as the old setAppState(). Invalid transitions are logged
- * but use sm.reset() as fallback to avoid stuck states.
+ * Phase 2: invalid transitions are rejected (logged + returned false).
+ * The single input gate (canAcceptAction) should prevent invalid
+ * transitions from ever being attempted.
  */
 function setAppState(state, message) {
   if (!sm.transition(state, message)) {
-    // Invalid transition — force reset to avoid stuck states
-    // This preserves existing behavior where setAppState always succeeded
-    log.warn(`[state] Forced transition: ${sm.state} → ${state} (invalid but forced for compatibility)`);
-    sm.reset(message);
-    if (state !== 'dormant') {
-      sm.transition(state, message);
-    }
+    log.error(`[state] REJECTED transition: ${sm.state} → ${state} — this should not happen (check canAcceptAction)`);
+    return false;
   }
+  return true;
 }
 
 function broadcastState() {
@@ -231,29 +227,64 @@ function broadcastError(message) {
  * Returns null if ready, or an error message string if not.
  * This ensures the pill always gets feedback — even when mainWindow is hidden.
  */
-function validateRecordingReadiness() {
-  if (!sidecar || !sidecar.isRunning) {
-    return 'Backend not ready — restarting…';
-  }
-  if (sm.state === 'processing') {
-    return null; // Let cancel logic handle it
-  }
-  if (sm.state !== 'dormant' && sm.state !== 'success') {
-    return null; // Already recording — stop logic will handle it
-  }
-  const s = store.getSettings();
-  const mode = s.mode || 'api';
-  if (mode === 'api') {
-    // Only block if NO provider has a key. If the active provider's key is
-    // missing but another provider has one, let V3 auto-switch providers.
-    const hasAnyKey = (s.openaiApiKey && s.openaiApiKey.trim()) ||
-                      (s.geminiApiKey && s.geminiApiKey.trim());
-    if (!hasAnyKey) {
-      return 'No API key configured. Open Settings to add one.';
+/**
+ * Single input gate — the ONLY place that decides whether an action is allowed.
+ * All entry points (hotkey, pill, tray, IPC) call this before doing anything.
+ *
+ * @param {'start'|'stop'|'cancel'|'toggle'} action
+ * @returns {{ allowed: boolean, error?: string, actualAction?: string }}
+ */
+function canAcceptAction(action) {
+  if (action === 'toggle') {
+    // Toggle resolves to start or stop based on current state
+    if (sm.state === 'recording') {
+      return { allowed: true, actualAction: 'stop' };
     }
+    if (sm.state === 'processing') {
+      return { allowed: true, actualAction: 'cancel' };
+    }
+    // For dormant/success/error → treat as start
+    action = 'start';
   }
-  // Local mode: sidecar handles model checks — no pre-validation needed here
-  return null;
+
+  if (action === 'stop') {
+    if (sm.state !== 'recording') {
+      return { allowed: false, error: 'Not recording' };
+    }
+    return { allowed: true, actualAction: 'stop' };
+  }
+
+  if (action === 'cancel') {
+    if (!sm.canCancel) {
+      return { allowed: false, error: 'Nothing to cancel' };
+    }
+    return { allowed: true, actualAction: 'cancel' };
+  }
+
+  if (action === 'start') {
+    // Sidecar must be running to start recording
+    if (!sidecar || !sidecar.isRunning) {
+      return { allowed: false, error: 'Backend not ready — restarting…' };
+    }
+    // Can only start from dormant, success, or error
+    if (!sm.canRecord) {
+      log.warn(`canAcceptAction: start rejected — state is ${sm.state}`);
+      return { allowed: false, error: `Cannot start recording (${sm.state})` };
+    }
+    // Check API keys in api mode
+    const s = store.getSettings();
+    const mode = s.mode || 'api';
+    if (mode === 'api') {
+      const hasAnyKey = (s.openaiApiKey && s.openaiApiKey.trim()) ||
+                        (s.geminiApiKey && s.geminiApiKey.trim());
+      if (!hasAnyKey) {
+        return { allowed: false, error: 'No API key configured. Open Settings to add one.' };
+      }
+    }
+    return { allowed: true, actualAction: 'start' };
+  }
+
+  return { allowed: false, error: `Unknown action: ${action}` };
 }
 
 // --- Hotkey ---
@@ -270,8 +301,7 @@ function registerHotkey(accelerator) {
   }
   try {
     const success = globalShortcut.register(normalized, () => {
-      // Debounce: prevent rapid double-fires from reaching the frontend or
-      // the toggleRecording() fallback, which has no internal debounce.
+      // Debounce: prevent rapid double-fires
       const now = Date.now();
       if (now - lastHotkeyAt < HOTKEY_DEBOUNCE_MS) {
         log.info(`Hotkey debounced (${now - lastHotkeyAt}ms since last)`);
@@ -280,23 +310,24 @@ function registerHotkey(accelerator) {
       lastHotkeyAt = now;
       log.ipc('hotkey', `fired (state=${sm.state})`);
 
-      // Pre-validate before routing — ensures pill always gets error feedback
-      const validationError = validateRecordingReadiness();
-      if (validationError) {
-        broadcastError(validationError);
+      // Single input gate — decides if action is allowed
+      const gate = canAcceptAction('toggle');
+      if (!gate.allowed) {
+        broadcastError(gate.error);
         return;
       }
 
-      // Capture the foreground window *before* toggling — mirrors V3's
-      // capture_paste_target() so auto-paste can restore focus later.
+      // Capture the foreground window *before* toggling
       if (sidecar && sidecar.isRunning) sidecar.send('capture_fg').catch(() => {});
 
-      // Route hotkey through the V3 frontend so it handles validation,
-      // mode checks, API key checks, etc. — mirrors V3's evaluate_js pattern.
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.executeJavaScript('triggerTrustedHotkeyToggle()').catch(() => {});
+      // Route through frontend for start; stop/cancel go direct
+      if (gate.actualAction === 'start') {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.executeJavaScript('triggerTrustedHotkeyToggle()').catch(() => {});
+        } else {
+          toggleRecording();
+        }
       } else {
-        // Fallback: toggle directly via main process (for pill-only mode)
         toggleRecording();
       }
     });
@@ -311,10 +342,10 @@ function registerHotkey(accelerator) {
 
 async function trayToggleRecording() {
   log.tray('toggle-recording', `state=${sm.state}`);
-  const validationError = validateRecordingReadiness();
-  if (validationError) {
-    log.tray('toggle-recording', `blocked: ${validationError}`);
-    showTrayBalloon('Recording Error', validationError);
+  const gate = canAcceptAction('toggle');
+  if (!gate.allowed) {
+    log.tray('toggle-recording', `blocked: ${gate.error}`);
+    showTrayBalloon('Recording Error', gate.error);
     flashTrayError('WhisperClick — Setup required');
     return;
   }
@@ -457,24 +488,21 @@ ipcMain.handle('get-state', () => ({ state: sm.state, message: sm.message }));
 // Pill recording — routes through the V3 frontend so both share one state machine
 ipcMain.handle('pill-toggle-recording', async () => {
   log.ipc('pill-toggle-recording', `state=${sm.state}`);
-  // Pre-validate before routing — ensures pill always gets error feedback
-  const validationError = validateRecordingReadiness();
-  if (validationError) {
-    broadcastError(validationError);
+
+  // Single input gate
+  const gate = canAcceptAction('toggle');
+  if (!gate.allowed) {
+    broadcastError(gate.error);
     return;
   }
 
   // Capture foreground before toggle — pill is non-focusable so target app is still fg
   if (sidecar && sidecar.isRunning) sidecar.send('capture_fg').catch(() => {});
 
-  // If already recording (started by tray or hotkey), stop directly — don't route
-  // through the frontend which may not know about the externally-started recording.
-  if (sm.state === 'recording') {
+  // Stop/cancel go direct; start routes through frontend
+  if (gate.actualAction === 'stop' || gate.actualAction === 'cancel') {
     await toggleRecording();
-    return;
-  }
-
-  if (mainWindow && !mainWindow.isDestroyed()) {
+  } else if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.executeJavaScript('triggerTrustedHotkeyToggle()').catch(() => {});
   } else {
     toggleRecording();
@@ -561,14 +589,12 @@ ipcMain.handle('verify-api-key', async (_, provider, key, baseUrl) => {
 // Start recording — separate from toggle, used by V3 frontend
 ipcMain.handle('start-recording', async () => {
   log.ipc('start-recording', `state=${sm.state}`);
-  if (!sidecar || !sidecar.isRunning) {
-    broadcastError('Backend not ready — restarting…');
-    return { success: false, error: 'Backend not ready' };
-  }
-  // Reject duplicate starts — prevents sidecar "Already recording" from queued clicks
-  if (sm.state === 'recording' || sm.state === 'processing') {
-    log.warn(`start-recording rejected — already in ${sm.state} state`);
-    return { success: false, error: `Already ${sm.state}` };
+
+  // Single input gate — prevents "Already recording" by never reaching sidecar in wrong state
+  const gate = canAcceptAction('start');
+  if (!gate.allowed) {
+    log.warn(`start-recording rejected: ${gate.error}`);
+    return { success: false, error: gate.error };
   }
   setAppState('recording');
   broadcastState();
@@ -647,11 +673,11 @@ ipcMain.handle('stop-recording', async () => {
 // Cancel in-flight processing (idempotent — no-op if transcription already completed)
 ipcMain.handle('cancel-processing', async () => {
   log.ipc('cancel-processing', `state=${sm.state}`);
-  const wasActive = sm.state === 'recording' || sm.state === 'processing';
 
-  if (!wasActive) {
-    // Already completed, errored, or dormant — nothing to cancel
-    return { success: false, error: 'Nothing to cancel' };
+  // Single input gate
+  const gate = canAcceptAction('cancel');
+  if (!gate.allowed) {
+    return { success: false, error: gate.error };
   }
 
   // Immediately reset to dormant so the UI unblocks
@@ -1082,12 +1108,12 @@ app.whenReady().then(() => {
     onToggleRecording: () => trayToggleRecording(),
     onCancelRecording: async () => {
       log.tray('cancel-recording', `state=${sm.state}`);
-      if (sm.state === 'recording' || sm.state === 'processing') {
-        setAppState('dormant');
-        broadcastState();
-        if (sidecar && sidecar.isRunning) {
-          try { await sidecar.send('cancel'); } catch { /* ignore */ }
-        }
+      const gate = canAcceptAction('cancel');
+      if (!gate.allowed) return;
+      setAppState('dormant');
+      broadcastState();
+      if (sidecar && sidecar.isRunning) {
+        try { await sidecar.send('cancel'); } catch { /* ignore */ }
       }
     },
     getIsRecordingActive: () => sm.state === 'recording' || sm.state === 'processing',

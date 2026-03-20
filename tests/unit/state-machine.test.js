@@ -40,12 +40,12 @@ describe('StateMachine', () => {
       expect(sm.can('recording')).toBe(true);
     });
 
-    test('dormant can transition to processing (Phase 1 compat)', () => {
-      expect(sm.can('processing')).toBe(true);
+    test('dormant cannot transition to processing', () => {
+      expect(sm.can('processing')).toBe(false);
     });
 
-    test('dormant can transition to success (Phase 1 compat)', () => {
-      expect(sm.can('success')).toBe(true);
+    test('dormant cannot transition to success', () => {
+      expect(sm.can('success')).toBe(false);
     });
 
     test('recording can transition to processing or dormant', () => {
@@ -54,7 +54,7 @@ describe('StateMachine', () => {
       expect(sm.can('dormant')).toBe(true);
     });
 
-    test('recording can transition to success (Phase 1 compat)', () => {
+    test('recording can transition to success (fast transcription)', () => {
       sm.transition('recording');
       expect(sm.can('success')).toBe(true);
     });

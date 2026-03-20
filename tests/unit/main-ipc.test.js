@@ -98,14 +98,63 @@ function tick(ms = 30) {
   return new Promise(r => setTimeout(r, ms));
 }
 
+/**
+ * Auto-respond ONLY to specific sidecar commands (ignores unmatched commands).
+ * Unlike autoRespondSidecar which responds to ALL commands with a default,
+ * this only responds to commands listed in commandResponses.
+ */
+function autoRespondSidecarStrict(proc, commandResponses = {}) {
+  const handler = (data) => {
+    const lines = data.toString().split('\n').filter(l => l.trim());
+    for (const line of lines) {
+      try {
+        const msg = JSON.parse(line);
+        const cmd = msg.command;
+        if (commandResponses[cmd]) {
+          const template = commandResponses[cmd];
+          const response = { ...template, id: msg.id };
+          setImmediate(() => {
+            try { proc.stdout.push(JSON.stringify(response) + '\n'); } catch {}
+          });
+        }
+        // If command not in commandResponses, silently ignore it
+      } catch {}
+    }
+  };
+  proc.stdin.on('data', handler);
+  return () => proc.stdin.removeListener('data', handler);
+}
+
+// ── Boot sidecar (Phase 2: sidecar must be ready for recording tests) ────
+// Install a permanent STRICT auto-responder for 'configure' only (fires on every
+// ready event). This doesn't interfere with test-specific autoResponders for other commands.
+let _bootCleanup;
+beforeAll(async () => {
+  _bootCleanup = autoRespondSidecarStrict(initialFakeProc, {
+    configure: { result: 'ok' },
+  });
+  pushSidecarEvent(initialFakeProc, 'ready', { version: '1.0' });
+  await tick(50);
+  await ipcMain._invoke('save-settings', { openaiApiKey: 'sk-test-key' });
+});
+
 // ─── Cleanup ──────────────────────────────────────────────────────────────
 
 afterAll(() => {
+  if (_bootCleanup) _bootCleanup();
   try { realFs.rmSync(TEST_CONFIG_BASE, { recursive: true, force: true }); } catch {}
   try { initialFakeProc.stdin.destroy(); } catch {}
   try { initialFakeProc.stdout.destroy(); } catch {}
   try { initialFakeProc.stderr.destroy(); } catch {}
 });
+
+// ── Helper: ensure sidecar is ready + API key set ───────────────────────
+// Phase 2 state machine requires sidecar running AND API key for start-recording.
+async function ensureSidecarReadyAndApiKey() {
+  pushSidecarEvent(initialFakeProc, 'ready', { version: '1.0' });
+  await tick(50);
+  await ipcMain._invoke('save-settings', { openaiApiKey: 'sk-test-key' });
+}
 
 // ── Settings handlers ───────────────────────────────────────────────────
 
@@ -306,7 +355,14 @@ describe('API key verification', () => {
 // ── Recording handlers ──────────────────────────────────────────────────
 
 describe('recording handlers', () => {
+  beforeAll(async () => {
+    await ensureSidecarReadyAndApiKey();
+  });
+
   test('start-recording succeeds with sidecar response', async () => {
+    // Ensure dormant before starting
+    pushSidecarEvent(initialFakeProc, 'cancelled', {});
+    await tick(30);
     const cleanup = autoRespondSidecar(initialFakeProc, {
       start_rec: { result: 'ok' },
     });
@@ -316,15 +372,24 @@ describe('recording handlers', () => {
   });
 
   test('cancel-processing sends cancel command', async () => {
+    // Phase 2: must be in recording/processing state to cancel
     const cleanup = autoRespondSidecar(initialFakeProc, {
+      start_rec: { result: 'ok' },
       cancel: { result: 'ok' },
     });
+    // Ensure dormant first, then start recording so cancel has something to cancel
+    pushSidecarEvent(initialFakeProc, 'cancelled', {});
+    await tick(30);
+    await ipcMain._invoke('start-recording');
     const result = await ipcMain._invoke('cancel-processing');
     cleanup();
     expect(result.success).toBe(true);
   });
 
   test('cancel-processing resets state to dormant immediately', async () => {
+    // Ensure dormant first
+    pushSidecarEvent(initialFakeProc, 'cancelled', {});
+    await tick(30);
     // Put app in recording state first
     const cleanup = autoRespondSidecar(initialFakeProc, {
       start_rec: { result: 'ok' },
@@ -479,7 +544,25 @@ describe('verify-api-key format checks', () => {
 // ── stop-recording handler ──────────────────────────────────────────────
 
 describe('stop-recording handler', () => {
+  // Phase 2: stop-recording requires recording->processing transition.
+  // Each test must start from recording state.
+  beforeAll(async () => {
+    await ensureSidecarReadyAndApiKey();
+  });
+
+  async function startRecordingForStop() {
+    pushSidecarEvent(initialFakeProc, 'cancelled', {});
+    await tick(30);
+    const startCleanup = autoRespondSidecarStrict(initialFakeProc, {
+      start_rec: { result: 'ok' },
+    });
+    await ipcMain._invoke('start-recording');
+    await tick(20);
+    startCleanup();
+  }
+
   test('resolves with transcription text on transcription event', async () => {
+    await startRecordingForStop();
     const cleanup = autoRespondSidecar(initialFakeProc, {
       stop_rec: { result: 'ok' },
     });
@@ -493,6 +576,7 @@ describe('stop-recording handler', () => {
   });
 
   test('resolves with error on sidecar error event', async () => {
+    await startRecordingForStop();
     const cleanup = autoRespondSidecar(initialFakeProc, {
       stop_rec: { result: 'ok' },
     });
@@ -506,6 +590,7 @@ describe('stop-recording handler', () => {
   });
 
   test('resolves with cancelled on cancel event', async () => {
+    await startRecordingForStop();
     const cleanup = autoRespondSidecar(initialFakeProc, {
       stop_rec: { result: 'ok' },
     });
@@ -519,8 +604,8 @@ describe('stop-recording handler', () => {
   });
 
   test('returns error when sidecar send fails', async () => {
-    // No autoResponder — stop_rec will timeout, but we can test the catch
-    // by responding with an error
+    await startRecordingForStop();
+    // Respond with an error so sidecar.send rejects
     const cleanup = autoRespondSidecar(initialFakeProc, {
       stop_rec: { error: 'Engine not ready' },
     });
@@ -709,11 +794,35 @@ describe('pill-context-menu', () => {
 // ── sidecar event handling ──────────────────────────────────────────────
 
 describe('sidecar event handling', () => {
+  let cleanupRec;
   beforeAll(async () => {
     await ipcMain._invoke('clear-history');
+    await ensureSidecarReadyAndApiKey();
+    // Keep a responder for start_rec so we can put state into recording
+    cleanupRec = autoRespondSidecarStrict(initialFakeProc, {
+      start_rec: { result: 'ok' },
+    });
   });
+  afterAll(() => { if (cleanupRec) cleanupRec(); });
+
+  // Helper: ensure recording state so transcription/error events have a valid predecessor
+  async function ensureRecording() {
+    // Reset to dormant first
+    pushSidecarEvent(initialFakeProc, 'cancelled', {});
+    await tick(30);
+    await ipcMain._invoke('start-recording');
+    await tick(20);
+  }
+
+  async function ensureProcessing() {
+    // Get to processing state: dormant → recording → processing
+    await ensureRecording();
+    await ipcMain._invoke('stop-recording');
+    await tick(20);
+  }
 
   test('transcription event adds history entry', async () => {
+    await ensureRecording();
     pushSidecarEvent(initialFakeProc, 'transcription', {
       text: 'sidecar transcription test',
       duration: 3.2,
@@ -729,6 +838,7 @@ describe('sidecar event handling', () => {
   });
 
   test('transcription event sets state to success', async () => {
+    await ensureRecording();
     pushSidecarEvent(initialFakeProc, 'transcription', { text: 'state check' });
     await tick(30);
     const state = await ipcMain._invoke('get-state');
@@ -736,6 +846,7 @@ describe('sidecar event handling', () => {
   });
 
   test('transcription with autoPaste copies to clipboard', async () => {
+    await ensureRecording();
     // autoPaste defaults to true
     clipboard._reset();
     pushSidecarEvent(initialFakeProc, 'transcription', { text: 'auto paste text' });
@@ -744,6 +855,7 @@ describe('sidecar event handling', () => {
   });
 
   test('transcription broadcasts to mainWindow', async () => {
+    await ensureRecording();
     mainWin.webContents.send.mockClear();
     pushSidecarEvent(initialFakeProc, 'transcription', { text: 'broadcast test' });
     await tick(30);
@@ -754,6 +866,7 @@ describe('sidecar event handling', () => {
   });
 
   test('translation event updates most recent history entry', async () => {
+    await ensureRecording();
     // Push a transcription first
     pushSidecarEvent(initialFakeProc, 'transcription', { text: 'original text' });
     await tick(50);
@@ -769,6 +882,9 @@ describe('sidecar event handling', () => {
   });
 
   test('error event sets error state', async () => {
+    // Reset to dormant — dormant->error is valid
+    pushSidecarEvent(initialFakeProc, 'cancelled', {});
+    await tick(30);
     pushSidecarEvent(initialFakeProc, 'error', { message: 'test error' });
     await tick(30);
     const state = await ipcMain._invoke('get-state');
@@ -776,6 +892,11 @@ describe('sidecar event handling', () => {
   });
 
   test('error event includes message in state', async () => {
+    // Wait for any pending broadcastError timeouts (3s) from previous tests
+    await tick(3100);
+    // Reset to dormant first
+    pushSidecarEvent(initialFakeProc, 'cancelled', {});
+    await tick(30);
     pushSidecarEvent(initialFakeProc, 'error', { message: 'API key invalid' });
     await tick(30);
     const state = await ipcMain._invoke('get-state');
@@ -783,6 +904,9 @@ describe('sidecar event handling', () => {
   });
 
   test('state broadcast includes message field', async () => {
+    // Reset to dormant first
+    pushSidecarEvent(initialFakeProc, 'cancelled', {});
+    await tick(30);
     mainWin.webContents.send.mockClear();
     pushSidecarEvent(initialFakeProc, 'error', { message: 'broadcast msg test' });
     await tick(30);
@@ -793,6 +917,9 @@ describe('sidecar event handling', () => {
   });
 
   test('error event broadcasts to mainWindow', async () => {
+    // Reset to dormant first
+    pushSidecarEvent(initialFakeProc, 'cancelled', {});
+    await tick(30);
     mainWin.webContents.send.mockClear();
     pushSidecarEvent(initialFakeProc, 'error', { message: 'broadcast error' });
     await tick(30);
@@ -846,7 +973,14 @@ describe('paste-last-transcript with history', () => {
 // ── start-recording error path ──────────────────────────────────────────
 
 describe('start-recording error path', () => {
+  beforeAll(async () => {
+    await ensureSidecarReadyAndApiKey();
+  });
+
   test('returns error when sidecar send fails', async () => {
+    // Ensure dormant first
+    pushSidecarEvent(initialFakeProc, 'cancelled', {});
+    await tick(30);
     const cleanup = autoRespondSidecar(initialFakeProc, {
       start_rec: { error: 'No mic available' },
     });
@@ -857,6 +991,9 @@ describe('start-recording error path', () => {
   });
 
   test('resets state to error then dormant on sidecar failure', async () => {
+    // Ensure dormant first
+    pushSidecarEvent(initialFakeProc, 'cancelled', {});
+    await tick(30);
     const cleanup = autoRespondSidecar(initialFakeProc, {
       start_rec: { error: 'Failed' },
     });
@@ -918,6 +1055,15 @@ describe('sidecar proxy error paths', () => {
   });
 
   test('cancel-processing catches sidecar send error', async () => {
+    // Phase 2: must be in recording/processing state to cancel
+    await ensureSidecarReadyAndApiKey();
+    pushSidecarEvent(initialFakeProc, 'cancelled', {});
+    await tick(30);
+    const startCleanup = autoRespondSidecarStrict(initialFakeProc, {
+      start_rec: { result: 'ok' },
+    });
+    await ipcMain._invoke('start-recording');
+    startCleanup();
     const cleanup = autoRespondSidecar(initialFakeProc, {
       cancel: { error: 'Nothing to cancel' },
     });
@@ -931,6 +1077,14 @@ describe('sidecar proxy error paths', () => {
 // ── error state recovery ────────────────────────────────────────────────
 
 describe('error state recovery', () => {
+  beforeAll(async () => {
+    // Drain any pending timers from previous tests
+    await new Promise(r => setTimeout(r, 3500));
+    // Ensure dormant
+    pushSidecarEvent(initialFakeProc, 'cancelled', {});
+    await tick(30);
+  });
+
   test('error state returns to dormant after 3 seconds', async () => {
     jest.useFakeTimers();
     pushSidecarEvent(initialFakeProc, 'error', { message: 'timeout test' });
@@ -952,6 +1106,16 @@ describe('error state recovery', () => {
   });
 
   test('success state returns to dormant after 1.5 seconds', async () => {
+    // Phase 2: transcription needs recording->success; set up recording first
+    await ensureSidecarReadyAndApiKey();
+    pushSidecarEvent(initialFakeProc, 'cancelled', {});
+    await tick(30);
+    const startCleanup = autoRespondSidecarStrict(initialFakeProc, {
+      start_rec: { result: 'ok' },
+    });
+    await ipcMain._invoke('start-recording');
+    startCleanup();
+
     jest.useFakeTimers();
     pushSidecarEvent(initialFakeProc, 'transcription', { text: 'timeout recovery' });
     await Promise.resolve();

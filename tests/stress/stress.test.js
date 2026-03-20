@@ -116,6 +116,8 @@ beforeAll(async () => {
   // Send sidecar ready event
   pushSidecarEvent(fakeProc, 'ready', { version: '1.0' });
   await tick(50);
+  // Set API key so canAcceptAction gate allows recording
+  await ipcMain._invoke('save-settings', { openaiApiKey: 'sk-test-stress' });
 
   // Auto-respond to standard commands
   cleanupSidecar = autoRespondSidecar(fakeProc, {
@@ -915,6 +917,8 @@ describe('Sidecar crash recovery', () => {
       start_rec: { status: 'ok' },
     });
 
+    // Ensure API key is set (may have been wiped by earlier tests)
+    await ipcMain._invoke('save-settings', { openaiApiKey: 'sk-test-crash' });
     await ipcMain._invoke('start-recording');
     await tick(20);
 
@@ -1479,6 +1483,11 @@ describe('State machine — success/error timing windows', () => {
 
   test('success→dormant 1.5s timer fires correctly', async () => {
     const latestProc = spawn.mock.results[spawn.mock.results.length - 1].value;
+    // Must be in recording state for transcription → success transition
+    await ipcMain._invoke('save-settings', { openaiApiKey: 'sk-test-timer' });
+    autoRespondSidecar(latestProc, { start_rec: { status: 'ok' } });
+    await ipcMain._invoke('start-recording');
+    await tick(20);
     pushSidecarEvent(latestProc, 'transcription', {
       text: 'timer test',
       duration: 1,
