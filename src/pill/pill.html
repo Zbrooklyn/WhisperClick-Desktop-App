@@ -318,55 +318,47 @@
         barEls.push(b);
       }
 
-      // State
-      let currentState = 'dormant';
-      let autoEnterMode = 'off';
-      let shrinkTimeout = null;
+      // DOM references (no state variables — pill is stateless)
       const defaultTooltipHTML = tooltip.innerHTML;
       const stopSquare = document.getElementById('stop-square');
       const stopEnterIcon = document.getElementById('stop-enter-icon');
 
-      function setState(state, message) {
-        currentState = state;
-        capsule.className = 'capsule ' + state;
+      /**
+       * Pure visual function — applies the given shape to the pill.
+       * No state tracking, no timers, no decisions.
+       */
+      function applyShape(shape, autoEnterMode, message) {
+        capsule.className = 'capsule ' + shape;
 
-        // Hide tooltip during active states (recording/processing hide via CSS,
-        // but :hover can linger after click — force-hide for non-dormant states)
-        if (state !== 'dormant') {
-          tooltip.style.display = 'none';
-        } else {
-          tooltip.style.display = '';
-        }
-
-        // Update tooltip based on state
-        if (state === 'error' && message) {
+        // Tooltip: error → show error text; dormant → show default; all else → hide
+        if (shape === 'error' && message) {
           tooltip.innerHTML = message;
           tooltip.classList.add('tooltip-error');
-          tooltip.style.display = ''; // errors should show tooltip
-        } else if (state === 'dormant') {
+          tooltip.style.display = '';  // errors always show tooltip
+        } else if (shape === 'dormant') {
           tooltip.innerHTML = defaultTooltipHTML;
           tooltip.classList.remove('tooltip-error');
+          tooltip.style.display = '';  // dormant shows on hover (CSS-driven)
+        } else {
+          tooltip.classList.remove('tooltip-error');
+          tooltip.style.display = 'none';  // force-hide — CSS :hover can linger after click
         }
 
         // Processing: stagger bar animation delays
-        if (state === 'processing') {
+        if (shape === 'processing') {
           for (let i = 0; i < NUM_BARS; i++) {
             barEls[i].style.height = '6px';
             barEls[i].style.animationDelay = (i * 0.06) + 's';
           }
         }
 
-        // Success/error: flash then shrink back
-        if (state === 'success' || state === 'error') {
-          if (shrinkTimeout) clearTimeout(shrinkTimeout);
-          shrinkTimeout = setTimeout(() => {
-            setState('dormant');
-          }, state === 'error' ? 3000 : 2000);
-        }
+        // Stop button icon: show enter icon when autoEnterMode === 'auto'
+        const showEnter = autoEnterMode === 'auto';
+        stopSquare.style.display = showEnter ? 'none' : '';
+        stopEnterIcon.style.display = showEnter ? '' : 'none';
       }
 
       function visualizeBars(level) {
-        if (currentState !== 'recording') return;
         const l = Math.min(Math.max(level || 0, 0), 1);
         const maxH = 28;
         const minH = 3;
@@ -377,51 +369,34 @@
         }
       }
 
-      // IPC listeners
-      function updateStopIcon() {
-        const showEnter = autoEnterMode === 'auto';
-        stopSquare.style.display = showEnter ? 'none' : '';
-        stopEnterIcon.style.display = showEnter ? '' : 'none';
-      }
-
-      window.electronAPI.onStateUpdate((data) => {
-        if (shrinkTimeout) { clearTimeout(shrinkTimeout); shrinkTimeout = null; }
-        // Track auto-enter mode from state broadcasts
-        if (data.autoEnterMode) autoEnterMode = data.autoEnterMode;
-        updateStopIcon();
-        // Don't override enter-ready state when dormant arrives
-        if (data.state === 'dormant' && currentState === 'enter-ready') return;
-        setState(data.state, data.message);
+      // Single render listener — main process tells pill exactly what to display
+      window.electronAPI.onRender((data) => {
+        // data = { shape, level, autoEnterMode, message }
+        applyShape(data.shape, data.autoEnterMode, data.message);
+        if (data.shape === 'recording' && data.level !== undefined) {
+          visualizeBars(data.level);
+        }
       });
 
-      window.electronAPI.onLevelUpdate((val) => {
-        visualizeBars(val);
-      });
-
-      // Click handling
+      // Click handling — pill tells main what was clicked, main decides the action
       capsule.addEventListener('click', (e) => {
         if (e.target.closest('.btn-cancel') || e.target.closest('.btn-stop') || e.target.closest('.enter-ui')) return;
-        // If enter button is showing, clicking capsule triggers enter
-        if (currentState === 'enter-ready') {
-          if (enterTimeout) clearTimeout(enterTimeout);
-          window.electronAPI.simulateEnter();
-          setState('dormant');
-          return;
-        }
-        window.electronAPI.toggleRecording();
+        window.electronAPI.click('capsule');
       });
 
       document.getElementById('btn-stop').addEventListener('click', (e) => {
         e.stopPropagation();
-        window.electronAPI.toggleRecording(); // stop -> processing
+        window.electronAPI.click('stop');
       });
 
-      // Cancel button: discard audio, go dormant (NOT transcribe)
-      // Guarded — only fires when actively recording or processing
       document.getElementById('btn-cancel').addEventListener('click', (e) => {
         e.stopPropagation();
-        if (currentState !== 'recording' && currentState !== 'processing') return;
-        window.electronAPI.cancelRecording();
+        window.electronAPI.click('cancel');
+      });
+
+      document.getElementById('enter-ui').addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.electronAPI.click('enter');
       });
 
       // Click-through: transparent areas pass clicks to apps behind the pill.
@@ -442,50 +417,6 @@
         e.preventDefault();
         window.electronAPI.showContextMenu();
       });
-
-      // Enter button support
-      let enterTimeout = null;
-
-      window.electronAPI.onShowEnterButton((data) => {
-        if (shrinkTimeout) { clearTimeout(shrinkTimeout); shrinkTimeout = null; }
-        currentState = 'enter-ready';
-        capsule.className = 'capsule enter-ready';
-        tooltip.innerHTML = defaultTooltipHTML;
-        tooltip.classList.remove('tooltip-error');
-        // Auto-dismiss: 2s for short recordings, up to 5s for long ones
-        const dur = (data && data.duration) || 0;
-        const dismissMs = Math.min(2000 + (dur * 100), 5000);
-        if (enterTimeout) clearTimeout(enterTimeout);
-        enterTimeout = setTimeout(() => setState('dormant'), dismissMs);
-      });
-
-      document.getElementById('enter-ui').addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (currentState !== 'enter-ready') return;
-        if (enterTimeout) clearTimeout(enterTimeout);
-        window.electronAPI.simulateEnter();
-        setState('dormant');
-      });
-
-      // State reconciliation — poll every 5s to fix missed broadcasts.
-      // Only corrects if pill is stuck in an active state (recording/processing)
-      // while main process has moved on. Skips success/error to avoid cutting
-      // short the visual feedback flash.
-      setInterval(async () => {
-        try {
-          const { state } = await window.electronAPI.getState();
-          if (state !== currentState &&
-              (currentState === 'recording' || currentState === 'processing')) {
-            setState(state);
-          }
-        } catch {}
-      }, 5000);
-
-      // Init
-      (async () => {
-        const { state, message } = await window.electronAPI.getState();
-        setState(state, message);
-      })();
     })();
   </script>
 </body>
