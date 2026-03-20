@@ -1,25 +1,13 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  // State
-  getState: () => ipcRenderer.invoke('get-state'),
-  onStateUpdate: (cb) => ipcRenderer.on('state-update', (_, data) => cb(data)),
-  onLevelUpdate: (cb) => ipcRenderer.on('level-update', (_, val) => cb(val)),
+  // Render — main process tells pill exactly what to display
+  onRender: (cb) => ipcRenderer.on('pill-render', (_, data) => cb(data)),
 
-  // Recording — routes through V3 frontend so pill and main window share state
-  toggleRecording: () => ipcRenderer.invoke('pill-toggle-recording'),
+  // Click — pill tells main what was clicked, main decides the action
+  click: (action) => ipcRenderer.invoke('pill-clicked', action),
 
-  // Native context menu (replaces clipped HTML menu)
-  showContextMenu: () => ipcRenderer.invoke('pill-context-menu'),
-
-  // Cancel recording — discards audio, goes dormant
-  cancelRecording: () => ipcRenderer.invoke('cancel-processing'),
-
-  // Click-through toggle — called on mouseenter/mouseleave of visible content
-  // so transparent areas pass clicks to apps behind the pill window.
+  // Window-level concerns (unchanged)
   setIgnoreMouse: (ignore) => ipcRenderer.send('pill-set-ignore-mouse', ignore),
-
-  // Auto-Enter: show enter button after transcription
-  onShowEnterButton: (cb) => ipcRenderer.on('show-enter-button', (_, data) => cb(data)),
-  simulateEnter: () => ipcRenderer.invoke('simulate-enter'),
+  showContextMenu: () => ipcRenderer.invoke('pill-context-menu'),
 });
