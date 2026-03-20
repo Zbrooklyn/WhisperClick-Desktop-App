@@ -830,8 +830,9 @@
 
         // --- State ---
         let activePanel = null;
-        let isRecording = false;
-        let isProcessing = false;
+        // Single state variable — set ONLY by state-update events from main process.
+        // The main process state machine is the sole authority.
+        let currentAppState = 'dormant'; // dormant | recording | processing | success | error
         let timerInterval;
         let seconds = 0;
         let historyData = [];
@@ -3032,13 +3033,13 @@
                 const state = await callNativeApi('get_recording_state');
                 if (!state) return;
                 // Backend says not recording but frontend thinks it is
-                if (!state.is_recording && isRecording) {
+                if (!state.is_recording && currentAppState === 'recording') {
                     clearInterval(timerInterval);
-                    isRecording = false;
-                    if (!isProcessing) setIdleUi();
+                    currentAppState = 'dormant';
+                    setIdleUi();
                 }
                 // Backend cancel was requested but frontend still shows processing
-                if (state.cancel_requested && isProcessing) {
+                if (state.cancel_requested && currentAppState === 'processing') {
                     clearInterval(timerInterval);
                     endProcessingState();
                     setIdleUi();
@@ -3100,29 +3101,30 @@
 
         // Sync frontend state with externally-triggered recording changes
         // (tray toggle, pill toggle when window was hidden, hotkey via direct path).
-        // Without this, the frontend's isRecording stays false when tray starts a
+        // Without this, the frontend's currentAppState === 'recording' stays false when tray starts a
         // recording, and the next pill/hotkey toggle tries to START again → "Already recording".
+        // State-update handler — SOLE AUTHORITY for frontend state.
+        // The main process state machine sends these events on every transition.
         window.addEventListener('state-update', (e) => {
             const { state } = e.detail || {};
-            if (state === 'recording' && !isRecording) {
-                isRecording = true;
+            const prev = currentAppState;
+            currentAppState = state || 'dormant';
+
+            if (state === 'recording' && prev !== 'recording') {
                 seconds = 0;
                 timerEl.innerText = "00:00";
-                clearInterval(timerInterval); // Prevent double-timer
+                clearInterval(timerInterval);
                 timerInterval = setInterval(() => {
                     seconds++;
                     timerEl.innerText = formatTime(seconds);
                 }, 1000);
                 setListeningUi();
-            } else if (state === 'processing' && isRecording) {
-                isRecording = false;
+            } else if (state === 'processing' && prev === 'recording') {
                 recordingDurationSecs = seconds;
                 clearInterval(timerInterval);
                 beginProcessingState();
                 setProcessingUi();
             } else if (state === 'dormant') {
-                // Always sync to dormant — clears stale recording/processing state
-                isRecording = false;
                 clearInterval(timerInterval);
                 endProcessingState();
                 // Don't override Enter button if it's currently showing
@@ -3545,7 +3547,7 @@
             stopVizAnimation();
 
             // Return the primary recording timer to idle state once work is done.
-            if (!isRecording && !isProcessing) {
+            if (currentAppState !== 'recording' && currentAppState !== 'processing') {
                 clearInterval(timerInterval);
                 seconds = 0;
                 recordingDurationSecs = 0;
@@ -3579,21 +3581,19 @@
         }
 
         function beginProcessingState() {
-            isProcessing = true;
             processingStartedAt = Date.now();
             if (processingFallbackTimer) clearTimeout(processingFallbackTimer);
             processingFallbackTimer = setTimeout(() => {
-                if (!isProcessing) return;
+                if (currentAppState !== 'processing') return;
                 clearInterval(timerInterval);
-                isRecording = false;
-                endProcessingState();
+                // Request dormant from main process instead of setting state locally
+                callNativeApi('cancel_processing').catch(() => {});
                 setIdleUi();
                 showToast("Recovered from stalled processing. Try recording again.", "info");
             }, 120000);
         }
 
         function endProcessingState() {
-            isProcessing = false;
             processingStartedAt = 0;
             if (processingFallbackTimer) {
                 clearTimeout(processingFallbackTimer);
@@ -3637,15 +3637,8 @@
                     showToast(response?.error || "Unable to start recording", "info");
                     return;
                 }
-                isRecording = true;
-                seconds = 0;
-                timerEl.innerText = "00:00";
-                clearInterval(timerInterval); // Prevent double-timer
-                timerInterval = setInterval(() => {
-                    seconds++;
-                    timerEl.innerText = formatTime(seconds);
-                }, 1000);
-                setListeningUi();
+                // State-update event from main process handles UI transition
+                // (recording state → timer + setListeningUi)
             } catch (error) {
                 const message = error instanceof Error ? error.message : "Unable to start recording";
                 showToast(message, "info");
@@ -3653,7 +3646,6 @@
         }
 
         async function stopRecordingSession() {
-            isRecording = false;
             recordingDurationSecs = seconds;
             clearInterval(timerInterval);
             beginProcessingState();
@@ -3729,7 +3721,7 @@
             }
             lastToggleAt = now;
 
-            if (isProcessing) {
+            if (currentAppState === 'processing') {
                 // Cancel in-flight transcription — await backend confirmation
                 if (nativeBridgeReady) {
                     try {
@@ -3783,7 +3775,7 @@
                 }
             }
 
-            if (isRecording) {
+            if (currentAppState === 'recording') {
                 await stopRecordingSession();
                 return;
             }
@@ -4313,7 +4305,7 @@
 
                 bar.style.width = `${preset.width}px`;
                 bar.style.borderRadius = preset.radius;
-                bar.style.opacity = isRecording ? String(getActiveOpacity()) : String(preset.opacity);
+                bar.style.opacity = currentAppState === 'recording' ? String(getActiveOpacity()) : String(preset.opacity);
                 bar.style.transition = 'height 90ms linear, opacity 120ms linear, background 220ms ease, filter 220ms ease';
                 bar.style.margin = '0';
                 bar.style.flexShrink = '0';
@@ -4383,7 +4375,7 @@
                     bar.style.boxShadow = 'none';
                     ensureDotMatrixColumn(bar, rows);
                     const seededLevel = Number(bar.dataset.level || Math.max(1, Math.round(rows * 0.35)));
-                    setDotMatrixLevel(bar, seededLevel, rows, isRecording);
+                    setDotMatrixLevel(bar, seededLevel, rows, currentAppState === 'recording');
                 } else {
                     if (bar.children.length) bar.innerHTML = '';
                     bar.style.display = 'block';
@@ -4515,7 +4507,7 @@
             vizPhase = 0;
             applyVizContainerWidth();
             rebuildVizBars();
-            if (isRecording) startVizAnimation();
+            if (currentAppState === 'recording') startVizAnimation();
             else stopVizAnimation();
         }
 
