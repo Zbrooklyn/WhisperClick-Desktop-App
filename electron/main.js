@@ -233,9 +233,12 @@ function broadcastError(message) {
   log.error(`broadcastError: ${message}`);
   setAppState('error', message);
   broadcastState();
+  // Fallback timer — UI can ack earlier via ack-state IPC
   setTimeout(() => {
-    setAppState('dormant');
-    broadcastState();
+    if (sm.is('error')) {
+      setAppState('dormant');
+      broadcastState();
+    }
   }, 3000);
 }
 
@@ -504,6 +507,17 @@ ipcMain.handle('clear-history', () => {
 
 // State
 ipcMain.handle('get-state', () => ({ state: sm.state, message: sm.message }));
+
+// UI acknowledges a transient state (success/error) — transition to dormant
+ipcMain.handle('ack-state', () => {
+  log.ipc('ack-state', `state=${sm.state}`);
+  if (sm.is('success', 'error')) {
+    setAppState('dormant');
+    broadcastState();
+    return { success: true };
+  }
+  return { success: false, error: 'Nothing to acknowledge' };
+});
 
 // Pill click — pill sends what was clicked, main decides the action
 ipcMain.handle('pill-clicked', async (_, action) => {
@@ -1242,13 +1256,16 @@ app.whenReady().then(() => {
       const dur = data.duration || 0;
       renderPill({ shape: 'enter-ready' });
     }
-    // Transition to dormant — delayed longer in button mode so enter button has time
+    // Fallback timer — UI can ack earlier via ack-state IPC.
+    // Enter button mode gets longer delay since user may click enter up to 5s later.
     const enterButtonActive = didPaste && currentSettings.autoEnterMode === 'button';
-    const dormantDelay = enterButtonActive ? 6000 : 1500;
+    const fallbackDelay = enterButtonActive ? 6000 : 1500;
     setTimeout(() => {
-      setAppState('dormant');
-      broadcastState();
-    }, dormantDelay);
+      if (sm.is('success')) {
+        setAppState('dormant');
+        broadcastState();
+      }
+    }, fallbackDelay);
   });
 
   sidecar.on('translation', (data) => {

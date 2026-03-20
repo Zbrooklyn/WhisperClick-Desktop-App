@@ -166,6 +166,10 @@ contextBridge.exposeInMainWorld('pywebview', {
       };
     },
 
+    async ack_state() {
+      return await ipcRenderer.invoke('ack-state');
+    },
+
     // ── Models ────────────────────────────────────────────────────────────
     async get_models() {
       const result = await ipcRenderer.invoke('list-models');

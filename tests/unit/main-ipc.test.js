@@ -746,17 +746,17 @@ describe('move-pill-to-display', () => {
   });
 });
 
-// ── pill-toggle-recording ───────────────────────────────────────────────
+// ── pill-clicked ────────────────────────────────────────────────────────
 
-describe('pill-toggle-recording', () => {
-  test('routes through mainWindow JS execution', async () => {
+describe('pill-clicked', () => {
+  test('capsule click routes through mainWindow JS execution', async () => {
     mainWin._destroyed = false; // Reset from window-close test
     mainWin.webContents.executeJavaScript.mockClear();
     // Ensure sidecar is running and API key is set (validation requires both)
     pushSidecarEvent(initialFakeProc, 'ready', { version: '1.0' });
     await tick(50);
     await ipcMain._invoke('save-settings', { openaiApiKey: 'sk-test-key' });
-    await ipcMain._invoke('pill-toggle-recording');
+    await ipcMain._invoke('pill-clicked', 'capsule');
     expect(mainWin.webContents.executeJavaScript).toHaveBeenCalledWith(
       'triggerTrustedHotkeyToggle()'
     );
@@ -1085,24 +1085,17 @@ describe('error state recovery', () => {
     await tick(30);
   });
 
-  test('error state returns to dormant after 3 seconds', async () => {
-    jest.useFakeTimers();
+  test('error state returns to dormant via ack-state', async () => {
     pushSidecarEvent(initialFakeProc, 'error', { message: 'timeout test' });
-    // Process the event
-    await Promise.resolve();
-    jest.advanceTimersByTime(100);
-    await Promise.resolve();
+    await tick(50);
 
     const errorState = await ipcMain._invoke('get-state');
     expect(errorState.state).toBe('error');
 
-    // Advance past the 3s recovery timeout
-    jest.advanceTimersByTime(3000);
-    await Promise.resolve();
-
+    // UI acks the error — main transitions to dormant
+    await ipcMain._invoke('ack-state');
     const recoveredState = await ipcMain._invoke('get-state');
     expect(recoveredState.state).toBe('dormant');
-    jest.useRealTimers();
   });
 
   test('success state returns to dormant after 1.5 seconds', async () => {
@@ -1116,21 +1109,16 @@ describe('error state recovery', () => {
     await ipcMain._invoke('start-recording');
     startCleanup();
 
-    jest.useFakeTimers();
     pushSidecarEvent(initialFakeProc, 'transcription', { text: 'timeout recovery' });
-    await Promise.resolve();
-    jest.advanceTimersByTime(100);
-    await Promise.resolve();
+    await tick(50);
 
     const successState = await ipcMain._invoke('get-state');
     expect(successState.state).toBe('success');
 
-    jest.advanceTimersByTime(1500);
-    await Promise.resolve();
-
+    // UI acks success — main transitions to dormant
+    await ipcMain._invoke('ack-state');
     const dormantState = await ipcMain._invoke('get-state');
     expect(dormantState.state).toBe('dormant');
-    jest.useRealTimers();
   });
 });
 
@@ -1311,12 +1299,12 @@ describe('pill state sync and error feedback', () => {
     mainWin._destroyed = false;
   });
 
-  test('pill-toggle with no API key broadcasts error to pill', async () => {
+  test('pill-clicked capsule with no API key broadcasts error', async () => {
     // Clear API keys
     await ipcMain._invoke('save-settings', { openaiApiKey: '', geminiApiKey: '', mode: 'api', provider: 'openai' });
 
     mainWin.webContents.send.mockClear();
-    await ipcMain._invoke('pill-toggle-recording');
+    await ipcMain._invoke('pill-clicked', 'capsule');
     await tick(30);
 
     expect(mainWin.webContents.send).toHaveBeenCalledWith(
@@ -1328,11 +1316,11 @@ describe('pill state sync and error feedback', () => {
     await ipcMain._invoke('save-settings', { openaiApiKey: 'sk-test-key' });
   });
 
-  test('pill-toggle with valid API key routes through to V3', async () => {
+  test('pill-clicked capsule with valid API key routes through to V3', async () => {
     await ipcMain._invoke('save-settings', { openaiApiKey: 'sk-test-key', mode: 'api', provider: 'openai' });
     mainWin.webContents.executeJavaScript.mockClear();
 
-    await ipcMain._invoke('pill-toggle-recording');
+    await ipcMain._invoke('pill-clicked', 'capsule');
 
     expect(mainWin.webContents.executeJavaScript).toHaveBeenCalledWith(
       'triggerTrustedHotkeyToggle()'
@@ -1641,28 +1629,31 @@ describe('broadcasts reach pillWindow', () => {
     );
   });
 
-  test('state-update broadcast reaches pillWindow', async () => {
+  test('pill-render broadcast reaches pillWindow on state change', async () => {
     expect(pillWin).toBeDefined();
     pillWin.webContents.send.mockClear();
 
-    // Push a sidecar event that triggers broadcastState
+    // Push a sidecar event that triggers broadcastState → renderPill
     pushSidecarEvent(initialFakeProc, 'cancelled', {});
     await tick(30);
 
     expect(pillWin.webContents.send).toHaveBeenCalledWith(
-      'state-update',
-      expect.objectContaining({ state: 'dormant' })
+      'pill-render',
+      expect.objectContaining({ shape: 'dormant' })
     );
   });
 
-  test('level-update broadcast reaches pillWindow', async () => {
+  test('pill-render broadcast reaches pillWindow on level update', async () => {
     expect(pillWin).toBeDefined();
     pillWin.webContents.send.mockClear();
 
     pushSidecarEvent(initialFakeProc, 'level', { level: 0.42 });
     await tick(30);
 
-    expect(pillWin.webContents.send).toHaveBeenCalledWith('level-update', 0.42);
+    expect(pillWin.webContents.send).toHaveBeenCalledWith(
+      'pill-render',
+      expect.objectContaining({ shape: 'recording', level: 0.42 })
+    );
   });
 });
 

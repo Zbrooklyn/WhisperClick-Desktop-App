@@ -3124,6 +3124,16 @@
                 clearInterval(timerInterval);
                 beginProcessingState();
                 setProcessingUi();
+            } else if (state === 'success') {
+                // Success flash — ack after brief display so main transitions to dormant
+                setTimeout(() => {
+                    callNativeApi('ack_state').catch(() => {});
+                }, 1500);
+            } else if (state === 'error') {
+                // Error display — ack after showing message so main transitions to dormant
+                setTimeout(() => {
+                    callNativeApi('ack_state').catch(() => {});
+                }, 3000);
             } else if (state === 'dormant') {
                 clearInterval(timerInterval);
                 endProcessingState();
