@@ -162,7 +162,7 @@ function createPillWindow() {
     if (pillWindow && !pillWindow.isDestroyed()) {
       const mainHidden = !mainWindow || mainWindow.isDestroyed() || !mainWindow.isVisible();
       if (mainHidden) pillWindow.show();
-      pillWindow.webContents.send('state-update', { state: sm.state, message: sm.message });
+      renderPill();
     }
   });
 
@@ -188,11 +188,28 @@ function setAppState(state, message) {
   return true;
 }
 
+/**
+ * Send a render payload to the pill. This is the ONLY way main talks to the pill
+ * about visual state. The pill has no state of its own — it renders exactly this.
+ */
+function renderPill(overrides = {}) {
+  if (!pillWindow || pillWindow.isDestroyed()) return;
+  const settings = store ? store.getSettings() : {};
+  const payload = {
+    shape: sm.state,           // dormant | recording | processing | success | error
+    level: 0,                  // audio level — only meaningful during recording
+    autoEnterMode: settings.autoEnterMode || 'off',
+    message: sm.message || '', // error message text — only meaningful for shape='error'
+    ...overrides,              // caller can override shape (e.g., 'enter-ready') or level
+  };
+  pillWindow.webContents.send('pill-render', payload);
+}
+
 function broadcastState() {
   const autoEnterMode = store ? store.getSettings().autoEnterMode : 'off';
   const payload = { state: sm.state, message: sm.message, autoEnterMode };
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('state-update', payload);
-  if (pillWindow && !pillWindow.isDestroyed()) pillWindow.webContents.send('state-update', payload);
+  renderPill({ shape: sm.state });
   updateTrayIcon(sm.state);
   // Update tray tooltip to reflect current state
   const prefix = isDev ? 'WhisperClick [DEV]' : 'WhisperClick';
@@ -209,7 +226,7 @@ function broadcastLevel(level) {
   if (now - _lastLevelBroadcast < LEVEL_THROTTLE_MS) return;
   _lastLevelBroadcast = now;
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('level-update', level);
-  if (pillWindow && !pillWindow.isDestroyed()) pillWindow.webContents.send('level-update', level);
+  renderPill({ shape: 'recording', level });
 }
 
 function broadcastError(message) {
@@ -1192,7 +1209,7 @@ app.whenReady().then(() => {
     // Notify pill of button mode for enter button display (only if something was pasted)
     if (didPaste && currentSettings.autoEnterMode === 'button') {
       const dur = data.duration || 0;
-      if (pillWindow && !pillWindow.isDestroyed()) pillWindow.webContents.send('show-enter-button', { duration: dur });
+      renderPill({ shape: 'enter-ready' });
     }
     // Transition to dormant — delayed longer in button mode so enter button has time
     const enterButtonActive = didPaste && currentSettings.autoEnterMode === 'button';
