@@ -37,18 +37,8 @@
     ]
   },
   "plugins": {
-    "global-shortcut": {},
-    "clipboard-manager": {},
-    "dialog": {},
     "shell": {
-      "open": true,
-      "scope": [
-        {
-          "name": "python-sidecar",
-          "cmd": "python",
-          "args": true
-        }
-      ]
+      "open": true
     }
   }
 }
