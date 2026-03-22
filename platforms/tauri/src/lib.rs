@@ -1,26 +1,30 @@
 mod gate;
 mod sidecar;
 mod state_machine;
+mod store;
 mod system;
 
+use sidecar::Sidecar;
 use state_machine::{AppState, StateMachine};
-use std::sync::Mutex;
-use tauri::{AppHandle, Emitter, Manager};
+use store::Store;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use std::path::PathBuf;
+use tauri::{AppHandle, Emitter, Manager, WebviewWindowBuilder, WebviewUrl};
 use serde::Serialize;
 use serde_json::Value;
 
-/// App state managed by Tauri
+/// Managed state
 pub struct AppStateMachine(pub StateMachine);
-
-/// Settings store (simple JSON in memory for now)
-pub struct SettingsStore {
-    pub settings: Mutex<serde_json::Map<String, Value>>,
-}
+pub struct AppSidecar(pub Mutex<Option<Arc<Sidecar>>>);
+pub struct AppStore(pub Store);
 
 #[derive(Clone, Serialize)]
 struct StatePayload {
     state: String,
     message: String,
+    #[serde(rename = "autoEnterMode")]
+    auto_enter_mode: String,
 }
 
 #[derive(Serialize)]
@@ -28,28 +32,28 @@ struct ResultPayload {
     success: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    text: Option<String>,
 }
 
 impl ResultPayload {
-    fn ok() -> Self { Self { success: true, error: None } }
-    fn err(msg: &str) -> Self { Self { success: false, error: Some(msg.to_string()) } }
+    fn ok() -> Self { Self { success: true, error: None, text: None } }
+    fn err(msg: &str) -> Self { Self { success: false, error: Some(msg.to_string()), text: None } }
+    fn ok_with_text(t: &str) -> Self { Self { success: true, error: None, text: Some(t.to_string()) } }
 }
 
 // --- State commands ---
 
 #[tauri::command]
-fn get_state(sm: tauri::State<'_, AppStateMachine>) -> StatePayload {
-    StatePayload {
-        state: sm.0.state().to_string(),
-        message: sm.0.message(),
-    }
+fn get_state(sm: tauri::State<'_, AppStateMachine>) -> Value {
+    serde_json::json!({ "state": sm.0.state().to_string(), "message": sm.0.message() })
 }
 
 #[tauri::command]
-fn ack_state(sm: tauri::State<'_, AppStateMachine>, app: AppHandle) -> ResultPayload {
+fn ack_state(sm: tauri::State<'_, AppStateMachine>, app: AppHandle, store: tauri::State<'_, AppStore>) -> ResultPayload {
     if sm.0.is(&[AppState::Success, AppState::Error]) {
         sm.0.transition(AppState::Dormant, None);
-        broadcast_state_inner(&sm.0, &app);
+        broadcast_state(&sm.0, &app, &store.0);
         ResultPayload::ok()
     } else {
         ResultPayload::err("Nothing to acknowledge")
@@ -59,43 +63,35 @@ fn ack_state(sm: tauri::State<'_, AppStateMachine>, app: AppHandle) -> ResultPay
 // --- Settings commands ---
 
 #[tauri::command]
-fn get_settings(store: tauri::State<'_, SettingsStore>) -> serde_json::Map<String, Value> {
-    store.settings.lock().unwrap().clone()
+fn get_settings(store: tauri::State<'_, AppStore>) -> serde_json::Map<String, Value> {
+    store.0.get_settings()
 }
 
 #[tauri::command]
-fn save_settings(
-    store: tauri::State<'_, SettingsStore>,
-    patch: serde_json::Map<String, Value>,
-) -> ResultPayload {
-    let mut settings = store.settings.lock().unwrap();
-    for (key, value) in patch {
-        settings.insert(key, value);
-    }
+fn save_settings(store: tauri::State<'_, AppStore>, patch: serde_json::Map<String, Value>) -> ResultPayload {
+    store.0.save_settings(patch);
     ResultPayload::ok()
 }
 
 #[tauri::command]
-fn reset_settings(store: tauri::State<'_, SettingsStore>) -> ResultPayload {
-    store.settings.lock().unwrap().clear();
+fn reset_settings(store: tauri::State<'_, AppStore>) -> ResultPayload {
+    store.0.reset_settings();
     ResultPayload::ok()
 }
 
-// --- Recording commands ---
+// --- Recording commands (wired to sidecar) ---
 
 #[tauri::command]
 fn start_recording(
     sm: tauri::State<'_, AppStateMachine>,
-    store: tauri::State<'_, SettingsStore>,
+    store: tauri::State<'_, AppStore>,
+    sc: tauri::State<'_, AppSidecar>,
     app: AppHandle,
 ) -> ResultPayload {
-    let (mode, has_key) = {
-        let settings = store.settings.lock().unwrap();
-        let m = settings.get("mode").and_then(|v| v.as_str()).unwrap_or("api").to_string();
-        let k = settings.get("openaiApiKey").and_then(|v| v.as_str()).map(|s| !s.is_empty()).unwrap_or(false)
-            || settings.get("geminiApiKey").and_then(|v| v.as_str()).map(|s| !s.is_empty()).unwrap_or(false);
-        (m, k)
-    };
+    let settings = store.0.get_settings();
+    let mode = settings.get("mode").and_then(|v| v.as_str()).unwrap_or("api").to_string();
+    let has_key = settings.get("openaiApiKey").and_then(|v| v.as_str()).map(|s| !s.is_empty()).unwrap_or(false)
+        || settings.get("geminiApiKey").and_then(|v| v.as_str()).map(|s| !s.is_empty()).unwrap_or(false);
 
     let gate = gate::can_accept_action(&sm.0, "start", has_key, &mode);
     if !gate.allowed {
@@ -103,55 +99,138 @@ fn start_recording(
     }
 
     sm.0.transition(AppState::Recording, None);
-    broadcast_state_inner(&sm.0, &app);
+    broadcast_state(&sm.0, &app, &store.0);
+
+    // Send start_rec to sidecar
+    let sidecar = sc.0.lock().unwrap();
+    if let Some(ref sc) = *sidecar {
+        let _ = sc.send("start_rec", HashMap::new(), |_| {});
+    }
+
     ResultPayload::ok()
 }
 
 #[tauri::command]
-fn stop_recording(sm: tauri::State<'_, AppStateMachine>, app: AppHandle) -> ResultPayload {
+fn stop_recording(
+    sm: tauri::State<'_, AppStateMachine>,
+    sc: tauri::State<'_, AppSidecar>,
+    store: tauri::State<'_, AppStore>,
+    app: AppHandle,
+) -> ResultPayload {
     let gate = gate::can_accept_action(&sm.0, "stop", true, "api");
     if !gate.allowed {
         return ResultPayload::err(&gate.error.unwrap_or_default());
     }
+
     sm.0.transition(AppState::Processing, None);
-    broadcast_state_inner(&sm.0, &app);
+    broadcast_state(&sm.0, &app, &store.0);
+
+    // Send stop_rec to sidecar
+    let sidecar = sc.0.lock().unwrap();
+    if let Some(ref sc) = *sidecar {
+        let _ = sc.send("stop_rec", HashMap::new(), |_| {});
+    }
+
     ResultPayload::ok()
 }
 
 #[tauri::command]
-fn cancel_processing(sm: tauri::State<'_, AppStateMachine>, app: AppHandle) -> ResultPayload {
+fn cancel_processing(
+    sm: tauri::State<'_, AppStateMachine>,
+    sc: tauri::State<'_, AppSidecar>,
+    store: tauri::State<'_, AppStore>,
+    app: AppHandle,
+) -> ResultPayload {
     let gate = gate::can_accept_action(&sm.0, "cancel", true, "api");
     if !gate.allowed {
         return ResultPayload::err(&gate.error.unwrap_or_default());
     }
+
     sm.0.transition(AppState::Dormant, None);
-    broadcast_state_inner(&sm.0, &app);
+    broadcast_state(&sm.0, &app, &store.0);
+
+    let sidecar = sc.0.lock().unwrap();
+    if let Some(ref sc) = *sidecar {
+        let _ = sc.send("cancel", HashMap::new(), |_| {});
+    }
+
     ResultPayload::ok()
 }
 
-// --- Stub commands (to be implemented in M6/M7) ---
+// --- History commands ---
 
-#[tauri::command] fn get_history() -> Vec<Value> { vec![] }
-#[tauri::command] fn delete_history(_id: String) -> ResultPayload { ResultPayload::ok() }
-#[tauri::command] fn clear_history() -> ResultPayload { ResultPayload::ok() }
-#[tauri::command] fn get_audio(_id: String) -> Option<String> { None }
-#[tauri::command] fn export_transcription(_text: String, _format: String) -> ResultPayload { ResultPayload::ok() }
-#[tauri::command] fn paste_last_transcript() -> ResultPayload { ResultPayload::err("No transcriptions") }
-#[tauri::command] fn copy_to_clipboard(_text: String) -> ResultPayload { ResultPayload::ok() }
-#[tauri::command] fn list_models() -> Vec<Value> { vec![] }
-#[tauri::command] fn download_model(_name: String) -> ResultPayload { ResultPayload::ok() }
-#[tauri::command] fn delete_model(_name: String) -> ResultPayload { ResultPayload::ok() }
-#[tauri::command] fn list_mics() -> Vec<Value> { vec![] }
-#[tauri::command] fn set_mic(_id: i32) -> ResultPayload { ResultPayload::ok() }
-#[tauri::command] fn verify_api_key(_provider: String, _key: String) -> ResultPayload { ResultPayload::ok() }
-#[tauri::command] fn simulate_enter() -> ResultPayload { ResultPayload::ok() }
-#[tauri::command] fn toggle_pill() -> ResultPayload { ResultPayload::ok() }
-#[tauri::command] fn show_main_window() -> ResultPayload { ResultPayload::ok() }
-#[tauri::command] fn show_settings() -> ResultPayload { ResultPayload::ok() }
-#[tauri::command] fn hide_pill() -> ResultPayload { ResultPayload::ok() }
-#[tauri::command] fn pill_clicked(_action: String) -> ResultPayload { ResultPayload::ok() }
-#[tauri::command] fn pill_set_ignore_mouse(_ignore: bool) -> ResultPayload { ResultPayload::ok() }
-#[tauri::command] fn pill_context_menu() -> ResultPayload { ResultPayload::ok() }
+#[tauri::command]
+fn get_history(store: tauri::State<'_, AppStore>) -> Vec<Value> {
+    store.0.get_history()
+}
+
+#[tauri::command]
+fn delete_history(store: tauri::State<'_, AppStore>, id: String) -> ResultPayload {
+    store.0.delete_history(&id);
+    ResultPayload::ok()
+}
+
+#[tauri::command]
+fn clear_history(store: tauri::State<'_, AppStore>) -> ResultPayload {
+    store.0.clear_history();
+    ResultPayload::ok()
+}
+
+// --- Sidecar proxy commands ---
+
+#[tauri::command]
+fn list_models(sc: tauri::State<'_, AppSidecar>) -> Vec<Value> {
+    // TODO: async sidecar call
+    vec![]
+}
+
+#[tauri::command]
+fn list_mics(sc: tauri::State<'_, AppSidecar>) -> Vec<Value> {
+    vec![]
+}
+
+#[tauri::command]
+fn download_model(_name: String) -> ResultPayload { ResultPayload::ok() }
+
+#[tauri::command]
+fn delete_model(_name: String) -> ResultPayload { ResultPayload::ok() }
+
+#[tauri::command]
+fn set_mic(_id: i32) -> ResultPayload { ResultPayload::ok() }
+
+#[tauri::command]
+fn verify_api_key(_provider: String, _key: String) -> ResultPayload { ResultPayload::ok() }
+
+// --- Utility commands ---
+
+#[tauri::command]
+fn get_audio(_id: String) -> Option<String> { None }
+
+#[tauri::command]
+fn export_transcription(_text: String, _format: String) -> ResultPayload { ResultPayload::ok() }
+
+#[tauri::command]
+fn paste_last_transcript(store: tauri::State<'_, AppStore>) -> ResultPayload {
+    let history = store.0.get_history();
+    if let Some(entry) = history.first() {
+        if let Some(text) = entry.get("text").and_then(|v| v.as_str()) {
+            return ResultPayload::ok_with_text(text);
+        }
+    }
+    ResultPayload::err("No transcriptions")
+}
+
+#[tauri::command]
+fn copy_to_clipboard(app: AppHandle, text: String) -> ResultPayload {
+    // Use Tauri clipboard API
+    ResultPayload::ok()
+}
+
+#[tauri::command]
+fn simulate_enter() -> ResultPayload {
+    let _ = system::simulate_enter_key();
+    ResultPayload::ok()
+}
 
 #[tauri::command]
 fn get_app_info() -> Value {
@@ -160,6 +239,84 @@ fn get_app_info() -> Value {
         "platform": std::env::consts::OS,
     })
 }
+
+// --- Window commands ---
+
+#[tauri::command]
+fn toggle_pill() -> ResultPayload { ResultPayload::ok() }
+
+#[tauri::command]
+fn show_main_window(app: AppHandle) -> ResultPayload {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.show();
+        let _ = w.set_focus();
+    }
+    ResultPayload::ok()
+}
+
+#[tauri::command]
+fn show_settings(app: AppHandle) -> ResultPayload {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.show();
+        let _ = w.set_focus();
+        let _ = w.eval("openSettingsDrawer()");
+    }
+    ResultPayload::ok()
+}
+
+#[tauri::command]
+fn hide_pill() -> ResultPayload { ResultPayload::ok() }
+
+#[tauri::command]
+fn pill_clicked(
+    action: String,
+    sm: tauri::State<'_, AppStateMachine>,
+    sc: tauri::State<'_, AppSidecar>,
+    store: tauri::State<'_, AppStore>,
+    app: AppHandle,
+) -> ResultPayload {
+    match action.as_str() {
+        "enter" => {
+            sm.0.transition(AppState::Dormant, None);
+            broadcast_state(&sm.0, &app, &store.0);
+            let _ = system::simulate_enter_key();
+            ResultPayload::ok()
+        }
+        "stop" => {
+            let gate = gate::can_accept_action(&sm.0, "stop", true, "api");
+            if !gate.allowed { return ResultPayload::ok(); }
+            sm.0.transition(AppState::Processing, None);
+            broadcast_state(&sm.0, &app, &store.0);
+            let sidecar = sc.0.lock().unwrap();
+            if let Some(ref s) = *sidecar { let _ = s.send("stop_rec", HashMap::new(), |_| {}); }
+            ResultPayload::ok()
+        }
+        "cancel" => {
+            let gate = gate::can_accept_action(&sm.0, "cancel", true, "api");
+            if !gate.allowed { return ResultPayload::ok(); }
+            sm.0.transition(AppState::Dormant, None);
+            broadcast_state(&sm.0, &app, &store.0);
+            let sidecar = sc.0.lock().unwrap();
+            if let Some(ref s) = *sidecar { let _ = s.send("cancel", HashMap::new(), |_| {}); }
+            ResultPayload::ok()
+        }
+        _ => {
+            // capsule click — toggle
+            let gate = gate::can_accept_action(&sm.0, "toggle", true, "api");
+            if !gate.allowed { return ResultPayload::ok(); }
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.eval("triggerTrustedHotkeyToggle()");
+            }
+            ResultPayload::ok()
+        }
+    }
+}
+
+#[tauri::command]
+fn pill_set_ignore_mouse(_ignore: bool) -> ResultPayload { ResultPayload::ok() }
+
+#[tauri::command]
+fn pill_context_menu() -> ResultPayload { ResultPayload::ok() }
 
 #[tauri::command]
 fn window_minimize(window: tauri::Window) -> ResultPayload {
@@ -190,12 +347,25 @@ fn window_is_maximized(window: tauri::Window) -> bool {
 
 // --- Helpers ---
 
-fn broadcast_state_inner(sm: &StateMachine, app: &AppHandle) {
+fn broadcast_state(sm: &StateMachine, app: &AppHandle, store: &Store) {
+    let settings = store.get_settings();
+    let aem = settings.get("autoEnterMode").and_then(|v| v.as_str()).unwrap_or("off").to_string();
     let payload = StatePayload {
         state: sm.state().to_string(),
         message: sm.message(),
+        auto_enter_mode: aem,
     };
     let _ = app.emit("state-update", &payload);
+}
+
+fn find_python() -> String {
+    // Check for venv first, then system python
+    for candidate in &["../../venv/Scripts/python.exe", "python", "python3"] {
+        if std::process::Command::new(candidate).arg("--version").output().is_ok() {
+            return candidate.to_string();
+        }
+    }
+    "python".to_string()
 }
 
 // --- App setup ---
@@ -203,10 +373,42 @@ fn broadcast_state_inner(sm: &StateMachine, app: &AppHandle) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .manage(AppStateMachine(StateMachine::new()))
-        .manage(SettingsStore {
-            settings: Mutex::new(serde_json::Map::new()),
+        .setup(|app| {
+            // Settings store
+            let config_dir = app.path().app_config_dir().unwrap_or(PathBuf::from("."));
+            let store = Store::new(config_dir);
+            app.manage(AppStore(store));
+
+            // Sidecar — spawn Python engine
+            let engine_path = std::env::current_dir()
+                .unwrap_or_default()
+                .join("../../shared/engine/engine.py")
+                .to_string_lossy()
+                .to_string();
+            let python = find_python();
+            let sc = Arc::new(Sidecar::new(engine_path, python));
+
+            // Sidecar event handler
+            let app_handle = app.handle().clone();
+            sc.on_event(move |event, data| {
+                match event.as_str() {
+                    "transcription" => { let _ = app_handle.emit("transcription", &data); }
+                    "level" => { let _ = app_handle.emit("level-update", &data); }
+                    "error" => { let _ = app_handle.emit("sidecar-error", &data); }
+                    "ready" => { println!("[sidecar] ready"); }
+                    "cancelled" => { println!("[sidecar] cancelled"); }
+                    _ => {}
+                }
+            });
+
+            if let Err(e) = sc.start() {
+                eprintln!("[sidecar] Failed to start: {}", e);
+            }
+            app.manage(AppSidecar(Mutex::new(Some(sc))));
+
+            Ok(())
         })
+        .manage(AppStateMachine(StateMachine::new()))
         .invoke_handler(tauri::generate_handler![
             get_state, ack_state,
             get_settings, save_settings, reset_settings,
