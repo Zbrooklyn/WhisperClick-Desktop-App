@@ -153,7 +153,7 @@ function createPillWindow() {
     },
   });
 
-  pillWindow.loadFile(path.join(__dirname, '../src/pill/pill.html'));
+  pillWindow.loadFile(path.join(__dirname, '../shared/pill/pill.html'));
   // Click-through: transparent areas pass clicks to apps behind the pill.
   // The renderer toggles this off when the mouse enters visible content.
   pillWindow.setIgnoreMouseEvents(true, { forward: true });
