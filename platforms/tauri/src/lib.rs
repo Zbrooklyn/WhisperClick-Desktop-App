@@ -222,8 +222,11 @@ fn paste_last_transcript(store: tauri::State<'_, AppStore>) -> ResultPayload {
 
 #[tauri::command]
 fn copy_to_clipboard(app: AppHandle, text: String) -> ResultPayload {
-    // Use Tauri clipboard API
-    ResultPayload::ok()
+    use tauri_plugin_clipboard_manager::ClipboardExt;
+    match app.clipboard().write_text(text) {
+        Ok(_) => ResultPayload::ok(),
+        Err(e) => ResultPayload::err(&format!("Clipboard write failed: {}", e)),
+    }
 }
 
 #[tauri::command]
@@ -406,8 +409,26 @@ pub fn run() {
             }
             app.manage(AppSidecar(Mutex::new(Some(sc))));
 
+            // Register global hotkey (Ctrl+Alt+R)
+            use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+            let hotkey_app = app.handle().clone();
+            if let Err(e) = app.handle().global_shortcut().on_shortcut("ctrl+alt+r", move |_app, _shortcut, event| {
+                if event.state == ShortcutState::Pressed {
+                    println!("[hotkey] Ctrl+Alt+R pressed");
+                    if let Some(w) = hotkey_app.get_webview_window("main") {
+                        let _ = w.eval("triggerTrustedHotkeyToggle()");
+                    }
+                }
+            }) {
+                eprintln!("[hotkey] Failed to register: {}", e);
+            }
+
             Ok(())
         })
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_shell::init())
         .manage(AppStateMachine(StateMachine::new()))
         .invoke_handler(tauri::generate_handler![
             get_state, ack_state,

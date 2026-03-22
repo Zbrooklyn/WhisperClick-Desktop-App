@@ -1,74 +1,94 @@
-//! System integration — tray, hotkey, pill window, updater.
-//!
-//! These features require Tauri plugins and runtime testing.
-//! This module provides the structure; implementation comes during M8 testing.
+//! System integration — key simulation, tray, hotkey.
 
-use tauri::AppHandle;
-
-/// Initialize system tray with icon and context menu
-/// Requires: tauri tray API (built-in since Tauri 2.0)
-pub fn init_tray(_app: &AppHandle) -> Result<(), String> {
-    // TODO: Create tray icon from ../../icons/icon.png
-    // TODO: Build context menu (Start Recording, Settings, Show, Quit)
-    // TODO: Handle tray click → toggle recording via canAcceptAction
-    // TODO: Update tray icon based on state (dormant/recording/processing)
-    println!("[system] Tray initialization stub — implement in M8");
-    Ok(())
-}
-
-/// Register global hotkey (Ctrl+Alt+R default)
-/// Requires: tauri-plugin-global-shortcut
-pub fn register_hotkey(_app: &AppHandle, _accelerator: &str) -> Result<(), String> {
-    // TODO: Register global shortcut via plugin
-    // TODO: On trigger → canAcceptAction('toggle') → route to recording
-    // TODO: Handle re-registration when user changes hotkey in settings
-    println!("[system] Hotkey registration stub — implement in M8");
-    Ok(())
-}
-
-/// Create the pill window (transparent, frameless, always-on-top)
-/// Requires: Tauri multi-window support
-pub fn create_pill_window(_app: &AppHandle) -> Result<(), String> {
-    // TODO: Create WebviewWindow with:
-    //   - url: ../../shared/pill/pill.html
-    //   - transparent: true
-    //   - decorations: false
-    //   - always_on_top: true
-    //   - skip_taskbar: true
-    //   - width: 200, height: 80
-    //   - position: bottom-center of primary display
-    // TODO: Set click-through (platform-specific)
-    // TODO: Load pill-bridge.js for Tauri invoke() mapping
-    println!("[system] Pill window creation stub — implement in M8");
-    Ok(())
-}
-
-/// Initialize auto-updater
-/// Requires: tauri-plugin-updater
-pub fn init_updater(_app: &AppHandle) -> Result<(), String> {
-    // TODO: Configure updater to check GitHub releases
-    // TODO: Handle stable/beta channel based on version string
-    // TODO: Check for updates 10s after startup, then periodically
-    println!("[system] Updater initialization stub — implement in M8");
-    Ok(())
-}
-
-/// Simulate clipboard paste (Ctrl+V)
-/// Requires: platform-specific key simulation
+#[cfg(target_os = "windows")]
 pub fn simulate_paste() -> Result<(), String> {
-    // TODO: Windows: keybd_event for Ctrl+V
-    // TODO: macOS: CGEventCreateKeyboardEvent for Cmd+V
-    // TODO: Linux: xdotool or similar
-    println!("[system] Paste simulation stub — implement in M8");
+    use std::mem::size_of;
+    #[allow(non_snake_case)]
+    mod win {
+        pub const VK_CONTROL: u16 = 0x11;
+        pub const VK_V: u16 = 0x56;
+        pub const KEYEVENTF_KEYUP: u32 = 0x0002;
+        pub const INPUT_KEYBOARD: u32 = 1;
+
+        #[repr(C)]
+        pub struct KEYBDINPUT {
+            pub wVk: u16,
+            pub wScan: u16,
+            pub dwFlags: u32,
+            pub time: u32,
+            pub dwExtraInfo: usize,
+        }
+
+        #[repr(C)]
+        pub struct INPUT {
+            pub r#type: u32,
+            pub ki: KEYBDINPUT,
+            pub padding: [u8; 8],
+        }
+
+        extern "system" {
+            pub fn SendInput(cInputs: u32, pInputs: *const INPUT, cbSize: i32) -> u32;
+        }
+    }
+
+    unsafe {
+        let mut inputs = [
+            win::INPUT { r#type: win::INPUT_KEYBOARD, ki: win::KEYBDINPUT { wVk: win::VK_CONTROL, wScan: 0, dwFlags: 0, time: 0, dwExtraInfo: 0 }, padding: [0; 8] },
+            win::INPUT { r#type: win::INPUT_KEYBOARD, ki: win::KEYBDINPUT { wVk: win::VK_V, wScan: 0, dwFlags: 0, time: 0, dwExtraInfo: 0 }, padding: [0; 8] },
+            win::INPUT { r#type: win::INPUT_KEYBOARD, ki: win::KEYBDINPUT { wVk: win::VK_V, wScan: 0, dwFlags: win::KEYEVENTF_KEYUP, time: 0, dwExtraInfo: 0 }, padding: [0; 8] },
+            win::INPUT { r#type: win::INPUT_KEYBOARD, ki: win::KEYBDINPUT { wVk: win::VK_CONTROL, wScan: 0, dwFlags: win::KEYEVENTF_KEYUP, time: 0, dwExtraInfo: 0 }, padding: [0; 8] },
+        ];
+        win::SendInput(4, inputs.as_ptr(), size_of::<win::INPUT>() as i32);
+    }
     Ok(())
 }
 
-/// Simulate Enter keypress
-/// Requires: platform-specific key simulation
+#[cfg(target_os = "windows")]
 pub fn simulate_enter_key() -> Result<(), String> {
-    // TODO: Windows: keybd_event for Enter
-    // TODO: macOS: CGEventCreateKeyboardEvent for Return
-    // TODO: Linux: xdotool
-    println!("[system] Enter simulation stub — implement in M8");
+    use std::mem::size_of;
+    #[allow(non_snake_case)]
+    mod win {
+        pub const VK_RETURN: u16 = 0x0D;
+        pub const KEYEVENTF_KEYUP: u32 = 0x0002;
+        pub const INPUT_KEYBOARD: u32 = 1;
+
+        #[repr(C)]
+        pub struct KEYBDINPUT {
+            pub wVk: u16,
+            pub wScan: u16,
+            pub dwFlags: u32,
+            pub time: u32,
+            pub dwExtraInfo: usize,
+        }
+
+        #[repr(C)]
+        pub struct INPUT {
+            pub r#type: u32,
+            pub ki: KEYBDINPUT,
+            pub padding: [u8; 8],
+        }
+
+        extern "system" {
+            pub fn SendInput(cInputs: u32, pInputs: *const INPUT, cbSize: i32) -> u32;
+        }
+    }
+
+    unsafe {
+        let mut inputs = [
+            win::INPUT { r#type: win::INPUT_KEYBOARD, ki: win::KEYBDINPUT { wVk: win::VK_RETURN, wScan: 0, dwFlags: 0, time: 0, dwExtraInfo: 0 }, padding: [0; 8] },
+            win::INPUT { r#type: win::INPUT_KEYBOARD, ki: win::KEYBDINPUT { wVk: win::VK_RETURN, wScan: 0, dwFlags: win::KEYEVENTF_KEYUP, time: 0, dwExtraInfo: 0 }, padding: [0; 8] },
+        ];
+        win::SendInput(2, inputs.as_ptr(), size_of::<win::INPUT>() as i32);
+    }
     Ok(())
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn simulate_paste() -> Result<(), String> {
+    Err("Paste simulation not implemented for this platform".to_string())
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn simulate_enter_key() -> Result<(), String> {
+    Err("Enter simulation not implemented for this platform".to_string())
 }

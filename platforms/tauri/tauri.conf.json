@@ -9,6 +9,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "WhisperClick",
         "width": 900,
         "height": 680,
@@ -19,8 +20,12 @@
         "decorations": true
       }
     ],
+    "trayIcon": {
+      "iconPath": "../../icons/icon.png",
+      "iconAsTemplate": true
+    },
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
     }
   },
   "bundle": {
@@ -30,5 +35,20 @@
       "../../icons/icon.ico",
       "../../icons/icon.png"
     ]
+  },
+  "plugins": {
+    "global-shortcut": {},
+    "clipboard-manager": {},
+    "dialog": {},
+    "shell": {
+      "open": true,
+      "scope": [
+        {
+          "name": "python-sidecar",
+          "cmd": "python",
+          "args": true
+        }
+      ]
+    }
   }
 }
