@@ -72,7 +72,7 @@ function createMainWindow() {
   });
 
   // Load the V3 frontend directly (no Vite build step)
-  mainWindow.loadFile(path.join(__dirname, '../src/frontend/index.html'));
+  mainWindow.loadFile(path.join(__dirname, '../shared/frontend/index.html'));
 
   mainWindow.once('ready-to-show', () => mainWindow.show());
 
