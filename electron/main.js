@@ -1206,7 +1206,7 @@ app.whenReady().then(() => {
   registerHotkey(settings.hotkey || 'Ctrl+Alt+R');
 
   // Sidecar
-  const enginePath = process.env.WHISPERCLICK_ENGINE_PATH || path.join(__dirname, '../engine/engine.py');
+  const enginePath = process.env.WHISPERCLICK_ENGINE_PATH || path.join(__dirname, '../shared/engine/engine.py');
   sidecar = new Sidecar(enginePath);
 
   let sidecarRestartCount = 0;

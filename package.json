@@ -25,14 +25,14 @@
     "icon": "icons/icon.png",
     "files": [
       "electron/**",
-      "src/frontend/**",
-      "src/pill/**",
-      "engine/**",
+      "shared/frontend/**",
+      "shared/pill/**",
+      "shared/engine/**",
       "icons/**"
     ],
     "extraResources": [
       {
-        "from": "engine/",
+        "from": "shared/engine/",
         "to": "engine/",
         "filter": [
           "**/*.py"
