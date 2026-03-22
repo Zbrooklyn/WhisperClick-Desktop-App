@@ -1,6 +1,6 @@
 const { PassThrough } = require('stream');
 const EventEmitter = require('events');
-const Sidecar = require('../../electron/sidecar');
+const Sidecar = require('../../platforms/electron/sidecar');
 
 // Mock child_process.spawn
 jest.mock('child_process', () => ({

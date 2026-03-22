@@ -8,7 +8,7 @@ let tmpDir;
 beforeEach(() => {
   // Fresh module for each test — resets internal state
   jest.resetModules();
-  log = require('../../electron/logger');
+  log = require('../../platforms/electron/logger');
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wc-log-'));
 });
 
@@ -110,7 +110,7 @@ describe('logger', () => {
     fs.writeFileSync(logPath, 'x'.repeat(6 * 1024 * 1024));
     // Re-init triggers rotation check
     jest.resetModules();
-    log = require('../../electron/logger');
+    log = require('../../platforms/electron/logger');
     log.init(tmpDir, true);
     // Old file should be rotated
     expect(fs.existsSync(logPath + '.1')).toBe(true);

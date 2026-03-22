@@ -5,9 +5,9 @@ const { nativeImage, Tray, Menu } = require('electron');
  * Helper: get a fresh tray module (resets module-level state).
  */
 function loadTray() {
-  const trayPath = require.resolve('../../electron/tray');
+  const trayPath = require.resolve('../../platforms/electron/tray');
   delete require.cache[trayPath];
-  return require('../../electron/tray');
+  return require('../../platforms/electron/tray');
 }
 
 /** Helper: capture ALL buffers passed to nativeImage.createFromBuffer */

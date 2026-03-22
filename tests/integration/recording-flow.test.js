@@ -10,8 +10,8 @@ const { PassThrough } = require('stream');
 const EventEmitter = require('events');
 const { clipboard } = require('electron');
 const { createTempDir, cleanupTempDir } = require('../helpers/test-utils');
-const Store = require('../../electron/store');
-const Sidecar = require('../../electron/sidecar');
+const Store = require('../../platforms/electron/store');
+const Sidecar = require('../../platforms/electron/sidecar');
 
 // Mock child_process.spawn
 jest.mock('child_process', () => ({

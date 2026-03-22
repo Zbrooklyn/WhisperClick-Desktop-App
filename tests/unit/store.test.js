@@ -2,8 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const { safeStorage } = require('electron');
 const { createTempDir, cleanupTempDir } = require('../helpers/test-utils');
-const Store = require('../../electron/store');
-const { DEFAULT_SETTINGS } = require('../../electron/store');
+const Store = require('../../platforms/electron/store');
+const { DEFAULT_SETTINGS } = require('../../platforms/electron/store');
 
 let tmpDir;
 let store;
