@@ -1,5 +1,58 @@
 # Changelog
 
+## [2.2.0-beta] — 2026-03-22
+
+### Architecture — State Machine Refactor
+
+Complete refactor of state management from implicit string variable to formal state
+machine with single source of truth. Eliminates the entire category of state desync
+bugs that caused v2.1.0–v2.1.2 patches.
+
+#### Added
+
+- **State machine module** (`electron/state-machine.js`): 5 states (dormant, recording,
+  processing, success, error), validated transitions, guards, listeners.
+- **Single input gate** (`canAcceptAction`): All 7 recording entry points (hotkey, pill,
+  tray, tray menu, start/stop/cancel IPC) go through one function that checks state
+  machine + sidecar + API keys.
+- **`ack-state` IPC**: Frontend acknowledges transient states (success/error) to trigger
+  dormant transition. Timer fallbacks remain as safety nets.
+- **Dev file logging**: `debug.log` + console output auto-enabled in dev mode.
+- **78 torture tests**: Double/triple click, cancel during every state, back-to-back
+  recording, state×action matrix (32 combinations), concurrent IPC, sidecar crash
+  recovery, settings mutation during recording, factory reset during active states.
+
+#### Changed
+
+- **Pill is stateless**: Zero local state variables. Receives render payloads
+  `{ shape, level, autoEnterMode, message }` from main. Clicks forward to main.
+- **Frontend derives state from events**: Removed `isRecording`/`isProcessing` flags.
+  Single `currentAppState` variable set only by state-update events.
+- **Frontend debounces consolidated**: Replaced 3 overlapping guards with single 200ms
+  click debounce. Main process gate is the authority.
+- **Sidecar auto-recovers**: `_recording` flag no longer errors on desync. Cancels stale
+  recording and starts fresh instead of permanent "Already recording" stuck state.
+- **Event-driven transitions**: success/error states use UI acknowledgment with timer
+  fallbacks instead of timer-only approach.
+
+#### Fixed
+
+- **"Already recording" permanent stuck state**: Double-click race condition where
+  sidecar was recording but main process thought it was dormant.
+- **Tray context menu bypassed gate**: "Start Recording" called `toggleRecording()`
+  directly without state validation when main window was destroyed.
+- **Reconciliation block mutated state directly**: `visibilitychange` handler set
+  `currentAppState` locally instead of requesting state from main process.
+
+#### Internal
+
+- 538 total tests (460 existing + 78 torture)
+- 3.0s cold startup to sidecar ready
+- 715 MB memory at idle (Electron baseline)
+- Zero errors/warnings in debug log since refactor
+- Full post-mortem: `docs/dev/post-mortem-state-machine-refactor.md`
+- Production readiness audit: `docs/dev/production-readiness-audit.md`
+
 ## [2.1.2] — 2026-03-18
 
 ### Fixed
