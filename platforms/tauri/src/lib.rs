@@ -1,4 +1,5 @@
 mod gate;
+mod sidecar;
 mod state_machine;
 
 use state_machine::{AppState, StateMachine};
