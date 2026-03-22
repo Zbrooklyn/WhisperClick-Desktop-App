@@ -1,6 +1,7 @@
 mod gate;
 mod sidecar;
 mod state_machine;
+mod system;
 
 use state_machine::{AppState, StateMachine};
 use std::sync::Mutex;
