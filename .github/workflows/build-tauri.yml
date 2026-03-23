@@ -1,0 +1,113 @@
+name: Build Tauri
+
+# Triggers on platform-prefixed tags: tauri-v3.0.0, tauri-v3.0.1-alpha, etc.
+on:
+  push:
+    tags:
+      - 'tauri-v*'
+
+concurrency:
+  group: build-tauri-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Run Tauri Tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cache Rust deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            platforms/tauri/target
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('platforms/tauri/Cargo.lock') }}
+      - name: Run tests
+        working-directory: platforms/tauri
+        run: cargo test
+
+  build-windows:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Rust toolchain
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cache Rust deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            platforms/tauri/target
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('platforms/tauri/Cargo.lock') }}
+
+      # Python engine → bundled sidecar binary
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python dependencies
+        run: |
+          pip install pyinstaller
+          pip install -r shared/engine/requirements.txt
+      - name: Build engine binary
+        run: pyinstaller shared/engine/engine.spec --noconfirm
+      - name: Stage engine as Tauri sidecar
+        run: |
+          mkdir -p platforms/tauri/binaries
+          cp -r dist/engine/* platforms/tauri/binaries/
+        shell: bash
+
+      # Build Tauri app
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2"
+      - name: Build Tauri (Windows)
+        working-directory: platforms/tauri
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: cargo tauri build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tauri-windows
+          path: |
+            platforms/tauri/target/release/bundle/nsis/*.exe
+            platforms/tauri/target/release/bundle/msi/*.msi
+          if-no-files-found: warn
+
+  release:
+    needs: [build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Get version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if echo "$VERSION" | grep -q alpha; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: WhisperClick Tauri ${{ github.ref_name }}
+          prerelease: ${{ steps.version.outputs.prerelease }}
+          generate_release_notes: true
+          files: |
+            artifacts/tauri-windows/*

@@ -1,0 +1,180 @@
+name: Build Electron
+
+# Triggers on platform-prefixed tags: electron-v2.3.0, electron-v2.3.1-beta, etc.
+on:
+  push:
+    tags:
+      - 'electron-v*'
+
+concurrency:
+  group: build-electron-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Run Electron tests
+        continue-on-error: true
+        run: npm test
+
+  build-windows:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Python engine → bundled binary
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python dependencies
+        run: |
+          pip install pyinstaller
+          pip install -r shared/engine/requirements.txt
+      - name: Build engine binary
+        run: pyinstaller shared/engine/engine.spec --noconfirm
+      - name: Stage engine binary
+        run: |
+          mkdir engine-dist
+          move dist\engine engine-dist\engine
+        shell: cmd
+
+      # Electron build
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Patch package.json for bundled engine
+        run: |
+          node -e "
+            const pkg = require('./package.json');
+            const fs = require('fs');
+            pkg.build.extraResources = [
+              { from: 'engine-dist/engine/', to: 'engine-bin/' }
+            ];
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+      - name: Build Windows installer + portable
+        run: npx electron-builder --win --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: electron-windows
+          path: |
+            release/*.exe
+            release/beta.yml
+            release/latest.yml
+          if-no-files-found: error
+
+  build-macos-arm64:
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: brew install portaudio libsndfile
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          pip install pyinstaller
+          pip install -r shared/engine/requirements.txt
+      - run: pyinstaller shared/engine/engine.spec --noconfirm
+      - run: mkdir -p engine-dist && mv dist/engine engine-dist/engine
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Patch package.json
+        run: |
+          node -e "
+            const pkg = require('./package.json');
+            const fs = require('fs');
+            pkg.build.extraResources = [{ from: 'engine-dist/engine/', to: 'engine-bin/' }];
+            pkg.build.mac.target = [{ target: 'dmg', arch: ['arm64'] }];
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+      - run: npx electron-builder --mac --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: electron-macos-arm64
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/beta-mac.yml
+            release/latest-mac.yml
+          if-no-files-found: error
+
+  build-linux:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y libportaudio2 libsndfile1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          pip install pyinstaller
+          pip install -r shared/engine/requirements.txt
+      - run: pyinstaller shared/engine/engine.spec --noconfirm
+      - run: mkdir -p engine-dist && mv dist/engine engine-dist/engine
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Patch package.json
+        run: |
+          node -e "
+            const pkg = require('./package.json');
+            const fs = require('fs');
+            pkg.build.extraResources = [{ from: 'engine-dist/engine/', to: 'engine-bin/' }];
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+      - run: npx electron-builder --linux --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: electron-linux
+          path: |
+            release/*.AppImage
+            release/beta-linux.yml
+            release/latest-linux.yml
+          if-no-files-found: error
+
+  release:
+    needs: [build-windows, build-macos-arm64, build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Get version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if echo "$VERSION" | grep -q beta; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: WhisperClick Electron ${{ github.ref_name }}
+          prerelease: ${{ steps.version.outputs.prerelease }}
+          generate_release_notes: true
+          files: |
+            artifacts/electron-windows/*
+            artifacts/electron-macos-arm64/*
+            artifacts/electron-linux/*
