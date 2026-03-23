@@ -387,4 +387,226 @@ mod tests {
         assert_eq!(store.get_history()[0]["text"], "recovered");
         cleanup(&dir);
     }
+
+    // === History integration tests ===
+
+    #[test]
+    fn add_history_includes_all_fields() {
+        let (store, dir) = temp_store("hist_all_fields", false);
+        let entry = serde_json::json!({
+            "id": "test-1",
+            "text": "Hello world",
+            "timestamp": "2026-03-23T00:00:00Z",
+            "duration": 2.5,
+            "provider": "openai",
+            "model": "whisper-1",
+            "language": "en",
+            "audio_file": "/tmp/test.wav",
+        });
+        store.add_history(entry);
+        let history = store.get_history();
+        assert_eq!(history.len(), 1);
+        assert_eq!(history[0].get("text").unwrap(), "Hello world");
+        assert_eq!(history[0].get("audio_file").unwrap(), "/tmp/test.wav");
+        assert_eq!(history[0].get("provider").unwrap(), "openai");
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn delete_history_removes_correct_entry() {
+        let (store, dir) = temp_store("hist_del_correct", false);
+        store.add_history(serde_json::json!({"id": "a", "text": "first"}));
+        store.add_history(serde_json::json!({"id": "b", "text": "second"}));
+        store.add_history(serde_json::json!({"id": "c", "text": "third"}));
+        assert_eq!(store.get_history().len(), 3);
+        store.delete_history("b");
+        let history = store.get_history();
+        assert_eq!(history.len(), 2);
+        assert!(history.iter().all(|e| e.get("id").unwrap() != "b"));
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn clear_history_empties_all() {
+        let (store, dir) = temp_store("hist_clear_all", false);
+        for i in 0..5 {
+            store.add_history(serde_json::json!({"id": format!("e{}", i), "text": format!("entry {}", i)}));
+        }
+        assert_eq!(store.get_history().len(), 5);
+        store.clear_history();
+        assert_eq!(store.get_history().len(), 0);
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn settings_merge_preserves_existing_keys() {
+        let (store, dir) = temp_store("settings_merge_preserve", false);
+        let mut p1 = serde_json::Map::new();
+        p1.insert("mode".into(), Value::String("local".into()));
+        p1.insert("theme".into(), Value::String("dark".into()));
+        store.save_settings(p1);
+
+        let mut p2 = serde_json::Map::new();
+        p2.insert("mode".into(), Value::String("api".into()));
+        store.save_settings(p2);
+
+        let s = store.get_settings();
+        assert_eq!(s.get("mode").unwrap(), "api"); // updated
+        assert_eq!(s.get("theme").unwrap(), "dark"); // preserved
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn settings_default_values_present() {
+        let (store, dir) = temp_store("settings_defaults_check", false);
+        let s = store.get_settings();
+        // Check all expected defaults exist
+        assert!(s.get("mode").is_some());
+        assert!(s.get("provider").is_some());
+        assert!(s.get("soundEnabled").is_some());
+        assert!(s.get("alwaysOnTop").is_some());
+        assert!(s.get("showPill").is_some());
+        assert!(s.get("hotkey").is_some());
+        assert!(s.get("theme").is_some());
+        assert!(s.get("autoStart").is_some());
+        assert!(s.get("autoPaste").is_some());
+        assert!(s.get("closeBehavior").is_some());
+        assert!(s.get("outputMode").is_some());
+        assert!(s.get("targetLanguage").is_some());
+        assert!(s.get("sourceLanguage").is_some());
+        assert!(s.get("audioRetentionDays").is_some());
+        assert!(s.get("autoEnterMode").is_some());
+        assert!(s.get("debugLogging").is_some());
+        cleanup(&dir);
+    }
+
+    // === Additional edge-case tests ===
+
+    #[test]
+    fn delete_nonexistent_history_entry_is_noop() {
+        let (store, dir) = temp_store("hist_del_noop", false);
+        store.add_history(serde_json::json!({"id": "a", "text": "keep"}));
+        store.delete_history("nonexistent");
+        assert_eq!(store.get_history().len(), 1);
+        assert_eq!(store.get_history()[0]["id"], "a");
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn history_persists_to_disk() {
+        let dir = std::env::temp_dir().join("whisperclick_test_hist_persist");
+        let _ = fs::remove_dir_all(&dir);
+        {
+            let store = Store::new(dir.clone(), false);
+            store.add_history(serde_json::json!({"id": "p1", "text": "persisted"}));
+        }
+        let store2 = Store::new(dir.clone(), false);
+        assert_eq!(store2.get_history().len(), 1);
+        assert_eq!(store2.get_history()[0]["text"], "persisted");
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn reset_settings_removes_custom_keys() {
+        let (store, dir) = temp_store("reset_custom", false);
+        let mut p = serde_json::Map::new();
+        p.insert("customKey".into(), Value::String("custom_value".into()));
+        store.save_settings(p);
+        assert!(store.get_settings().get("customKey").is_some());
+        store.reset_settings();
+        assert!(store.get_settings().get("customKey").is_none());
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn settings_default_values_are_correct() {
+        let (store, dir) = temp_store("defaults_correct", false);
+        let s = store.get_settings();
+        assert_eq!(s.get("mode").unwrap(), "api");
+        assert_eq!(s.get("hotkey").unwrap(), "ctrl+alt+r");
+        assert_eq!(s.get("theme").unwrap(), "dark");
+        assert_eq!(s.get("autoPaste").unwrap(), true);
+        assert_eq!(s.get("autoStart").unwrap(), false);
+        assert_eq!(s.get("soundEnabled").unwrap(), true);
+        assert_eq!(s.get("alwaysOnTop").unwrap(), false);
+        assert_eq!(s.get("showPill").unwrap(), true);
+        assert_eq!(s.get("provider").unwrap(), "openai");
+        assert_eq!(s.get("outputMode").unwrap(), "transcribe");
+        assert_eq!(s.get("targetLanguage").unwrap(), "en");
+        assert_eq!(s.get("sourceLanguage").unwrap(), "auto");
+        assert_eq!(s.get("audioRetentionDays").unwrap(), 7);
+        assert_eq!(s.get("autoEnterMode").unwrap(), "off");
+        assert_eq!(s.get("debugLogging").unwrap(), false);
+        assert_eq!(s.get("updateChannel").unwrap(), "stable");
+        assert_eq!(s.get("autoDownloadUpdates").unwrap(), true);
+        assert_eq!(s.get("visualizerStyle").unwrap(), "classic");
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn empty_history_on_fresh_store() {
+        let (store, dir) = temp_store("empty_hist", false);
+        assert!(store.get_history().is_empty());
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn clear_history_persists_to_disk() {
+        let dir = std::env::temp_dir().join("whisperclick_test_clear_persist");
+        let _ = fs::remove_dir_all(&dir);
+        {
+            let store = Store::new(dir.clone(), false);
+            store.add_history(serde_json::json!({"id": "1", "text": "temp"}));
+            store.clear_history();
+        }
+        let store2 = Store::new(dir.clone(), false);
+        assert!(store2.get_history().is_empty());
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn history_ordering_preserved_after_delete() {
+        let (store, dir) = temp_store("hist_order_del", false);
+        store.add_history(serde_json::json!({"id": "1", "text": "first"}));
+        store.add_history(serde_json::json!({"id": "2", "text": "second"}));
+        store.add_history(serde_json::json!({"id": "3", "text": "third"}));
+        // Newest first: 3, 2, 1
+        store.delete_history("2");
+        let history = store.get_history();
+        assert_eq!(history.len(), 2);
+        assert_eq!(history[0]["id"], "3"); // newest still first
+        assert_eq!(history[1]["id"], "1"); // oldest still last
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn concurrent_settings_access() {
+        use std::sync::Arc;
+        use std::thread;
+        let dir = std::env::temp_dir().join("whisperclick_test_concurrent_settings");
+        let _ = fs::remove_dir_all(&dir);
+        let store = Arc::new(Store::new(dir.clone(), false));
+        let mut handles = vec![];
+
+        for i in 0..10 {
+            let store_clone = store.clone();
+            handles.push(thread::spawn(move || {
+                let mut p = serde_json::Map::new();
+                p.insert(format!("key_{}", i), Value::String(format!("val_{}", i)));
+                store_clone.save_settings(p);
+                let _ = store_clone.get_settings();
+            }));
+        }
+
+        for h in handles {
+            h.join().unwrap();
+        }
+
+        // All 10 keys should be present
+        let s = store.get_settings();
+        for i in 0..10 {
+            assert!(s.get(&format!("key_{}", i)).is_some(), "Missing key_{}", i);
+        }
+        cleanup(&dir);
+    }
 }

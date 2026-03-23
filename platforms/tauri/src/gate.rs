@@ -295,4 +295,72 @@ mod tests {
         assert!(!r.allowed);
         assert!(r.actual_action.is_none());
     }
+
+    // === Stress/edge case tests ===
+
+    #[test]
+    fn gate_rapid_toggle_stress() {
+        let sm = StateMachine::new();
+        for _ in 0..100 {
+            let r = can_accept_action(&sm, "toggle", true, "local");
+            assert!(r.allowed);
+            assert_eq!(r.actual_action.as_deref(), Some("start"));
+        }
+    }
+
+    #[test]
+    fn gate_all_actions_from_all_states() {
+        let actions = ["start", "stop", "cancel", "toggle", "unknown_action"];
+
+        // Dormant
+        let sm = StateMachine::new();
+        for action in &actions {
+            let r = can_accept_action(&sm, action, true, "api");
+            let _ = r.allowed;
+            let _ = r.actual_action;
+            let _ = r.error;
+        }
+
+        // Recording
+        let sm = StateMachine::new();
+        sm.transition(AppState::Recording, None);
+        for action in &actions {
+            let r = can_accept_action(&sm, action, true, "api");
+            let _ = r.allowed;
+            let _ = r.actual_action;
+            let _ = r.error;
+        }
+
+        // Processing
+        let sm = StateMachine::new();
+        sm.transition(AppState::Recording, None);
+        sm.transition(AppState::Processing, None);
+        for action in &actions {
+            let r = can_accept_action(&sm, action, true, "api");
+            let _ = r.allowed;
+            let _ = r.actual_action;
+            let _ = r.error;
+        }
+
+        // Success
+        let sm = StateMachine::new();
+        sm.transition(AppState::Recording, None);
+        sm.transition(AppState::Success, None);
+        for action in &actions {
+            let r = can_accept_action(&sm, action, true, "api");
+            let _ = r.allowed;
+            let _ = r.actual_action;
+            let _ = r.error;
+        }
+
+        // Error
+        let sm = StateMachine::new();
+        sm.transition(AppState::Error, Some("test"));
+        for action in &actions {
+            let r = can_accept_action(&sm, action, true, "api");
+            let _ = r.allowed;
+            let _ = r.actual_action;
+            let _ = r.error;
+        }
+    }
 }

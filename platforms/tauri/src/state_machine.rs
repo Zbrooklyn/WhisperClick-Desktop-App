@@ -509,4 +509,61 @@ mod tests {
         assert_eq!(sm.state(), AppState::Dormant);
         assert!(sm.message().is_empty());
     }
+
+    // === Additional stress/torture tests ===
+
+    #[test]
+    fn rapid_toggle_100_cycles() {
+        let sm = StateMachine::new();
+        for _ in 0..100 {
+            assert!(sm.transition(AppState::Recording, None));
+            assert!(sm.transition(AppState::Processing, None));
+            assert!(sm.transition(AppState::Success, None));
+            assert!(sm.transition(AppState::Dormant, None));
+        }
+        assert_eq!(sm.state(), AppState::Dormant);
+    }
+
+    #[test]
+    fn rapid_cancel_50_cycles() {
+        let sm = StateMachine::new();
+        for _ in 0..50 {
+            assert!(sm.transition(AppState::Recording, None));
+            assert!(sm.transition(AppState::Dormant, None)); // cancel
+        }
+        assert_eq!(sm.state(), AppState::Dormant);
+    }
+
+    #[test]
+    fn error_recovery_50_cycles() {
+        let sm = StateMachine::new();
+        for _ in 0..50 {
+            assert!(sm.transition(AppState::Recording, None));
+            assert!(sm.transition(AppState::Error, Some("test error")));
+            assert!(sm.transition(AppState::Dormant, None));
+        }
+        assert_eq!(sm.state(), AppState::Dormant);
+        assert!(sm.message().is_empty());
+    }
+
+    #[test]
+    fn concurrent_access_stress() {
+        let sm = Arc::new(StateMachine::new());
+        let mut handles = vec![];
+
+        for _ in 0..10 {
+            let sm_clone = sm.clone();
+            handles.push(thread::spawn(move || {
+                for _ in 0..100 {
+                    let _ = sm_clone.state();
+                    let _ = sm_clone.message();
+                    let _ = sm_clone.is(&[AppState::Dormant, AppState::Recording]);
+                }
+            }));
+        }
+
+        for h in handles {
+            h.join().unwrap();
+        }
+    }
 }
