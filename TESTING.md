@@ -1,16 +1,22 @@
-# Testing — WhisperClick Electron
+# Testing — WhisperClick (Electron + Tauri)
 
 ## Quick Start
 
 ```bash
+# Electron (Jest)
 npm test                  # All unit + integration tests (399 tests, ~5s)
 npm run test:unit         # Unit tests only
 npm run test:integration  # Integration tests only
 npm run test:e2e          # E2E tests (13 tests, launches mock sidecar)
 npm test -- --coverage    # Coverage report + threshold enforcement
+
+# Tauri (Rust)
+cd platforms/tauri && cargo test   # 518 tests
 ```
 
 ## Test Architecture
+
+### Electron Tests (Jest)
 
 ```
 tests/
@@ -114,10 +120,26 @@ Lines 255, 496, 614 are the same code: `else { toggleRecording(); }`. This fallb
 - **mainWin._listeners['close']** — stores event handlers for testing close-to-tray
 - **safeStorage** — encrypt/decrypt with `encrypted:` prefix
 
-## Adding New Tests
+## Adding New Electron Tests
 
 1. For new IPC handlers: add to `main-ipc.test.js`, call via `ipcMain._invoke('channel', args)`
 2. For sidecar events: use `pushSidecarEvent(proc, 'event-name', { data })` + `await tick(50)`
 3. For sidecar command responses: use `autoRespondSidecar(proc, { command: { result: 'ok' } })`
 4. For state-dependent tests: push a sidecar event to set desired state first
 5. **Order matters**: sidecar-killing tests must stay at the end of main-ipc.test.js
+
+---
+
+## Tauri Tests (Rust)
+
+### Quick Start
+
+```bash
+cd platforms/tauri && cargo test   # 518 tests
+```
+
+### Overview
+
+The Tauri platform has **518 Rust tests** covering the Rust backend commands, sidecar bridge, state management, and platform-specific behavior. These run via `cargo test` in the `platforms/tauri/` directory.
+
+**Total across both platforms: 412 Electron Jest tests + 518 Tauri Rust tests = 930 tests**

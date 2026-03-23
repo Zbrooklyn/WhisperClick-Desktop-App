@@ -1,4 +1,4 @@
-# CLAUDE.md — WhisperClick Electron
+# CLAUDE.md — WhisperClick
 
 Golden principles for AI-assisted development. Every agent session must follow these rules.
 
@@ -6,44 +6,47 @@ Golden principles for AI-assisted development. Every agent session must follow t
 
 1. **Read** `HANDOFF.md` for current state, known issues, and next actions.
 2. **Read** `FEATURES.md` for complete feature inventory and API method list.
-3. **Run** `npm test` after every code change (412 tests).
-4. **Run** `npm test -- --coverage` before committing to enforce thresholds.
+3. **Run** `npm test` after every code change (412 Electron Jest tests).
+4. **Run** `cd platforms/tauri && cargo test` (518 Rust tests).
+5. **Run** `npm test -- --coverage` before committing to enforce thresholds.
 
 ## Architecture
 
 ```
-electron/
-  main.js           # Main process: windows, IPC, sidecar, tray, hotkey
-  preload.js        # pywebview API shim (window.pywebview.api -> IPC)
-  preload-pill.js   # Pill window preload (window.electronAPI)
-  sidecar.js        # Python sidecar manager (stdin/stdout JSON protocol)
-  store.js          # JSON file settings/history persistence
-  updater.js        # Auto-updater (electron-updater, stable/beta channels)
-  tray.js           # System tray icon and menu
+platforms/electron/          # Electron platform (Node.js main process)
+  main.js                    # Windows, IPC, sidecar, tray, hotkey
+  preload.js                 # pywebview API shim (window.pywebview.api -> IPC)
+  preload-pill.js            # Pill window preload (window.electronAPI)
+  sidecar.js                 # Python sidecar manager (stdin/stdout JSON protocol)
+  store.js                   # JSON file settings/history persistence
+  updater.js                 # Auto-updater (electron-updater, stable/beta channels)
+  tray.js                    # System tray icon and menu
 
-src/frontend/       # V3 frontend (copied from WhisperClick V3, minimal changes)
-  index.html        # Main UI (4800+ lines, inline JS)
-  css/tailwind.css  # Pre-built Tailwind CSS
-  js/lucide.min.js  # Lucide icon library
+platforms/tauri/             # Tauri platform (Rust + system WebView)
+  src-tauri/                 # Rust backend (commands, sidecar bridge, tray)
+  src/                       # Tauri-specific frontend wiring
 
-src/pill/
-  pill.html         # Floating pill widget (self-contained)
+shared/frontend/             # Shared V3 frontend (used by both platforms)
+  index.html                 # Main UI (4800+ lines, inline JS)
+  css/tailwind.css           # Pre-built Tailwind CSS
+  js/lucide.min.js           # Lucide icon library
 
-engine/
-  engine.py         # Python sidecar (recording, transcription, models)
+shared/pill/
+  pill.html                  # Floating pill widget (self-contained)
+
+shared/engine/
+  engine.py                  # Python sidecar (recording, transcription, models)
 
 tests/
-  mocks/electron.js # Comprehensive Electron API mock
-  unit/             # 399 Jest tests
-  integration/      # 12 recording-flow tests
-  e2e/              # 13 mock-sidecar tests
+  mocks/electron.js          # Comprehensive Electron API mock
+  unit/                      # 399 Jest tests
+  integration/               # 12 recording-flow tests
+  e2e/                       # 13 mock-sidecar tests
 ```
 
 ### Key Design Decision
 
-V3's original `index.html` is used directly — no React rewrite. The `preload.js` acts
-as a compatibility shim: V3 code calls `window.pywebview.api.method(...)`, and the
-preload routes those to Electron IPC. This guarantees pixel-perfect parity with V3.
+V3's original `index.html` (in `shared/frontend/`) is used directly by both platforms — no React rewrite. On Electron, `preload.js` acts as a compatibility shim: V3 code calls `window.pywebview.api.method(...)`, and the preload routes those to Electron IPC. On Tauri, the Rust backend exposes equivalent commands. This guarantees pixel-perfect parity with V3 on both platforms.
 
 ### Hard Boundaries
 
@@ -161,12 +164,13 @@ These must never appear in new code:
 
 ## Testing
 
-- **Primary suite:** `npm test` (412 tests)
+- **Electron suite:** `npm test` (412 Jest tests)
 - **Unit only:** `npm run test:unit`
 - **Integration:** `npm run test:integration`
 - **E2E:** `npm run test:e2e` (spawns mock sidecar)
 - **Coverage:** `npm test -- --coverage` (enforces 85% statements, 60% branches)
-- After every code change, run `npm test` and confirm no regressions.
+- **Tauri suite:** `cd platforms/tauri && cargo test` (518 Rust tests)
+- After every code change, run both test suites and confirm no regressions.
 
 ### Coverage Thresholds (enforced)
 
@@ -189,7 +193,7 @@ These must never appear in new code:
 - **Runtime:** Electron (Node.js main + Chromium renderer)
 - **Test runner:** Jest with custom Electron mock (`tests/mocks/electron.js`)
 - **Build:** electron-builder (`npm run dist:win`, `dist:mac`, `dist:linux`)
-- **Sidecar:** Python 3.12 (`engine/engine.py`) — spawned as child process
+- **Sidecar:** Python 3.12 (`shared/engine/engine.py`) — spawned as child process
 - **No bundler:** V3 frontend loaded directly, no Vite/webpack build step
 
 ## Key Flows

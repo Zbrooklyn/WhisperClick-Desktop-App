@@ -135,7 +135,7 @@ You pick when it listens. Full details in [PRIVACY.md](PRIVACY.md).
 git clone https://github.com/Zbrooklyn/WhisperClick-Desktop-App.git
 cd WhisperClick-Desktop-App
 npm install
-pip install -r engine/requirements.txt
+pip install -r shared/engine/requirements.txt
 npm start
 ```
 
@@ -150,30 +150,38 @@ npm run dist:linux   # Linux (AppImage)
 ### Run tests
 
 ```bash
-npm test             # 301 tests
+# Electron (Jest)
+npm test             # 412 tests
 npm run test:unit    # Unit tests
 npm run test:e2e     # End-to-end tests
+
+# Tauri (Rust)
+cd platforms/tauri && cargo test   # 518 tests
 ```
 
 ### How it's built
 
-WhisperClick is an Electron app with a Python sidecar that handles audio recording and transcription. The frontend is a single HTML file with Tailwind CSS — no React, no build step, no framework overhead.
+WhisperClick is a desktop app with a Python sidecar that handles audio recording and transcription. The frontend is a single HTML file with Tailwind CSS — no React, no build step, no framework overhead. It ships on two platforms: **Electron** (stable, current releases) and **Tauri** (Rust-based, lighter footprint).
 
 ```
-electron/          Main process (Node.js)
-  main.js          Window management, IPC, hotkey, tray
-  sidecar.js       Python engine manager (JSON over stdin/stdout)
-  store.js         Settings and history persistence
-  updater.js       Auto-update (GitHub releases)
+platforms/electron/    Electron main process (Node.js)
+  main.js              Window management, IPC, hotkey, tray
+  sidecar.js           Python engine manager (JSON over stdin/stdout)
+  store.js             Settings and history persistence
+  updater.js           Auto-update (GitHub releases)
 
-src/frontend/      Renderer (Chromium)
-  index.html       Full UI (HTML + Tailwind CSS + inline JS)
+platforms/tauri/       Tauri platform (Rust + WebView)
+  src-tauri/           Rust backend (commands, sidecar bridge, tray)
+  src/                 Tauri-specific frontend wiring
 
-src/pill/          Floating widget
-  pill.html        Always-on-top recording capsule
+shared/frontend/       Renderer (shared across platforms)
+  index.html           Full UI (HTML + Tailwind CSS + inline JS)
 
-engine/            Python sidecar
-  engine.py        Audio capture, transcription, model management
+shared/pill/           Floating widget (shared)
+  pill.html            Always-on-top recording capsule
+
+shared/engine/         Python sidecar
+  engine.py            Audio capture, transcription, model management
 ```
 
 </details>

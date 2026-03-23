@@ -1,17 +1,19 @@
-# HANDOFF — WhisperClick Electron
+# HANDOFF — WhisperClick
 
-> Last updated: 2026-03-18
+> Last updated: 2026-03-23
 
 ## Current State
 
-**Status**: Stable — v2.1.1
+**Status**: Stable — v2.1.1 (Electron) | Tauri migration complete
 
 **Latest stable release**: v2.1.1
 **Latest beta release**: v2.0.22-beta (superseded by v2.1.0 stable)
 
-The Electron port uses V3's original `index.html`/`tailwind.css`/`lucide.min.js`
-frontend directly, with a pywebview API compatibility shim in `preload.js` that
-translates all `window.pywebview.api` calls to Electron IPC.
+The repo now supports **two platforms**: Electron and Tauri. Both share the same
+frontend (`shared/frontend/`), pill widget (`shared/pill/`), and Python sidecar
+(`shared/engine/`). The Electron platform uses a pywebview API compatibility shim
+in `preload.js` that translates all `window.pywebview.api` calls to Electron IPC.
+The Tauri platform uses Rust commands to bridge the same frontend API.
 
 ### What Works
 
@@ -54,26 +56,30 @@ translates all `window.pywebview.api` calls to Electron IPC.
 ## Architecture
 
 ```
-electron/
-  main.js          — Main process: windows, IPC, sidecar, tray, hotkey
-  preload.js       — pywebview API shim (window.pywebview.api → IPC)
-  preload-pill.js  — Pill window preload (window.electronAPI)
-  sidecar.js       — Python sidecar manager (stdin/stdout JSON protocol)
-  store.js         — JSON file settings/history persistence
-  updater.js       — Auto-updater (electron-updater, beta/stable channels)
-  tray.js          — System tray icon and menu
-  logger.js        — Debug file logger (5MB rotation, toggled via settings)
+platforms/electron/          — Electron main process (Node.js)
+  main.js                    — Windows, IPC, sidecar, tray, hotkey
+  preload.js                 — pywebview API shim (window.pywebview.api → IPC)
+  preload-pill.js            — Pill window preload (window.electronAPI)
+  sidecar.js                 — Python sidecar manager (stdin/stdout JSON protocol)
+  store.js                   — JSON file settings/history persistence
+  updater.js                 — Auto-updater (electron-updater, beta/stable channels)
+  tray.js                    — System tray icon and menu
+  logger.js                  — Debug file logger (5MB rotation, toggled via settings)
 
-src/frontend/      — V3 frontend (copied verbatim, 2 lines changed)
-  index.html       — Main UI (4800+ lines, inline JS)
-  css/tailwind.css — Pre-built Tailwind CSS
-  js/lucide.min.js — Lucide icon library
+platforms/tauri/             — Tauri platform (Rust + system WebView)
+  src-tauri/                 — Rust backend (commands, sidecar bridge, tray)
+  src/                       — Tauri-specific frontend wiring
 
-src/pill/
-  pill.html        — Floating pill widget (self-contained)
+shared/frontend/             — V3 frontend (shared across platforms, 2 lines changed from V3)
+  index.html                 — Main UI (4800+ lines, inline JS)
+  css/tailwind.css           — Pre-built Tailwind CSS
+  js/lucide.min.js           — Lucide icon library
 
-engine/
-  engine.py        — Python sidecar (recording, transcription, models)
+shared/pill/
+  pill.html                  — Floating pill widget (self-contained)
+
+shared/engine/
+  engine.py                  — Python sidecar (recording, transcription, models)
 ```
 
 ### Key Design Decision
@@ -171,7 +177,7 @@ Only 2 changes to the V3 frontend:
 - Crash-safe atomic writes for settings and history
 - Auto-updater with beta/stable channel support
 - CI/CD: GitHub Actions builds Windows/macOS/Linux
-- 412 tests with coverage thresholds
+- 412 Electron Jest tests + 518 Tauri Rust tests with coverage thresholds
 - v2.0.0 stable release published
 - Pill click-through fix — transparent areas pass clicks to apps behind (v2.0.6-beta)
 - Recording state machine race conditions fixed — listener ordering, cancel idempotency (v2.0.7-beta)

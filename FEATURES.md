@@ -1,4 +1,4 @@
-# Features — WhisperClick Electron
+# Features — WhisperClick (Electron + Tauri)
 
 > Complete inventory of every user-facing feature and function.
 > Last updated: 2026-03-18 (v2.1.1)
