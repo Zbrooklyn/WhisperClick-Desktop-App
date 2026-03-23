@@ -3,7 +3,7 @@
   "version": "2.2.0-beta",
   "description": "WhisperClick — Voice-to-text desktop app",
   "author": "Edward Shamosh",
-  "main": "electron/main.js",
+  "main": "platforms/electron/main.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
@@ -24,15 +24,15 @@
     },
     "icon": "icons/icon.png",
     "files": [
-      "electron/**",
-      "src/frontend/**",
-      "src/pill/**",
-      "engine/**",
+      "platforms/electron/**",
+      "shared/frontend/**",
+      "shared/pill/**",
+      "shared/engine/**",
       "icons/**"
     ],
     "extraResources": [
       {
-        "from": "engine/",
+        "from": "shared/engine/",
         "to": "engine/",
         "filter": [
           "**/*.py"
