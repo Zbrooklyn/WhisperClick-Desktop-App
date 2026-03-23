@@ -2,30 +2,16 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "WhisperClick",
   "version": "3.0.0-alpha",
-  "identifier": "com.whisperclick.app",
+  "identifier": "com.whisperclick.tauri",
   "build": {
     "frontendDist": "../../shared/frontend"
   },
   "app": {
-    "windows": [
-      {
-        "label": "main",
-        "title": "WhisperClick",
-        "width": 900,
-        "height": 680,
-        "minWidth": 480,
-        "minHeight": 218,
-        "resizable": true,
-        "fullscreen": false,
-        "decorations": true
-      }
-    ],
-    "trayIcon": {
-      "iconPath": "../../icons/icon.png",
-      "iconAsTemplate": true
-    },
+    "withGlobalTauri": true,
+    "windows": [],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+      "csp": null,
+      "dangerousDisableAssetCspModification": true
     }
   },
   "bundle": {
@@ -39,6 +25,12 @@
   "plugins": {
     "shell": {
       "open": true
+    },
+    "updater": {
+      "pubkey": "",
+      "endpoints": [
+        "https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest/download/latest.json"
+      ]
     }
   }
 }

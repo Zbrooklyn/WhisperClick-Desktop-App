@@ -2040,8 +2040,16 @@
                         activeModelDownload = null;
                         await refreshLocalModelState();
                         renderModelManager();
-                        setMode('local');
-                        dismissOnboarding(`${getLocalModelDisplayName(modelName)} downloaded.`, "success");
+                        // Show confirmation instead of auto-dismissing
+                        if (onboardingLocalCaption) onboardingLocalCaption.textContent = 'Ready';
+                        if (onboardingProgress) onboardingProgress.style.width = '100%';
+                        if (onboardingStatus) onboardingStatus.textContent = `${getLocalModelDisplayName(modelName)} downloaded successfully.`;
+                        if (onboardingBtn) {
+                            onboardingBtn.disabled = false;
+                            onboardingBtn.innerHTML = '<i data-lucide="check-circle-2" class="w-4 h-4"></i> Continue';
+                        }
+                        localModelReady = true;
+                        lucide.createIcons();
                         return;
                     }
                     const pct = Math.max(0, Math.min(100, Math.round((Number(progress.progress) || 0) * 100)));

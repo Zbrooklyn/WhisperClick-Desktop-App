@@ -80,6 +80,8 @@ pub fn can_accept_action(
 mod tests {
     use super::*;
 
+    // === Start action ===
+
     #[test]
     fn start_from_dormant() {
         let sm = StateMachine::new();
@@ -102,6 +104,116 @@ mod tests {
         let r = can_accept_action(&sm, "start", false, "local");
         assert!(r.allowed);
     }
+
+    #[test]
+    fn start_from_success() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Recording, None);
+        sm.transition(AppState::Success, None);
+        let r = can_accept_action(&sm, "start", true, "api");
+        assert!(r.allowed);
+    }
+
+    #[test]
+    fn start_from_error() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Error, Some("test"));
+        let r = can_accept_action(&sm, "start", true, "api");
+        assert!(r.allowed);
+    }
+
+    #[test]
+    fn start_rejected_during_recording() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Recording, None);
+        let r = can_accept_action(&sm, "start", true, "api");
+        assert!(!r.allowed);
+        assert!(r.error.unwrap().contains("Cannot start"));
+    }
+
+    #[test]
+    fn start_rejected_during_processing() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Recording, None);
+        sm.transition(AppState::Processing, None);
+        let r = can_accept_action(&sm, "start", true, "api");
+        assert!(!r.allowed);
+    }
+
+    // === Stop action ===
+
+    #[test]
+    fn stop_from_recording() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Recording, None);
+        let r = can_accept_action(&sm, "stop", true, "api");
+        assert!(r.allowed);
+        assert_eq!(r.actual_action.unwrap(), "stop");
+    }
+
+    #[test]
+    fn stop_rejected_from_dormant() {
+        let sm = StateMachine::new();
+        let r = can_accept_action(&sm, "stop", true, "api");
+        assert!(!r.allowed);
+        assert!(r.error.unwrap().contains("Not recording"));
+    }
+
+    #[test]
+    fn stop_rejected_from_processing() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Recording, None);
+        sm.transition(AppState::Processing, None);
+        let r = can_accept_action(&sm, "stop", true, "api");
+        assert!(!r.allowed);
+    }
+
+    // === Cancel action ===
+
+    #[test]
+    fn cancel_from_recording() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Recording, None);
+        let r = can_accept_action(&sm, "cancel", true, "api");
+        assert!(r.allowed);
+        assert_eq!(r.actual_action.unwrap(), "cancel");
+    }
+
+    #[test]
+    fn cancel_from_processing() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Recording, None);
+        sm.transition(AppState::Processing, None);
+        let r = can_accept_action(&sm, "cancel", true, "api");
+        assert!(r.allowed);
+    }
+
+    #[test]
+    fn cancel_from_dormant_rejected() {
+        let sm = StateMachine::new();
+        let r = can_accept_action(&sm, "cancel", true, "api");
+        assert!(!r.allowed);
+        assert!(r.error.unwrap().contains("Nothing to cancel"));
+    }
+
+    #[test]
+    fn cancel_from_success_rejected() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Recording, None);
+        sm.transition(AppState::Success, None);
+        let r = can_accept_action(&sm, "cancel", true, "api");
+        assert!(!r.allowed);
+    }
+
+    #[test]
+    fn cancel_from_error_rejected() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Error, Some("test"));
+        let r = can_accept_action(&sm, "cancel", true, "api");
+        assert!(!r.allowed);
+    }
+
+    // === Toggle action ===
 
     #[test]
     fn toggle_from_dormant_becomes_start() {
@@ -131,18 +243,56 @@ mod tests {
     }
 
     #[test]
-    fn cancel_from_dormant_rejected() {
-        let sm = StateMachine::new();
-        let r = can_accept_action(&sm, "cancel", true, "api");
-        assert!(!r.allowed);
-    }
-
-    #[test]
-    fn start_from_success() {
+    fn toggle_from_success_becomes_start() {
         let sm = StateMachine::new();
         sm.transition(AppState::Recording, None);
         sm.transition(AppState::Success, None);
-        let r = can_accept_action(&sm, "start", true, "api");
+        let r = can_accept_action(&sm, "toggle", true, "api");
         assert!(r.allowed);
+        assert_eq!(r.actual_action.unwrap(), "start");
+    }
+
+    #[test]
+    fn toggle_from_error_becomes_start() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Error, Some("test"));
+        let r = can_accept_action(&sm, "toggle", true, "api");
+        assert!(r.allowed);
+        assert_eq!(r.actual_action.unwrap(), "start");
+    }
+
+    #[test]
+    fn toggle_without_key_in_api_mode() {
+        let sm = StateMachine::new();
+        let r = can_accept_action(&sm, "toggle", false, "api");
+        assert!(!r.allowed);
+        assert!(r.error.unwrap().contains("API key"));
+    }
+
+    #[test]
+    fn toggle_without_key_in_local_mode() {
+        let sm = StateMachine::new();
+        let r = can_accept_action(&sm, "toggle", false, "local");
+        assert!(r.allowed);
+    }
+
+    // === Unknown action ===
+
+    #[test]
+    fn unknown_action_rejected() {
+        let sm = StateMachine::new();
+        let r = can_accept_action(&sm, "invalid_action", true, "api");
+        assert!(!r.allowed);
+        assert!(r.error.unwrap().contains("Unknown action"));
+    }
+
+    // === GateResult denied has no actual_action ===
+
+    #[test]
+    fn denied_result_has_no_action() {
+        let sm = StateMachine::new();
+        let r = can_accept_action(&sm, "cancel", true, "api");
+        assert!(!r.allowed);
+        assert!(r.actual_action.is_none());
     }
 }

@@ -35,7 +35,7 @@ const isDev = !app.isPackaged;
 const isBeta = app.getVersion().includes('beta');
 const configDir = path.join(
   app.getPath('userData'),
-  isDev ? 'whisperclick-dev' : isBeta ? 'whisperclick-beta' : 'whisperclick'
+  isDev ? 'com.whisperclick.dev' : 'com.whisperclick.app'
 );
 
 // --- Window creation ---

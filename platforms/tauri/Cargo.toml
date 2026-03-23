@@ -26,3 +26,9 @@ tauri-plugin-dialog = "2"
 tauri-plugin-shell = "2"
 uuid = { version = "1", features = ["v4"] }
 chrono = "0.4"
+base64 = "0.22"
+image = { version = "0.25", default-features = false, features = ["png"] }
+keyring = { version = "3", features = ["windows-native"] }
+tauri-plugin-single-instance = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-updater = "2"

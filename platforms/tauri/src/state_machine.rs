@@ -137,12 +137,24 @@ impl StateMachine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
+    use std::thread;
+
+    // === Basic state tests ===
 
     #[test]
     fn starts_dormant() {
         let sm = StateMachine::new();
         assert_eq!(sm.state(), AppState::Dormant);
     }
+
+    #[test]
+    fn starts_with_empty_message() {
+        let sm = StateMachine::new();
+        assert!(sm.message().is_empty());
+    }
+
+    // === Valid transition paths ===
 
     #[test]
     fn valid_recording_flow() {
@@ -154,17 +166,46 @@ mod tests {
     }
 
     #[test]
-    fn invalid_transition_rejected() {
-        let sm = StateMachine::new();
-        assert!(!sm.transition(AppState::Processing, None));
-        assert_eq!(sm.state(), AppState::Dormant);
-    }
-
-    #[test]
     fn cancel_during_recording() {
         let sm = StateMachine::new();
         sm.transition(AppState::Recording, None);
         assert!(sm.transition(AppState::Dormant, None));
+    }
+
+    #[test]
+    fn cancel_during_processing() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Recording, None);
+        sm.transition(AppState::Processing, None);
+        assert!(sm.transition(AppState::Dormant, None));
+    }
+
+    #[test]
+    fn error_from_recording() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Recording, None);
+        assert!(sm.transition(AppState::Error, Some("mic failed")));
+    }
+
+    #[test]
+    fn error_from_processing() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Recording, None);
+        sm.transition(AppState::Processing, None);
+        assert!(sm.transition(AppState::Error, Some("API error")));
+    }
+
+    #[test]
+    fn error_from_dormant() {
+        let sm = StateMachine::new();
+        assert!(sm.transition(AppState::Error, Some("sidecar crash")));
+    }
+
+    #[test]
+    fn fast_transcription_recording_to_success() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Recording, None);
+        assert!(sm.transition(AppState::Success, None));
     }
 
     #[test]
@@ -177,38 +218,295 @@ mod tests {
     }
 
     #[test]
-    fn error_recovery() {
+    fn record_from_error() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Error, Some("test"));
+        assert!(sm.transition(AppState::Recording, None));
+    }
+
+    #[test]
+    fn dormant_from_error() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Error, Some("test"));
+        assert!(sm.transition(AppState::Dormant, None));
+    }
+
+    #[test]
+    fn dormant_from_success() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Recording, None);
+        sm.transition(AppState::Success, None);
+        assert!(sm.transition(AppState::Dormant, None));
+    }
+
+    // === Invalid transitions ===
+
+    #[test]
+    fn invalid_dormant_to_processing() {
+        let sm = StateMachine::new();
+        assert!(!sm.transition(AppState::Processing, None));
+        assert_eq!(sm.state(), AppState::Dormant);
+    }
+
+    #[test]
+    fn invalid_dormant_to_success() {
+        let sm = StateMachine::new();
+        assert!(!sm.transition(AppState::Success, None));
+    }
+
+    #[test]
+    fn invalid_recording_to_recording() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Recording, None);
+        assert!(!sm.transition(AppState::Recording, None));
+    }
+
+    #[test]
+    fn invalid_processing_to_recording() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Recording, None);
+        sm.transition(AppState::Processing, None);
+        assert!(!sm.transition(AppState::Recording, None));
+    }
+
+    #[test]
+    fn invalid_processing_to_processing() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Recording, None);
+        sm.transition(AppState::Processing, None);
+        assert!(!sm.transition(AppState::Processing, None));
+    }
+
+    #[test]
+    fn invalid_success_to_processing() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Recording, None);
+        sm.transition(AppState::Success, None);
+        assert!(!sm.transition(AppState::Processing, None));
+    }
+
+    #[test]
+    fn invalid_success_to_error() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Recording, None);
+        sm.transition(AppState::Success, None);
+        assert!(!sm.transition(AppState::Error, None));
+    }
+
+    #[test]
+    fn invalid_error_to_processing() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Error, Some("test"));
+        assert!(!sm.transition(AppState::Processing, None));
+    }
+
+    #[test]
+    fn invalid_error_to_success() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Error, Some("test"));
+        assert!(!sm.transition(AppState::Success, None));
+    }
+
+    #[test]
+    fn invalid_error_to_error() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Error, Some("test"));
+        assert!(!sm.transition(AppState::Error, None));
+    }
+
+    // === Message handling ===
+
+    #[test]
+    fn error_sets_message() {
         let sm = StateMachine::new();
         sm.transition(AppState::Recording, None);
         sm.transition(AppState::Error, Some("test error"));
         assert_eq!(sm.message(), "test error");
-        assert!(sm.transition(AppState::Dormant, None));
+    }
+
+    #[test]
+    fn dormant_clears_message() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Recording, None);
+        sm.transition(AppState::Error, Some("test error"));
+        sm.transition(AppState::Dormant, None);
         assert!(sm.message().is_empty());
     }
 
     #[test]
-    fn can_record_from_success() {
+    fn success_clears_message() {
         let sm = StateMachine::new();
         sm.transition(AppState::Recording, None);
         sm.transition(AppState::Success, None);
-        assert!(sm.state().can_record());
+        assert!(sm.message().is_empty());
     }
 
     #[test]
-    fn can_cancel_during_processing() {
+    fn recording_preserves_message() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Error, Some("old error"));
+        sm.transition(AppState::Recording, None);
+        assert_eq!(sm.message(), "old error");
+    }
+
+    // === State property methods ===
+
+    #[test]
+    fn can_record_states() {
+        assert!(AppState::Dormant.can_record());
+        assert!(!AppState::Recording.can_record());
+        assert!(!AppState::Processing.can_record());
+        assert!(AppState::Success.can_record());
+        assert!(AppState::Error.can_record());
+    }
+
+    #[test]
+    fn can_cancel_states() {
+        assert!(!AppState::Dormant.can_cancel());
+        assert!(AppState::Recording.can_cancel());
+        assert!(AppState::Processing.can_cancel());
+        assert!(!AppState::Success.can_cancel());
+        assert!(!AppState::Error.can_cancel());
+    }
+
+    #[test]
+    fn is_active_states() {
+        assert!(!AppState::Dormant.is_active());
+        assert!(AppState::Recording.is_active());
+        assert!(AppState::Processing.is_active());
+        assert!(!AppState::Success.is_active());
+        assert!(!AppState::Error.is_active());
+    }
+
+    #[test]
+    fn is_transient_states() {
+        assert!(!AppState::Dormant.is_transient());
+        assert!(!AppState::Recording.is_transient());
+        assert!(!AppState::Processing.is_transient());
+        assert!(AppState::Success.is_transient());
+        assert!(AppState::Error.is_transient());
+    }
+
+    // === Display trait ===
+
+    #[test]
+    fn display_strings() {
+        assert_eq!(format!("{}", AppState::Dormant), "dormant");
+        assert_eq!(format!("{}", AppState::Recording), "recording");
+        assert_eq!(format!("{}", AppState::Processing), "processing");
+        assert_eq!(format!("{}", AppState::Success), "success");
+        assert_eq!(format!("{}", AppState::Error), "error");
+    }
+
+    // === is() check ===
+
+    #[test]
+    fn is_checks_multiple_states() {
+        let sm = StateMachine::new();
+        assert!(sm.is(&[AppState::Dormant, AppState::Error]));
+        assert!(!sm.is(&[AppState::Recording]));
+    }
+
+    #[test]
+    fn is_empty_list_returns_false() {
+        let sm = StateMachine::new();
+        assert!(!sm.is(&[]));
+    }
+
+    // === Reset ===
+
+    #[test]
+    fn reset_from_recording() {
         let sm = StateMachine::new();
         sm.transition(AppState::Recording, None);
-        sm.transition(AppState::Processing, None);
-        assert!(sm.state().can_cancel());
+        sm.reset(None);
+        assert_eq!(sm.state(), AppState::Dormant);
+        assert!(sm.message().is_empty());
     }
 
     #[test]
-    fn reset_from_any_state() {
+    fn reset_from_processing() {
         let sm = StateMachine::new();
         sm.transition(AppState::Recording, None);
         sm.transition(AppState::Processing, None);
         sm.reset(Some("forced"));
         assert_eq!(sm.state(), AppState::Dormant);
         assert_eq!(sm.message(), "forced");
+    }
+
+    #[test]
+    fn reset_from_error() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Error, Some("err"));
+        sm.reset(None);
+        assert_eq!(sm.state(), AppState::Dormant);
+    }
+
+    #[test]
+    fn reset_from_success() {
+        let sm = StateMachine::new();
+        sm.transition(AppState::Recording, None);
+        sm.transition(AppState::Success, None);
+        sm.reset(None);
+        assert_eq!(sm.state(), AppState::Dormant);
+    }
+
+    #[test]
+    fn reset_from_dormant_is_noop() {
+        let sm = StateMachine::new();
+        sm.reset(None);
+        assert_eq!(sm.state(), AppState::Dormant);
+    }
+
+    // === Concurrent access ===
+
+    #[test]
+    fn concurrent_transitions() {
+        let sm = Arc::new(StateMachine::new());
+        let handles: Vec<_> = (0..10).map(|_| {
+            let sm = sm.clone();
+            thread::spawn(move || {
+                sm.transition(AppState::Recording, None);
+            })
+        }).collect();
+        for h in handles { h.join().unwrap(); }
+        // State machine should be in a valid state (only one transition succeeds)
+        let state = sm.state();
+        assert!(state == AppState::Dormant || state == AppState::Recording);
+    }
+
+    // === Multi-cycle torture test ===
+
+    #[test]
+    fn rapid_full_cycles() {
+        let sm = StateMachine::new();
+        for i in 0..100 {
+            assert!(sm.transition(AppState::Recording, None), "cycle {} start", i);
+            assert!(sm.transition(AppState::Processing, None), "cycle {} process", i);
+            assert!(sm.transition(AppState::Success, None), "cycle {} success", i);
+            assert!(sm.transition(AppState::Dormant, None), "cycle {} ack", i);
+        }
+    }
+
+    #[test]
+    fn rapid_cancel_cycles() {
+        let sm = StateMachine::new();
+        for _ in 0..50 {
+            sm.transition(AppState::Recording, None);
+            sm.transition(AppState::Dormant, None); // cancel
+        }
+        assert_eq!(sm.state(), AppState::Dormant);
+    }
+
+    #[test]
+    fn rapid_error_recovery_cycles() {
+        let sm = StateMachine::new();
+        for i in 0..50 {
+            sm.transition(AppState::Recording, None);
+            sm.transition(AppState::Error, Some(&format!("error {}", i)));
+            sm.transition(AppState::Dormant, None);
+        }
+        assert_eq!(sm.state(), AppState::Dormant);
+        assert!(sm.message().is_empty());
     }
 }

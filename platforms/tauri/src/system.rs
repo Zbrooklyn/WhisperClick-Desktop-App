@@ -32,7 +32,7 @@ pub fn simulate_paste() -> Result<(), String> {
     }
 
     unsafe {
-        let mut inputs = [
+        let inputs = [
             win::INPUT { r#type: win::INPUT_KEYBOARD, ki: win::KEYBDINPUT { wVk: win::VK_CONTROL, wScan: 0, dwFlags: 0, time: 0, dwExtraInfo: 0 }, padding: [0; 8] },
             win::INPUT { r#type: win::INPUT_KEYBOARD, ki: win::KEYBDINPUT { wVk: win::VK_V, wScan: 0, dwFlags: 0, time: 0, dwExtraInfo: 0 }, padding: [0; 8] },
             win::INPUT { r#type: win::INPUT_KEYBOARD, ki: win::KEYBDINPUT { wVk: win::VK_V, wScan: 0, dwFlags: win::KEYEVENTF_KEYUP, time: 0, dwExtraInfo: 0 }, padding: [0; 8] },
@@ -74,7 +74,7 @@ pub fn simulate_enter_key() -> Result<(), String> {
     }
 
     unsafe {
-        let mut inputs = [
+        let inputs = [
             win::INPUT { r#type: win::INPUT_KEYBOARD, ki: win::KEYBDINPUT { wVk: win::VK_RETURN, wScan: 0, dwFlags: 0, time: 0, dwExtraInfo: 0 }, padding: [0; 8] },
             win::INPUT { r#type: win::INPUT_KEYBOARD, ki: win::KEYBDINPUT { wVk: win::VK_RETURN, wScan: 0, dwFlags: win::KEYEVENTF_KEYUP, time: 0, dwExtraInfo: 0 }, padding: [0; 8] },
         ];

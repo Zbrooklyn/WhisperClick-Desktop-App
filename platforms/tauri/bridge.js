@@ -5,14 +5,83 @@
  * window.pywebview.api.method(...args) and this bridge routes to Tauri
  * commands with the same snake_case→camelCase translation.
  *
- * Loaded as a script tag in index.html when running under Tauri.
+ * Includes convenience methods that match Electron preload exactly
+ * (get_models, get_microphones, get_api_keys, set_api_key, etc.)
  */
 
 (function () {
   'use strict';
 
+  // initialization_script runs after Tauri injects __TAURI__ — direct access is safe
   const { invoke } = window.__TAURI__.core;
   const { listen } = window.__TAURI__.event;
+
+  // --- Forward JS console + errors to Rust stdout ---
+  function _jsLog(level, msg) {
+    try { invoke('js_log', { level, msg: String(msg).substring(0, 500) }); } catch (_) {}
+  }
+  const _origError = console.error;
+  const _origWarn = console.warn;
+  console.error = function(...args) { _jsLog('error', args.join(' ')); _origError.apply(console, args); };
+  console.warn = function(...args) { _jsLog('warn', args.join(' ')); _origWarn.apply(console, args); };
+  window.onerror = function(msg, src, line, col, err) {
+    _jsLog('error', `${msg} at ${src}:${line}:${col} ${err?.stack || ''}`);
+  };
+  window.onunhandledrejection = function(e) {
+    _jsLog('error', `Unhandled rejection: ${e.reason}`);
+  };
+
+  // --- Debug logging overlay ---
+  const _debugLogs = [];
+  let _debugPanel = null;
+  function _debugLog(msg) {
+    const ts = new Date().toLocaleTimeString();
+    const entry = `[${ts}] ${msg}`;
+    _debugLogs.push(entry);
+    if (_debugLogs.length > 50) _debugLogs.shift();
+    _jsLog('debug', msg);
+    if (_debugPanel) {
+      _debugPanel.textContent = _debugLogs.slice(-15).join('\n');
+    }
+  }
+  // Create debug panel when DOM is ready
+  function _createDebugPanel() {
+    if (_debugPanel) return;
+    const el = document.createElement('div');
+    el.id = 'bridge-debug';
+    el.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:180px;overflow-y:auto;' +
+      'background:rgba(0,0,0,0.85);color:#0f0;font:11px monospace;padding:6px 8px;z-index:99999;' +
+      'pointer-events:auto;white-space:pre-wrap;display:none;';
+    document.body.appendChild(el);
+    _debugPanel = el;
+    // Toggle with Ctrl+Shift+D
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        if (el.style.display === 'block') {
+          el.textContent = _debugLogs.slice(-15).join('\n');
+        }
+      }
+    });
+    _debugLog('Debug panel ready (Ctrl+Shift+D to toggle)');
+  }
+  // Try immediately, then on DOMContentLoaded
+  if (document.body) _createDebugPanel();
+  else document.addEventListener('DOMContentLoaded', _createDebugPanel);
+
+  // Wrap invoke to log all calls
+  const _rawInvoke = invoke;
+  function trackedInvoke(cmd, args) {
+    _debugLog(`→ invoke("${cmd}", ${JSON.stringify(args || {}).substring(0, 100)})`);
+    return _rawInvoke(cmd, args).then(result => {
+      const preview = JSON.stringify(result)?.substring(0, 120) || 'undefined';
+      _debugLog(`← ${cmd}: ${preview}`);
+      return result;
+    }).catch(err => {
+      _debugLog(`✗ ${cmd}: ERROR ${err}`);
+      throw err;
+    });
+  }
 
   // Settings translation: V3 snake_case → Tauri/store camelCase
   const V3_TO_STORE = {
@@ -34,6 +103,7 @@
     auto_enter_mode: 'autoEnterMode',
     tray_click_action: 'trayClickAction',
     debug_logging: 'debugLogging',
+    auto_download_updates: 'autoDownloadUpdates',
   };
 
   const STORE_TO_V3 = Object.fromEntries(
@@ -56,13 +126,8 @@
     return v3;
   }
 
-  // Event listeners cache
-  const eventListeners = {};
-
-  function addEventListener(event, callback) {
-    if (!eventListeners[event]) eventListeners[event] = [];
-    eventListeners[event].push(callback);
-  }
+  // Cache for model download progress (populated by events)
+  let _downloadProgress = null;
 
   // Forward Tauri events to window custom events (same as Electron preload)
   listen('state-update', (event) => {
@@ -93,33 +158,71 @@
     window.dispatchEvent(new CustomEvent('show-enter-button', { detail: event.payload }));
   });
 
+  listen('model-download-progress', (event) => {
+    // Transform raw {model, current, total} → status object (matches Electron preload)
+    const { current, total, model } = event.payload || {};
+    const prog = total > 0 ? current / total : 0;
+    _downloadProgress = {
+      status: prog >= 0.999 ? 'complete' : 'downloading',
+      progress: prog,
+      model,
+      current,
+      total,
+    };
+    _debugLog(`download progress: ${current}/${total} (${(prog * 100).toFixed(0)}%) status=${_downloadProgress.status}`);
+    window.dispatchEvent(new CustomEvent('model-download-progress', { detail: _downloadProgress }));
+  });
+
+  // Update status caching (for polling from frontend)
+  let _updateStatus = null;
+  listen('auto-update-check', async () => {
+    try {
+      _updateStatus = await trackedInvoke('check_for_update');
+      if (_updateStatus && _updateStatus.available) {
+        window.dispatchEvent(new CustomEvent('update-available', { detail: _updateStatus }));
+      }
+    } catch (e) {
+      console.warn('[bridge] Auto-update check failed:', e);
+    }
+  });
+
+  listen('tray-error-notification', (event) => {
+    window.dispatchEvent(new CustomEvent('tray-error-notification', { detail: event.payload }));
+  });
+
   // Build the pywebview API shim
   window.pywebview = {
     api: {
+      // --- Settings ---
       async get_settings() {
-        const settings = await invoke('get_settings');
+        const settings = await trackedInvoke('get_settings');
         return settingsToV3(settings);
       },
 
       async save_settings(patch) {
         const storePatch = patchToStore(patch);
-        return await invoke('save_settings', { patch: storePatch });
+        return await trackedInvoke('save_settings', { patch: storePatch });
       },
 
+      async reset_settings() {
+        return await trackedInvoke('reset_settings');
+      },
+
+      // --- Recording ---
       async start_recording() {
-        return await invoke('start_recording');
+        return await trackedInvoke('start_recording');
       },
 
       async stop_recording() {
-        return await invoke('stop_recording');
+        return await trackedInvoke('stop_recording');
       },
 
       async cancel_processing() {
-        return await invoke('cancel_processing');
+        return await trackedInvoke('cancel_processing');
       },
 
       async get_recording_state() {
-        const s = await invoke('get_state');
+        const s = await trackedInvoke('get_state');
         return {
           is_recording: s.state === 'recording',
           is_processing: s.state === 'processing',
@@ -128,108 +231,307 @@
       },
 
       async ack_state() {
-        return await invoke('ack_state');
+        return await trackedInvoke('ack_state');
       },
 
       async simulate_enter() {
-        return await invoke('simulate_enter');
+        return await trackedInvoke('simulate_enter');
       },
 
+      // --- History ---
       async get_history() {
-        return await invoke('get_history');
+        return await trackedInvoke('get_history');
       },
 
       async delete_history(id) {
-        return await invoke('delete_history', { id });
+        return await trackedInvoke('delete_history', { id });
       },
 
       async clear_history() {
-        return await invoke('clear_history');
+        return await trackedInvoke('clear_history');
       },
 
       async get_audio(id) {
-        return await invoke('get_audio', { id });
+        return await trackedInvoke('get_audio', { id });
       },
 
       async export_transcription(text, format) {
-        return await invoke('export_transcription', { text, format });
+        return await trackedInvoke('export_transcription', { text, format });
       },
 
       async paste_last_transcript() {
-        return await invoke('paste_last_transcript');
+        return await trackedInvoke('paste_last_transcript');
       },
 
       async copy_to_clipboard(text) {
-        return await invoke('copy_to_clipboard', { text });
+        return await trackedInvoke('copy_to_clipboard', { text });
       },
 
+      // --- Models (convenience wrappers matching Electron preload) ---
       async list_models() {
-        return await invoke('list_models');
+        return await trackedInvoke('list_models');
+      },
+
+      async get_models() {
+        const result = await trackedInvoke('list_models');
+        // Normalize: always return an array
+        if (Array.isArray(result)) return result;
+        if (result && Array.isArray(result.models)) return result.models;
+        return [];
       },
 
       async download_model(name) {
-        return await invoke('download_model', { name });
+        return await trackedInvoke('download_model', { name });
       },
 
       async delete_model(name) {
-        return await invoke('delete_model', { name });
+        return await trackedInvoke('delete_model', { name });
       },
 
+      async set_model(name) {
+        return await trackedInvoke('save_settings', { patch: { localModel: name } });
+      },
+
+      async get_download_progress() {
+        return _downloadProgress || { status: 'idle', progress: 0 };
+      },
+
+      // --- Microphones (convenience wrappers) ---
       async list_mics() {
-        return await invoke('list_mics');
+        return await trackedInvoke('list_mics');
+      },
+
+      async get_microphones() {
+        const result = await trackedInvoke('list_mics');
+        if (Array.isArray(result)) return result;
+        if (result && Array.isArray(result.mics)) return result.mics;
+        return [];
       },
 
       async set_mic(id) {
-        return await invoke('set_mic', { id });
+        return await trackedInvoke('set_mic', { id });
       },
 
+      async set_microphone(id) {
+        return await trackedInvoke('set_mic', { id });
+      },
+
+      // --- API Keys (convenience wrappers matching Electron preload) ---
       async verify_api_key(provider, key) {
-        return await invoke('verify_api_key', { provider, key });
+        return await trackedInvoke('verify_api_key', { provider, key });
       },
 
+      async get_api_keys() {
+        // Match Electron behavior: return both keys from secure storage
+        const openai = await trackedInvoke('get_api_key', { provider: 'openai' });
+        const gemini = await trackedInvoke('get_api_key', { provider: 'gemini' });
+        return {
+          success: true,
+          openai: openai?.key || '',
+          gemini: gemini?.key || '',
+        };
+      },
+
+      async set_api_key(provider, key) {
+        // Store in secure storage
+        await trackedInvoke('store_api_key', { provider, key });
+        // Also save field name to settings so has_key checks work
+        const fieldMap = { openai: 'openaiApiKey', gemini: 'geminiApiKey' };
+        const field = fieldMap[provider] || `${provider}ApiKey`;
+        // Save a marker (not the actual key) in settings
+        return await trackedInvoke('save_settings', {
+          patch: { [field]: key ? '***secured***' : '' }
+        });
+      },
+
+      async store_api_key(provider, key) {
+        return await trackedInvoke('store_api_key', { provider, key });
+      },
+
+      async get_api_key(provider) {
+        return await trackedInvoke('get_api_key', { provider });
+      },
+
+      async delete_api_key(provider) {
+        return await trackedInvoke('delete_api_key', { provider });
+      },
+
+      // --- App info ---
       async get_app_info() {
-        return await invoke('get_app_info');
+        return await trackedInvoke('get_app_info');
       },
 
-      async reset_settings() {
-        return await invoke('reset_settings');
+      async get_version() {
+        const info = await trackedInvoke('get_app_info');
+        return { version: info.version, dev: info.platform === 'windows' };
       },
 
+      // --- Window management ---
       async toggle_pill() {
-        return await invoke('toggle_pill');
+        return await trackedInvoke('toggle_pill');
       },
 
       async show_main_window() {
-        return await invoke('show_main_window');
+        return await trackedInvoke('show_main_window');
       },
 
       async show_settings() {
-        return await invoke('show_settings');
+        return await trackedInvoke('show_settings');
       },
 
       async hide_pill() {
-        return await invoke('hide_pill');
+        return await trackedInvoke('hide_pill');
       },
 
       async minimize() {
-        return await invoke('window_minimize');
+        return await trackedInvoke('window_minimize');
       },
 
       async maximize() {
-        return await invoke('window_maximize');
+        return await trackedInvoke('window_maximize');
       },
 
       async close() {
-        return await invoke('window_close');
+        return await trackedInvoke('window_close');
       },
 
       async is_maximized() {
-        return await invoke('window_is_maximized');
+        return await trackedInvoke('window_is_maximized');
+      },
+
+      // --- Drag/resize stubs (V3 frontend calls these, Tauri handles natively) ---
+      async drag_start() { /* no-op: Tauri handles window drag natively */ },
+      async nc_resize_start() { /* no-op: Tauri handles resize natively */ },
+
+      // --- Multi-monitor ---
+      async get_displays() {
+        // Tauri doesn't expose display list easily — return primary only
+        return [{ id: 0, label: 'Primary', primary: true }];
+      },
+
+      async move_pill_to_display(_id) {
+        // TODO: Implement pill repositioning when Tauri adds monitor API
+        return { success: true };
+      },
+
+      // --- Auto-start ---
+      async set_auto_start(enabled) {
+        return await trackedInvoke('set_auto_start', { enabled });
+      },
+
+      async get_auto_start() {
+        return await trackedInvoke('get_auto_start');
+      },
+
+      // --- Updates ---
+      async check_for_update() {
+        _updateStatus = await trackedInvoke('check_for_update');
+        return _updateStatus;
+      },
+
+      async check_for_updates() {
+        return await this.check_for_update();
+      },
+
+      async download_update() {
+        return await trackedInvoke('install_update'); // Tauri combines download + install
+      },
+
+      async install_update() {
+        return await trackedInvoke('install_update');
+      },
+
+      async get_update_status() {
+        return _updateStatus;
+      },
+
+      async set_update_channel(channel) {
+        return await trackedInvoke('save_settings', { patch: { updateChannel: channel } });
+      },
+
+      async get_update_channel() {
+        const settings = await trackedInvoke('get_settings');
+        return settings.updateChannel || 'stable';
       },
     },
   };
 
+  // --- Tauri-specific CSS overrides (injected, not modifying shared index.html) ---
+  function _injectTauriCSS() {
+    const target = document.head || document.documentElement;
+    if (!target) {
+      // DOM not ready yet — defer
+      document.addEventListener('DOMContentLoaded', _injectTauriCSS);
+      return;
+    }
+    const style = document.createElement('style');
+    style.textContent = `
+      /* Disable -webkit-app-region: drag — not supported by WebView2, can block clicks */
+      #title-bar { -webkit-app-region: initial !important; }
+      #title-bar button, #title-bar a, #title-bar input,
+      #title-bar select, #title-bar [onclick] { -webkit-app-region: initial !important; }
+    `;
+    target.appendChild(style);
+    _debugLog('Tauri CSS overrides injected (disabled -webkit-app-region)');
+  }
+  _injectTauriCSS();
+
   // Signal that the bridge is ready
   window.pywebview._isReady = true;
+  _debugLog('Bridge initialized — firing pywebviewready events');
+  // Fire BOTH event names: V3 pywebview uses 'pywebviewready', our bridge used 'pywebview-ready'
+  window.dispatchEvent(new CustomEvent('pywebviewready'));
   window.dispatchEvent(new CustomEvent('pywebview-ready'));
+
+  // Global click logger for debugging button issues
+  function _installClickLogger() {
+    document.addEventListener('click', (e) => {
+      const t = e.target;
+      const tag = t.tagName;
+      const id = t.id ? `#${t.id}` : '';
+      const cls = t.className ? `.${String(t.className).split(' ').slice(0,3).join('.')}` : '';
+      const onclick = t.getAttribute('onclick') || '';
+      const disabled = t.disabled ? ' [DISABLED]' : '';
+      const text = (t.textContent || '').trim().substring(0, 30);
+      _debugLog(`CLICK: ${tag}${id}${cls}${disabled} onclick="${onclick}" text="${text}"`);
+    }, true); // capture phase — fires even if propagation stops
+    _debugLog('Click logger installed');
+  }
+  if (document.body) _installClickLogger();
+  else document.addEventListener('DOMContentLoaded', _installClickLogger);
+
+  // Monkey-patch frontend functions to trace onboarding flow
+  function _patchOnboarding() {
+    if (typeof window.startOnboarding === 'function' && !window._startOnboardingPatched) {
+      const orig = window.startOnboarding;
+      window.startOnboarding = function() {
+        _debugLog(`startOnboarding() called — localModelReady=${window.localModelReady}, nativeBridgeReady=${window.nativeBridgeReady}`);
+        return orig.apply(this, arguments);
+      };
+      window._startOnboardingPatched = true;
+      _debugLog('Patched startOnboarding()');
+    }
+    if (typeof window.startOnboardingModelDownload === 'function' && !window._dlPatched) {
+      const orig2 = window.startOnboardingModelDownload;
+      window.startOnboardingModelDownload = function() {
+        _debugLog(`startOnboardingModelDownload() called — nativeBridgeReady=${window.nativeBridgeReady}`);
+        return orig2.apply(this, arguments);
+      };
+      window._dlPatched = true;
+      _debugLog('Patched startOnboardingModelDownload()');
+    }
+    if (typeof window.useApiInstead === 'function' && !window._apiPatched) {
+      const orig3 = window.useApiInstead;
+      window.useApiInstead = function() {
+        _debugLog(`useApiInstead() called`);
+        return orig3.apply(this, arguments);
+      };
+      window._apiPatched = true;
+      _debugLog('Patched useApiInstead()');
+    }
+  }
+  // Patch after DOM + frontend JS loads
+  setTimeout(_patchOnboarding, 500);
+  setTimeout(_patchOnboarding, 2000);
+  document.addEventListener('DOMContentLoaded', () => setTimeout(_patchOnboarding, 100));
 })();

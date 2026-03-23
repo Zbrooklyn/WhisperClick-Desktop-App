@@ -35,7 +35,7 @@ MODEL_INFO = {
     "turbo": {
         "size_mb": 1500,
         "description": "Fast on GPU only — slow on CPU, skip if no GPU",
-        "repo": "Systran/faster-whisper-large-v3-turbo",
+        "repo": "mobiuslabsgmbh/faster-whisper-large-v3-turbo",
     },
 }
 
