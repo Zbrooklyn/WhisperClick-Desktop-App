@@ -202,9 +202,14 @@ fn stop_recording(
     sm.0.transition(AppState::Processing, None);
     broadcast_state(&sm.0, &app, &store.0);
 
-    let _ = sc.0.send("stop_rec", HashMap::new(), |_| {});
-
-    ResultPayload::ok()
+    // Block until sidecar responds (120s timeout) — matches Electron behavior
+    match sc.0.send_sync("stop_rec", HashMap::new(), Duration::from_secs(120)) {
+        Ok(_resp) => ResultPayload::ok(),
+        Err(e) => {
+            eprintln!("[stop_recording] sidecar error: {}", e);
+            ResultPayload::err(&e)
+        }
+    }
 }
 
 #[tauri::command]
@@ -423,6 +428,11 @@ async fn check_for_update(app: AppHandle) -> Value {
         Err(e) => serde_json::json!({ "available": false, "error": format!("{}", e) }),
     }
 }
+
+// TODO: Implement update-marker.json for post-update success notification
+// (Electron writes a marker before install, checks on next launch)
+// TODO: Add native notification when update is downloaded
+// Requires tauri-plugin-notification
 
 #[tauri::command]
 async fn install_update(app: AppHandle) -> ResultPayload {
@@ -961,10 +971,11 @@ fn send_configure(sc: &Sidecar, store: &Store) {
 
     // Pick the right API key based on provider (matches Electron's configureSidecar)
     let provider = s.get("provider").and_then(|v| v.as_str()).unwrap_or("openai");
+    // Read real API key from keyring (not the '***secured***' marker in settings)
     let api_key = if provider == "gemini" {
-        s.get("geminiApiKey").and_then(|v| v.as_str()).unwrap_or("")
+        encryption::get_key("apikey-gemini").ok().flatten().unwrap_or_default()
     } else {
-        s.get("openaiApiKey").and_then(|v| v.as_str()).unwrap_or("")
+        encryption::get_key("apikey-openai").ok().flatten().unwrap_or_default()
     };
 
     // Transform camelCase store keys → snake_case engine keys (must match exactly)
@@ -1339,21 +1350,34 @@ pub fn run() {
                 let pill_app = app.handle().clone();
                 let store_for_pill = store.clone();
                 app.listen("tauri://window-event", move |event: tauri::Event| {
-                    // Check showPill setting
-                    let show_pill = store_for_pill.get_settings()
-                        .get("showPill").and_then(|v| v.as_bool()).unwrap_or(false);
-                    if !show_pill { return; }
-
                     let payload = event.payload();
                     if payload.contains("Minimized") || payload.contains("Hidden") {
-                        // Main window hidden/minimized → show pill
-                        if let Some(pill) = pill_app.get_webview_window("pill") {
-                            let _ = pill.show();
+                        // Main window hidden/minimized → show pill (if enabled)
+                        let show_pill = store_for_pill.get_settings()
+                            .get("showPill").and_then(|v| v.as_bool()).unwrap_or(false);
+                        if show_pill {
+                            if let Some(pill) = pill_app.get_webview_window("pill") {
+                                let _ = pill.show();
+                            }
                         }
                     } else if payload.contains("Focused") || payload.contains("Shown") {
                         // Main window shown/focused → hide pill
-                        if let Some(pill) = pill_app.get_webview_window("pill") {
-                            let _ = pill.hide();
+                        let show_pill = store_for_pill.get_settings()
+                            .get("showPill").and_then(|v| v.as_bool()).unwrap_or(false);
+                        if show_pill {
+                            if let Some(pill) = pill_app.get_webview_window("pill") {
+                                let _ = pill.hide();
+                            }
+                        }
+
+                        // Reset settings drawer on window show (matches Electron behavior)
+                        if let Some(w) = pill_app.get_webview_window("main") {
+                            let _ = w.eval("if (typeof closeSettingsDrawer === 'function') closeSettingsDrawer();");
+                        }
+
+                        // Broadcast current state so UI reflects recording state after returning from tray
+                        if let Some(sm) = pill_app.try_state::<AppStateMachine>() {
+                            broadcast_state(&sm.0, &pill_app, &store_for_pill);
                         }
                     }
                 });
@@ -1450,6 +1474,15 @@ pub fn run() {
                                 }
                             }
                             "quit" => {
+                                // Graceful sidecar shutdown before quit
+                                if let Some(sc) = app.try_state::<AppSidecar>() {
+                                    sc.0.kill();
+                                }
+                                // Unregister global shortcuts
+                                {
+                                    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+                                    let _ = app.global_shortcut().unregister_all();
+                                }
                                 app.exit(0);
                             }
                             other => {
@@ -1587,8 +1620,17 @@ pub fn run() {
                     if behavior == "tray" {
                         api.prevent_close();
                         let _ = window.hide();
+                    } else {
+                        // "close" behavior: cleanup before app exits
+                        let app_handle = window.app_handle();
+                        if let Some(sc) = app_handle.try_state::<AppSidecar>() {
+                            sc.0.kill();
+                        }
+                        {
+                            use tauri_plugin_global_shortcut::GlobalShortcutExt;
+                            let _ = app_handle.global_shortcut().unregister_all();
+                        }
                     }
-                    // "close" behavior: let the default close proceed (app exits)
                 }
             }
         })

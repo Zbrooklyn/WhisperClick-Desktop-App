@@ -186,14 +186,19 @@
   });
 
   // Update status caching (for polling from frontend)
-  let _updateStatus = null;
+  let _updateStatus = { status: 'idle', currentVersion: '...' };
   listen('auto-update-check', async () => {
     try {
-      _updateStatus = await trackedInvoke('check_for_update');
-      if (_updateStatus && _updateStatus.available) {
+      _updateStatus = { status: 'checking', currentVersion: _updateStatus.currentVersion || '...' };
+      const result = await trackedInvoke('check_for_update');
+      if (result && result.available) {
+        _updateStatus = { status: 'available', currentVersion: _updateStatus.currentVersion, version: result.version || 'unknown' };
         window.dispatchEvent(new CustomEvent('update-available', { detail: _updateStatus }));
+      } else {
+        _updateStatus = { status: 'idle', currentVersion: _updateStatus.currentVersion };
       }
     } catch (e) {
+      _updateStatus = { status: 'idle', currentVersion: _updateStatus.currentVersion, error: String(e) };
       console.warn('[bridge] Auto-update check failed:', e);
     }
   });
@@ -375,7 +380,7 @@
 
       async get_version() {
         const info = await trackedInvoke('get_app_info');
-        return { version: info.version, dev: info.platform === 'windows' };
+        return { version: info.version, dev: !!info.isDev };
       },
 
       // --- Window management ---
@@ -443,7 +448,17 @@
 
       // --- Updates ---
       async check_for_update() {
-        _updateStatus = await trackedInvoke('check_for_update');
+        _updateStatus = { status: 'checking', currentVersion: (await trackedInvoke('get_app_info')).version };
+        try {
+          const result = await trackedInvoke('check_for_update');
+          if (result && result.available) {
+            _updateStatus = { status: 'available', currentVersion: _updateStatus.currentVersion, version: result.version || 'unknown' };
+          } else {
+            _updateStatus = { status: 'idle', currentVersion: _updateStatus.currentVersion };
+          }
+        } catch (e) {
+          _updateStatus = { status: 'idle', currentVersion: _updateStatus.currentVersion, error: String(e) };
+        }
         return _updateStatus;
       },
 
@@ -452,7 +467,9 @@
       },
 
       async download_update() {
-        return await trackedInvoke('install_update'); // Tauri combines download + install
+        // Tauri combines download+install — mark as ready, actual install happens on install_update
+        _updateStatus = { ..._updateStatus, status: 'ready' };
+        return { status: 'ready' };
       },
 
       async install_update() {
@@ -460,7 +477,7 @@
       },
 
       async get_update_status() {
-        return _updateStatus;
+        return _updateStatus || { status: 'idle' };
       },
 
       async set_update_channel(channel) {
@@ -469,7 +486,7 @@
 
       async get_update_channel() {
         const settings = await trackedInvoke('get_settings');
-        return settings.updateChannel || 'stable';
+        return { channel: settings.updateChannel || 'stable' };
       },
     },
   };
