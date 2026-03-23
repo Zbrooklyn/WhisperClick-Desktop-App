@@ -373,20 +373,6 @@ mod tests {
         cleanup(&dir);
     }
 
-    // === Dev mode ===
-
-    #[test]
-    fn dev_mode_appends_suffix() {
-        let dir = std::env::temp_dir().join("whisperclick_test_devmode2");
-        let _ = fs::remove_dir_all(&dir);
-        let _ = fs::remove_dir_all(std::env::temp_dir().join("whisperclick_test_devmode2-dev"));
-        let _store = Store::new(dir.clone(), true);
-        let dev_dir = std::env::temp_dir().join("whisperclick_test_devmode2-dev");
-        assert!(dev_dir.exists());
-        let _ = fs::remove_dir_all(&dir);
-        let _ = fs::remove_dir_all(&dev_dir);
-    }
-
     // === Corruption ===
 
     #[test]

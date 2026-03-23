@@ -173,12 +173,18 @@ fn start_recording(
     // Capture foreground window before recording
     let _ = sc.0.send("capture_fg", HashMap::new(), |_| {});
 
-    sm.0.transition(AppState::Recording, None);
-    broadcast_state(&sm.0, &app, &store.0);
-
-    let _ = sc.0.send("start_rec", HashMap::new(), |_| {});
-
-    ResultPayload::ok()
+    // Try to send start_rec — only transition if successful
+    match sc.0.send("start_rec", HashMap::new(), |_| {}) {
+        Ok(_) => {
+            sm.0.transition(AppState::Recording, None);
+            broadcast_state(&sm.0, &app, &store.0);
+            ResultPayload::ok()
+        }
+        Err(e) => {
+            eprintln!("[start_recording] sidecar error: {}", e);
+            ResultPayload::err(&format!("Failed to start recording: {}", e))
+        }
+    }
 }
 
 #[tauri::command]
@@ -230,12 +236,24 @@ fn get_history(store: tauri::State<'_, AppStore>) -> Vec<Value> {
 
 #[tauri::command]
 fn delete_history(store: tauri::State<'_, AppStore>, id: String) -> ResultPayload {
+    let history = store.0.get_history();
+    if let Some(entry) = history.iter().find(|e| e.get("id").and_then(|v| v.as_str()) == Some(&id)) {
+        if let Some(path) = entry.get("audio_file").and_then(|v| v.as_str()) {
+            let _ = std::fs::remove_file(path);
+        }
+    }
     store.0.delete_history(&id);
     ResultPayload::ok()
 }
 
 #[tauri::command]
 fn clear_history(store: tauri::State<'_, AppStore>) -> ResultPayload {
+    let history = store.0.get_history();
+    for entry in &history {
+        if let Some(path) = entry.get("audio_file").and_then(|v| v.as_str()) {
+            let _ = std::fs::remove_file(path);
+        }
+    }
     store.0.clear_history();
     ResultPayload::ok()
 }
@@ -320,11 +338,11 @@ fn set_mic(sc: tauri::State<'_, AppSidecar>, id: i32) -> ResultPayload {
 }
 
 #[tauri::command]
-fn verify_api_key(sc: tauri::State<'_, AppSidecar>, provider: String, key: String) -> Value {
+fn verify_api_key(sc: tauri::State<'_, AppSidecar>, provider: String, key: String, base_url: Option<String>) -> Value {
     let mut params = HashMap::new();
     params.insert("provider".to_string(), Value::String(provider));
     params.insert("api_key".to_string(), Value::String(key));
-    params.insert("base_url".to_string(), Value::String("".into()));
+    params.insert("base_url".to_string(), Value::String(base_url.unwrap_or_default()));
     match sc.0.send_sync("verify_key", params, SIDECAR_TIMEOUT) {
         Ok(resp) => {
             let valid = resp.result.as_deref() == Some("ok")
@@ -434,18 +452,28 @@ async fn install_update(app: AppHandle) -> ResultPayload {
 
 #[tauri::command]
 fn get_audio(store: tauri::State<'_, AppStore>, id: String) -> Value {
-    // Look up the history entry to find the audio file path
     let history = store.0.get_history();
     if let Some(entry) = history.iter().find(|e| e.get("id").and_then(|v| v.as_str()) == Some(&id)) {
-        if let Some(audio_path) = entry.get("audioPath").and_then(|v| v.as_str()) {
+        if let Some(audio_path) = entry.get("audio_file").and_then(|v| v.as_str()) {
+            let path = std::path::Path::new(audio_path);
+            if !path.exists() {
+                return serde_json::json!({ "success": false, "error": "Audio file not found" });
+            }
             if let Ok(bytes) = std::fs::read(audio_path) {
                 use base64::{Engine as _, engine::general_purpose::STANDARD};
                 let b64 = STANDARD.encode(&bytes);
-                return serde_json::json!({ "audio": b64, "path": audio_path });
+                let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("wav");
+                let mime = match ext {
+                    "mp3" => "audio/mpeg",
+                    "ogg" => "audio/ogg",
+                    "webm" => "audio/webm",
+                    _ => "audio/wav",
+                };
+                return serde_json::json!({ "success": true, "data": b64, "mime": mime });
             }
         }
     }
-    Value::Null
+    serde_json::json!({ "success": false, "error": "No audio file" })
 }
 
 #[tauri::command]
@@ -459,6 +487,8 @@ fn export_transcription(app: AppHandle, text: String, format: String) -> ResultP
                 let _ = std::fs::write(path.as_path().unwrap(), &text);
             }
         });
+    // Note: returns immediately — dialog save is async via Tauri plugin callback.
+    // Frontend does not depend on export result.
     ResultPayload::ok()
 }
 
@@ -497,8 +527,10 @@ fn js_log(level: String, msg: String) {
 #[tauri::command]
 fn get_app_info() -> Value {
     serde_json::json!({
-        "version": "3.0.0-alpha",
+        "version": env!("CARGO_PKG_VERSION"),
         "platform": std::env::consts::OS,
+        "arch": std::env::consts::ARCH,
+        "isDev": cfg!(debug_assertions),
     })
 }
 
@@ -536,11 +568,13 @@ fn show_settings(app: AppHandle) -> ResultPayload {
 }
 
 #[tauri::command]
-fn hide_pill(app: AppHandle) -> ResultPayload {
+fn hide_pill(app: AppHandle, store: tauri::State<'_, AppStore>) -> ResultPayload {
     if let Some(pill) = app.get_webview_window("pill") {
         let _ = pill.hide();
     }
-    // Notify frontend that pill was hidden (Electron parity)
+    let mut patch = serde_json::Map::new();
+    patch.insert("showPill".into(), serde_json::Value::Bool(false));
+    store.0.save_settings(patch);
     let _ = app.emit("pill-hidden", &());
     ResultPayload::ok()
 }
@@ -616,7 +650,7 @@ fn window_maximize(window: tauri::Window) -> ResultPayload {
 
 #[tauri::command]
 fn window_close(window: tauri::Window) -> ResultPayload {
-    let _ = window.hide();
+    let _ = window.close();
     ResultPayload::ok()
 }
 
@@ -753,7 +787,7 @@ fn send_configure(sc: &Sidecar, store: &Store) {
     // Transform camelCase store keys → snake_case engine keys (must match exactly)
     let mut params = HashMap::new();
     params.insert("mode".into(), Value::String(s.get("mode").and_then(|v| v.as_str()).unwrap_or("api").into()));
-    params.insert("language".into(), Value::String(s.get("language").and_then(|v| v.as_str()).unwrap_or("auto").into()));
+    params.insert("language".into(), Value::String(s.get("sourceLanguage").and_then(|v| v.as_str()).unwrap_or("auto").into()));
     params.insert("model".into(), Value::String(s.get("localModel").and_then(|v| v.as_str()).unwrap_or("base").into()));
     params.insert("provider".into(), Value::String(provider.into()));
     params.insert("api_key".into(), Value::String(api_key.into()));
@@ -907,7 +941,7 @@ pub fn run() {
                                 "model": data.get("model").unwrap_or(&Value::String("unknown".into())),
                                 "language": data.get("language").unwrap_or(&Value::String("auto".into())),
                                 "translation": data.get("translation").unwrap_or(&Value::Null),
-                                "audioPath": data.get("audio_file").unwrap_or(&Value::Null),
+                                "audio_file": data.get("audio_file").unwrap_or(&Value::Null),
                             });
                             store_for_events.add_history(entry);
 
@@ -1020,6 +1054,7 @@ pub fn run() {
 
             // Sidecar health monitor — auto-restart with max 3 attempts + exponential backoff
             let monitor_sc = sc.clone();
+            let monitor_app = app.handle().clone();
             std::thread::spawn(move || {
                 std::thread::sleep(Duration::from_secs(5)); // initial wait
                 let mut restart_count = 0u32;
@@ -1027,6 +1062,15 @@ pub fn run() {
                 loop {
                     std::thread::sleep(Duration::from_secs(2));
                     if !monitor_sc.is_running() {
+                        // Reset state if recording/processing was active when sidecar crashed
+                        if let Some(sm) = monitor_app.try_state::<AppStateMachine>() {
+                            if sm.0.is(&[AppState::Recording, AppState::Processing]) {
+                                sm.0.transition(AppState::Error, Some("Backend crashed — restarting..."));
+                                if let Some(store) = monitor_app.try_state::<AppStore>() {
+                                    broadcast_state(&sm.0, &monitor_app, &store.0);
+                                }
+                            }
+                        }
                         if restart_count >= MAX_RESTARTS {
                             eprintln!("[monitor] Sidecar died — max restarts ({}) reached, giving up", MAX_RESTARTS);
                             break;
@@ -1077,7 +1121,8 @@ pub fn run() {
                     .inner_size(win_w, win_h)
                     .min_inner_size(480.0, 218.0)
                     .resizable(true)
-                    .decorations(true) // native title bar with min/max/close buttons
+                    .decorations(false) // frameless — custom HTML title bar + buttons
+                    .shadow(true) // restore window shadow lost by removing decorations
                     .always_on_top(always_on_top)
                     .visible(false)
                     .initialization_script(bridge_js)

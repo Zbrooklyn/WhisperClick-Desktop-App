@@ -45,7 +45,7 @@ pub struct Sidecar {
     next_id: AtomicU64,
     pending: Arc<Mutex<HashMap<u64, PendingCallback>>>,
     event_handler: Mutex<Option<EventCallback>>,
-    is_running: AtomicBool,
+    is_running: Arc<AtomicBool>,
     engine_path: String,
     python_path: String,
 }
@@ -58,7 +58,7 @@ impl Sidecar {
             next_id: AtomicU64::new(1),
             pending: Arc::new(Mutex::new(HashMap::new())),
             event_handler: Mutex::new(None),
-            is_running: AtomicBool::new(false),
+            is_running: Arc::new(AtomicBool::new(false)),
             engine_path,
             python_path,
         }
@@ -101,7 +101,7 @@ impl Sidecar {
 
         // Share the SAME pending map with the reader thread (fixes callback resolution bug)
         let pending_for_thread = self.pending.clone();
-        let running_flag = Arc::new(AtomicBool::new(true));
+        let running_flag = self.is_running.clone();
 
         thread::spawn(move || {
             let reader = BufReader::new(stdout);

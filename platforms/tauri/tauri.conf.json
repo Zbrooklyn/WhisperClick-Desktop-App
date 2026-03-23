@@ -10,8 +10,7 @@
     "withGlobalTauri": true,
     "windows": [],
     "security": {
-      "csp": null,
-      "dangerousDisableAssetCspModification": true
+      "csp": null
     }
   },
   "bundle": {

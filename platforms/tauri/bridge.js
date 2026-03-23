@@ -16,25 +16,34 @@
   const { invoke } = window.__TAURI__.core;
   const { listen } = window.__TAURI__.event;
 
+  // Debug mode: enabled in Tauri debug builds, disabled in production
+  const _IS_DEBUG = (() => {
+    try { return !!window.__TAURI_INTERNALS__?.metadata?.debug; } catch (_) { return false; }
+  })();
+
   // --- Forward JS console + errors to Rust stdout ---
   function _jsLog(level, msg) {
+    if (!_IS_DEBUG) return;
     try { invoke('js_log', { level, msg: String(msg).substring(0, 500) }); } catch (_) {}
   }
-  const _origError = console.error;
-  const _origWarn = console.warn;
-  console.error = function(...args) { _jsLog('error', args.join(' ')); _origError.apply(console, args); };
-  console.warn = function(...args) { _jsLog('warn', args.join(' ')); _origWarn.apply(console, args); };
-  window.onerror = function(msg, src, line, col, err) {
-    _jsLog('error', `${msg} at ${src}:${line}:${col} ${err?.stack || ''}`);
-  };
-  window.onunhandledrejection = function(e) {
-    _jsLog('error', `Unhandled rejection: ${e.reason}`);
-  };
+  if (_IS_DEBUG) {
+    const _origError = console.error;
+    const _origWarn = console.warn;
+    console.error = function(...args) { _jsLog('error', args.join(' ')); _origError.apply(console, args); };
+    console.warn = function(...args) { _jsLog('warn', args.join(' ')); _origWarn.apply(console, args); };
+    window.onerror = function(msg, src, line, col, err) {
+      _jsLog('error', `${msg} at ${src}:${line}:${col} ${err?.stack || ''}`);
+    };
+    window.onunhandledrejection = function(e) {
+      _jsLog('error', `Unhandled rejection: ${e.reason}`);
+    };
+  }
 
   // --- Debug logging overlay ---
   const _debugLogs = [];
   let _debugPanel = null;
   function _debugLog(msg) {
+    if (!_IS_DEBUG) return;
     const ts = new Date().toLocaleTimeString();
     const entry = `[${ts}] ${msg}`;
     _debugLogs.push(entry);
@@ -66,12 +75,15 @@
     _debugLog('Debug panel ready (Ctrl+Shift+D to toggle)');
   }
   // Try immediately, then on DOMContentLoaded
-  if (document.body) _createDebugPanel();
-  else document.addEventListener('DOMContentLoaded', _createDebugPanel);
+  if (_IS_DEBUG) {
+    if (document.body) _createDebugPanel();
+    else document.addEventListener('DOMContentLoaded', _createDebugPanel);
+  }
 
   // Wrap invoke to log all calls
   const _rawInvoke = invoke;
   function trackedInvoke(cmd, args) {
+    if (!_IS_DEBUG) return _rawInvoke(cmd, args);
     _debugLog(`→ invoke("${cmd}", ${JSON.stringify(args || {}).substring(0, 100)})`);
     return _rawInvoke(cmd, args).then(result => {
       const preview = JSON.stringify(result)?.substring(0, 120) || 'undefined';
@@ -317,8 +329,8 @@
       },
 
       // --- API Keys (convenience wrappers matching Electron preload) ---
-      async verify_api_key(provider, key) {
-        return await trackedInvoke('verify_api_key', { provider, key });
+      async verify_api_key(provider, key, baseUrl) {
+        return await trackedInvoke('verify_api_key', { provider, key, base_url: baseUrl || '' });
       },
 
       async get_api_keys() {
@@ -391,6 +403,10 @@
         return await trackedInvoke('window_maximize');
       },
 
+      async toggle_maximize() {
+        return await trackedInvoke('window_maximize');
+      },
+
       async close() {
         return await trackedInvoke('window_close');
       },
@@ -407,6 +423,10 @@
       async get_displays() {
         // Tauri doesn't expose display list easily — return primary only
         return [{ id: 0, label: 'Primary', primary: true }];
+      },
+
+      async get_monitors() {
+        return await this.get_displays();
       },
 
       async move_pill_to_display(_id) {
@@ -460,21 +480,44 @@
   function _injectTauriCSS() {
     const target = document.head || document.documentElement;
     if (!target) {
-      // DOM not ready yet — defer
       document.addEventListener('DOMContentLoaded', _injectTauriCSS);
       return;
     }
     const style = document.createElement('style');
     style.textContent = `
-      /* Disable -webkit-app-region: drag — not supported by WebView2, can block clicks */
-      #title-bar { -webkit-app-region: initial !important; }
+      /* Disable -webkit-app-region: drag — not supported by WebView2 */
+      #title-bar { -webkit-app-region: initial !important; padding-right: 12px !important; }
       #title-bar button, #title-bar a, #title-bar input,
       #title-bar select, #title-bar [onclick] { -webkit-app-region: initial !important; }
+      /* Show custom window controls (hidden in Electron which has native overlay) */
+      .electron-hide { display: inline-flex !important; }
     `;
     target.appendChild(style);
-    _debugLog('Tauri CSS overrides injected (disabled -webkit-app-region)');
+    _debugLog('Tauri CSS overrides injected (frameless mode)');
   }
   _injectTauriCSS();
+
+  // --- Frameless window: drag regions + double-click maximize ---
+  function _addDragRegions() {
+    const titleBar = document.getElementById('title-bar');
+    if (!titleBar) return;
+    titleBar.setAttribute('data-tauri-drag-region', '');
+    // Add to ALL descendants EXCEPT interactive elements
+    titleBar.querySelectorAll('*').forEach(el => {
+      if (!el.closest('button') && !el.closest('a') &&
+          !el.closest('input') && !el.closest('select')) {
+        el.setAttribute('data-tauri-drag-region', '');
+      }
+    });
+    // Double-click title bar to toggle maximize (standard Windows behavior)
+    titleBar.addEventListener('dblclick', (e) => {
+      if (e.target.closest('button') || e.target.closest('a')) return;
+      trackedInvoke('window_maximize');
+    });
+    _debugLog('Drag regions + double-click-maximize installed');
+  }
+  if (document.body) _addDragRegions();
+  else document.addEventListener('DOMContentLoaded', _addDragRegions);
 
   // Signal that the bridge is ready
   window.pywebview._isReady = true;
@@ -497,8 +540,10 @@
     }, true); // capture phase — fires even if propagation stops
     _debugLog('Click logger installed');
   }
-  if (document.body) _installClickLogger();
-  else document.addEventListener('DOMContentLoaded', _installClickLogger);
+  if (_IS_DEBUG) {
+    if (document.body) _installClickLogger();
+    else document.addEventListener('DOMContentLoaded', _installClickLogger);
+  }
 
   // Monkey-patch frontend functions to trace onboarding flow
   function _patchOnboarding() {
@@ -531,7 +576,9 @@
     }
   }
   // Patch after DOM + frontend JS loads
-  setTimeout(_patchOnboarding, 500);
-  setTimeout(_patchOnboarding, 2000);
-  document.addEventListener('DOMContentLoaded', () => setTimeout(_patchOnboarding, 100));
+  if (_IS_DEBUG) {
+    setTimeout(_patchOnboarding, 500);
+    setTimeout(_patchOnboarding, 2000);
+    document.addEventListener('DOMContentLoaded', () => setTimeout(_patchOnboarding, 100));
+  }
 })();
