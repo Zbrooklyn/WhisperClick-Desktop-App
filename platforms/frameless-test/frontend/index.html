@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Frameless Test</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #1C1917;
+      color: #e7e5e4;
+      /* Bright border to show window edge — if frameless, this IS the edge */
+      border: 3px solid #22d3ee;
+    }
+
+    .frameless-indicator {
+      background: #22d3ee;
+      color: #000;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 2px 0;
+    }
+
+    .titlebar {
+      height: 40px;
+      background: #292524;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+    }
+
+    .titlebar-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .titlebar-title {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .titlebar-controls {
+      display: flex;
+      gap: 2px;
+    }
+
+    .titlebar-btn {
+      appearance: none;
+      border: none;
+      background: transparent;
+      color: #a8a29e;
+      cursor: pointer;
+      padding: 8px 12px;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      gap: 4px;
+    }
+
+    .titlebar-btn:hover { background: rgba(120,113,108,0.3); color: #e7e5e4; }
+    .titlebar-btn.close:hover { background: rgba(220,38,38,0.8); color: white; }
+
+    .content {
+      padding: 24px;
+    }
+
+    h1 { font-size: 20px; margin-bottom: 8px; }
+    p { color: #a8a29e; margin-bottom: 16px; }
+
+    .checklist {
+      background: #292524;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid #3f3a36;
+      font-size: 14px;
+    }
+    .check-item:last-child { border-bottom: none; }
+
+    .check-box {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #78716c;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .check-box.pass { background: #16a34a; border-color: #16a34a; }
+    .check-box.fail { background: #dc2626; border-color: #dc2626; }
+
+    .log {
+      margin-top: 16px;
+      padding: 12px;
+      background: #292524;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 11px;
+      max-height: 150px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      color: #a8a29e;
+    }
+
+    .drag-test {
+      background: #44403c;
+      border: 2px dashed #78716c;
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      margin-bottom: 16px;
+      color: #a8a29e;
+    }
+  </style>
+</head>
+<body>
+  <!-- Cyan bar at top shows where the window starts — if no native bar above, it's frameless -->
+  <div class="frameless-indicator">FRAMELESS — NO NATIVE TITLE BAR ABOVE THIS LINE</div>
+
+  <!-- Custom title bar with drag region -->
+  <div class="titlebar" data-tauri-drag-region>
+    <div class="titlebar-left" data-tauri-drag-region>
+      <span class="titlebar-title" data-tauri-drag-region>WhisperClick (Frameless Test)</span>
+    </div>
+    <div class="titlebar-controls">
+      <button class="titlebar-btn" id="btn-min" title="Minimize">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg>
+        Min
+      </button>
+      <button class="titlebar-btn" id="btn-max" title="Maximize">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+        Max
+      </button>
+      <button class="titlebar-btn close" id="btn-close" title="Close">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        Close
+      </button>
+    </div>
+  </div>
+
+  <div class="content">
+    <h1>Frameless Window Validation</h1>
+    <p>Test each feature below. Click the boxes to mark pass/fail.</p>
+
+    <div class="checklist">
+      <div class="check-item">
+        <div class="check-box" id="c1" onclick="toggleCheck(this)"></div>
+        <span><strong>1. No native title bar</strong> — cyan line is the very top of the window</span>
+      </div>
+      <div class="check-item">
+        <div class="check-box" id="c2" onclick="toggleCheck(this)"></div>
+        <span><strong>2. Window dragging</strong> — grab the dark title bar area and drag the window</span>
+      </div>
+      <div class="check-item">
+        <div class="check-box" id="c3" onclick="toggleCheck(this)"></div>
+        <span><strong>3. Minimize button</strong> — click "Min" in the title bar</span>
+      </div>
+      <div class="check-item">
+        <div class="check-box" id="c4" onclick="toggleCheck(this)"></div>
+        <span><strong>4. Maximize button</strong> — click "Max" to toggle fullscreen</span>
+      </div>
+      <div class="check-item">
+        <div class="check-box" id="c5" onclick="toggleCheck(this)"></div>
+        <span><strong>5. Close button</strong> — click "Close" (will close the app)</span>
+      </div>
+      <div class="check-item">
+        <div class="check-box" id="c6" onclick="toggleCheck(this)"></div>
+        <span><strong>6. Window resizing</strong> — drag edges/corners to resize</span>
+      </div>
+    </div>
+
+    <div class="drag-test" data-tauri-drag-region>
+      Drag zone — this area should also be draggable (has data-tauri-drag-region)
+    </div>
+
+    <div class="log" id="log">Initializing...</div>
+  </div>
+
+  <script>
+    var log = document.getElementById('log');
+    function addLog(msg) {
+      log.textContent += '\n' + new Date().toLocaleTimeString() + ' ' + msg;
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function toggleCheck(el) {
+      if (el.classList.contains('pass')) {
+        el.classList.remove('pass');
+        el.classList.add('fail');
+        el.textContent = '✗';
+      } else if (el.classList.contains('fail')) {
+        el.classList.remove('fail');
+        el.textContent = '';
+      } else {
+        el.classList.add('pass');
+        el.textContent = '✓';
+      }
+    }
+
+    // Check Tauri API
+    addLog('__TAURI__: ' + (typeof window.__TAURI__));
+
+    function wireButtons() {
+      if (!window.__TAURI__ || !window.__TAURI__.core) {
+        addLog('ERROR: __TAURI__.core not available');
+        return false;
+      }
+      addLog('__TAURI__.core.invoke available — wiring buttons...');
+
+      document.getElementById('btn-min').onclick = function() {
+        addLog('→ minimize');
+        window.__TAURI__.core.invoke('plugin:window|minimize');
+      };
+      document.getElementById('btn-max').onclick = function() {
+        addLog('→ toggle_maximize');
+        window.__TAURI__.core.invoke('plugin:window|toggle_maximize');
+      };
+      document.getElementById('btn-close').onclick = function() {
+        addLog('→ close');
+        window.__TAURI__.core.invoke('plugin:window|close');
+      };
+      addLog('All buttons wired. Ready to test!');
+      return true;
+    }
+
+    if (!wireButtons()) {
+      addLog('Polling for __TAURI__...');
+      var attempts = 0;
+      var poll = setInterval(function() {
+        attempts++;
+        if (wireButtons() || attempts > 20) {
+          clearInterval(poll);
+          if (attempts > 20) addLog('GAVE UP — __TAURI__ never appeared');
+        }
+      }, 250);
+    }
+  </script>
+</body>
+</html>
