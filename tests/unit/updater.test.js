@@ -4,8 +4,8 @@ const os = require('os');
 const path = require('path');
 const realFs = require('fs');
 
-const Store = require('../../electron/store');
-const { initUpdater, checkForUpdatesQuietly } = require('../../electron/updater');
+const Store = require('../../platforms/electron/store');
+const { initUpdater, checkForUpdatesQuietly } = require('../../platforms/electron/updater');
 
 let tmpDir;
 let store;

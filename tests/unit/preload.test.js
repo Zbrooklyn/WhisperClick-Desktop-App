@@ -5,7 +5,7 @@ let api;
 
 beforeAll(() => {
   contextBridge._reset();
-  require('../../electron/preload');
+  require('../../platforms/electron/preload');
   const pywebview = contextBridge._getExposed('pywebview');
   api = pywebview.api;
 });

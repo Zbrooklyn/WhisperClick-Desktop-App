@@ -54,7 +54,7 @@ app.getPath = (name) => {
 };
 
 // Require main.js — registers all handlers and whenReady callback
-require('../../electron/main');
+require('../../platforms/electron/main');
 
 // Trigger app.whenReady — initializes store, sidecar, windows, tray
 app._triggerReady();

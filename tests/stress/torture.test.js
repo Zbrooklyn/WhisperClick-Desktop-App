@@ -52,7 +52,7 @@ app.getPath = (name) => {
   return os.tmpdir();
 };
 
-require('../../electron/main');
+require('../../platforms/electron/main');
 app._triggerReady();
 
 const fakeProc = spawn.mock.results[0].value;

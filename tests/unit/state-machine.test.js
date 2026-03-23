@@ -1,6 +1,6 @@
 'use strict';
 
-const { StateMachine, STATES } = require('../../electron/state-machine');
+const { StateMachine, STATES } = require('../../platforms/electron/state-machine');
 
 describe('StateMachine', () => {
   let sm;

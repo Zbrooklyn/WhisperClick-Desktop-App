@@ -13,14 +13,14 @@ module.exports = {
       functions: 80,
       lines: 88,
     },
-    './electron/store.js': {
+    './platforms/electron/store.js': {
       statements: 100,
       branches: 100,
     },
-    './electron/sidecar.js': {
+    './platforms/electron/sidecar.js': {
       statements: 100,
     },
-    './electron/preload.js': {
+    './platforms/electron/preload.js': {
       statements: 100,
     },
   },
