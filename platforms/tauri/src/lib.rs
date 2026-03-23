@@ -1148,7 +1148,7 @@ pub fn run() {
                                 "text": text,
                                 "timestamp": chrono::Utc::now().to_rfc3339(),
                                 "duration": data.get("duration").unwrap_or(&Value::Number(0.into())),
-                                "transcriptionTime": data.get("transcription_time").unwrap_or(&Value::Number(0.into())),
+                                "transcription_time": data.get("transcription_time").unwrap_or(&Value::Number(0.into())),
                                 "provider": data.get("provider").unwrap_or(&Value::String("unknown".into())),
                                 "model": data.get("model").unwrap_or(&Value::String("unknown".into())),
                                 "language": data.get("language").unwrap_or(&Value::String("auto".into())),
