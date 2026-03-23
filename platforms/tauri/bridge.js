@@ -421,17 +421,15 @@
 
       // --- Multi-monitor ---
       async get_displays() {
-        // Tauri doesn't expose display list easily — return primary only
-        return [{ id: 0, label: 'Primary', primary: true }];
+        return await trackedInvoke('get_displays');
       },
 
       async get_monitors() {
         return await this.get_displays();
       },
 
-      async move_pill_to_display(_id) {
-        // TODO: Implement pill repositioning when Tauri adds monitor API
-        return { success: true };
+      async move_pill_to_display(id) {
+        return await trackedInvoke('move_pill_to_display', { display_id: id });
       },
 
       // --- Auto-start ---

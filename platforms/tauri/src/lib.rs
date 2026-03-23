@@ -659,6 +659,60 @@ fn window_is_maximized(window: tauri::Window) -> bool {
     window.is_maximized().unwrap_or(false)
 }
 
+// --- Multi-monitor commands ---
+
+#[tauri::command]
+fn get_displays(app: AppHandle) -> Value {
+    let mut displays = Vec::new();
+    if let Ok(monitors) = app.available_monitors() {
+        for (i, mon) in monitors.iter().enumerate() {
+            let size = mon.size();
+            let pos = mon.position();
+            let name = mon.name().map(|s| s.as_str()).unwrap_or("Unknown");
+            displays.push(serde_json::json!({
+                "index": i,
+                "id": i,
+                "label": name,
+                "primary": i == 0,
+                "width": size.width,
+                "height": size.height,
+                "x": pos.x,
+                "y": pos.y,
+            }));
+        }
+    }
+    if displays.is_empty() {
+        displays.push(serde_json::json!({ "index": 0, "id": 0, "label": "Primary", "primary": true }));
+    }
+    serde_json::json!(displays)
+}
+
+#[tauri::command]
+fn move_pill_to_display(app: AppHandle, display_id: usize) -> ResultPayload {
+    let monitors = match app.available_monitors() {
+        Ok(m) => m,
+        Err(_) => return ResultPayload::err("Failed to get monitors"),
+    };
+    let monitor = match monitors.get(display_id) {
+        Some(m) => m,
+        None => return ResultPayload::err("Display not found"),
+    };
+    if let Some(pill) = app.get_webview_window("pill") {
+        let size = monitor.size();
+        let pos = monitor.position();
+        let scale = monitor.scale_factor();
+        let screen_w = size.width as f64 / scale;
+        let screen_h = size.height as f64 / scale;
+        let pill_x = pos.x as f64 / scale + (screen_w - 220.0) / 2.0;
+        let pill_y = pos.y as f64 / scale + screen_h - 140.0 - 10.0;
+        let _ = pill.set_position(tauri::PhysicalPosition::new(
+            (pill_x * scale) as i32,
+            (pill_y * scale) as i32,
+        ));
+    }
+    ResultPayload::ok()
+}
+
 // --- Helpers ---
 
 fn broadcast_state(sm: &StateMachine, app: &AppHandle, store: &Store) {
@@ -678,6 +732,135 @@ fn broadcast_state(sm: &StateMachine, app: &AppHandle, store: &Store) {
 
     // Update tray icon color + tooltip based on state
     update_tray_for_state(app, state);
+
+    // Rebuild tray menu to reflect current state (dynamic labels, checked items, history)
+    rebuild_tray_menu(app);
+}
+
+/// Build a dynamic tray menu reflecting current state, settings, and history.
+/// Called on every state change and at tray creation time.
+fn build_tray_menu(app: &AppHandle) -> Result<tauri::menu::Menu<tauri::Wry>, Box<dyn std::error::Error>> {
+    use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder, CheckMenuItemBuilder};
+
+    // Read current state from managed state
+    let sm_state = app.try_state::<AppStateMachine>()
+        .map(|s| s.0.state())
+        .unwrap_or(AppState::Dormant);
+    let store = app.try_state::<AppStore>();
+    let settings = store.as_ref().map(|s| s.0.get_settings()).unwrap_or_default();
+    let history = store.as_ref().map(|s| s.0.get_history()).unwrap_or_default();
+
+    let is_recording = sm_state == AppState::Recording;
+    let is_processing = sm_state == AppState::Processing;
+    let sound_enabled = settings.get("soundEnabled").and_then(|v| v.as_bool()).unwrap_or(true);
+    let show_pill = settings.get("showPill").and_then(|v| v.as_bool()).unwrap_or(false);
+    let hotkey = settings.get("hotkey").and_then(|v| v.as_str()).unwrap_or("Ctrl+Alt+R");
+    let current_mode = settings.get("mode").and_then(|v| v.as_str()).unwrap_or("api");
+    let mode_label = if current_mode == "local" { "Switch to API Mode" } else { "Switch to Local Mode" };
+
+    let mut builder = MenuBuilder::new(app);
+
+    // Show WhisperClick
+    builder = builder.item(&MenuItemBuilder::with_id("show", "Show WhisperClick").build(app)?);
+    builder = builder.separator();
+
+    // Start/Stop Recording — dynamic label based on state
+    let rec_label = if is_recording {
+        "Stop Recording"
+    } else if is_processing {
+        "Processing..."
+    } else {
+        "Start Recording"
+    };
+    let rec_enabled = !is_processing;
+    builder = builder.item(
+        &MenuItemBuilder::with_id("toggle_recording", rec_label)
+            .enabled(rec_enabled)
+            .build(app)?
+    );
+    builder = builder.separator();
+
+    // Mode toggle
+    builder = builder.item(&MenuItemBuilder::with_id("toggle-mode", mode_label).build(app)?);
+
+    // Sound Effects (checked)
+    builder = builder.item(
+        &CheckMenuItemBuilder::with_id("toggle-sound", "Sound Effects")
+            .checked(sound_enabled)
+            .build(app)?
+    );
+
+    // Show Pill Widget (checked)
+    builder = builder.item(
+        &CheckMenuItemBuilder::with_id("toggle-pill", "Show Pill Widget")
+            .checked(show_pill)
+            .build(app)?
+    );
+    builder = builder.separator();
+
+    // Recent Transcriptions submenu (last 3 history entries, click to copy)
+    if !history.is_empty() {
+        let mut recent_sub = SubmenuBuilder::with_id(app, "recent", "Recent Transcriptions");
+        for (i, entry) in history.iter().take(3).enumerate() {
+            let text = entry.get("text").and_then(|v| v.as_str()).unwrap_or("(empty)");
+            let truncated = if text.len() > 40 {
+                // Safely truncate at char boundary
+                let end = text.char_indices().take(40).last().map(|(i, c)| i + c.len_utf8()).unwrap_or(40);
+                format!("{}...", &text[..end])
+            } else {
+                text.to_string()
+            };
+            recent_sub = recent_sub.item(
+                &MenuItemBuilder::with_id(&format!("recent_{}", i), &truncated).build(app)?
+            );
+        }
+        builder = builder.item(&recent_sub.build()?);
+
+        // Paste Last Transcript
+        builder = builder.item(
+            &MenuItemBuilder::with_id("paste_last", "Paste Last Transcript").build(app)?
+        );
+    } else {
+        // Show disabled "No transcriptions yet" entry
+        let mut recent_sub = SubmenuBuilder::with_id(app, "recent", "Recent Transcriptions");
+        recent_sub = recent_sub.item(
+            &MenuItemBuilder::with_id("recent_none", "No transcriptions yet")
+                .enabled(false)
+                .build(app)?
+        );
+        builder = builder.item(&recent_sub.build()?);
+    }
+    builder = builder.separator();
+
+    // Hotkey display (read-only)
+    builder = builder.item(
+        &MenuItemBuilder::with_id("hotkey-display", &format!("Hotkey: {}", hotkey))
+            .enabled(false)
+            .build(app)?
+    );
+
+    // Settings
+    builder = builder.item(&MenuItemBuilder::with_id("settings", "Settings").build(app)?);
+    builder = builder.separator();
+
+    // Quit
+    builder = builder.item(&MenuItemBuilder::with_id("quit", "Quit WhisperClick").build(app)?);
+
+    Ok(builder.build()?)
+}
+
+/// Rebuild and replace the tray menu. Called after every state change.
+fn rebuild_tray_menu(app: &AppHandle) {
+    if let Some(tray) = app.tray_by_id("main-tray") {
+        match build_tray_menu(app) {
+            Ok(menu) => {
+                let _ = tray.set_menu(Some(menu));
+            }
+            Err(e) => {
+                eprintln!("[tray] Failed to rebuild menu: {}", e);
+            }
+        }
+    }
 }
 
 fn update_tray_for_state(app: &AppHandle, state: AppState) {
@@ -1178,39 +1361,11 @@ pub fn run() {
 
             // --- System tray icon (dynamic menu, mode-aware click) ---
             {
-                use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, CheckMenuItemBuilder};
                 use tauri::tray::TrayIconBuilder;
 
-                let tray_settings = store.get_settings();
-                let hotkey_display = tray_settings.get("hotkey")
-                    .and_then(|v| v.as_str()).unwrap_or("Ctrl+Alt+R").to_string();
-                let current_mode = tray_settings.get("mode")
-                    .and_then(|v| v.as_str()).unwrap_or("api").to_string();
-                let mode_label = if current_mode == "local" { "Switch to API Mode" } else { "Switch to Local Mode" };
-
-                let show_item = MenuItemBuilder::with_id("show", "Show WhisperClick").build(app)?;
-                let start_item = MenuItemBuilder::with_id("start-recording", "Start Recording").build(app)?;
-                let stop_item = MenuItemBuilder::with_id("stop-recording", "Stop Recording").build(app)?;
-                let sep1 = PredefinedMenuItem::separator(app)?;
-                let mode_item = MenuItemBuilder::with_id("toggle-mode", mode_label).build(app)?;
-                let sound_item = CheckMenuItemBuilder::with_id("toggle-sound", "Sound Effects")
-                    .checked(tray_settings.get("soundEnabled").and_then(|v| v.as_bool()).unwrap_or(true))
-                    .build(app)?;
-                let hotkey_item = MenuItemBuilder::with_id("hotkey-display", &format!("Hotkey: {}", hotkey_display))
-                    .enabled(false) // read-only display
-                    .build(app)?;
-                let pill_item = CheckMenuItemBuilder::with_id("toggle-pill", "Show Pill Widget")
-                    .checked(tray_settings.get("showPill").and_then(|v| v.as_bool()).unwrap_or(false))
-                    .build(app)?;
-                let settings_item = MenuItemBuilder::with_id("settings", "Settings").build(app)?;
-                let sep2 = PredefinedMenuItem::separator(app)?;
-                let quit_item = MenuItemBuilder::with_id("quit", "Quit WhisperClick").build(app)?;
-
-                let tray_menu = MenuBuilder::new(app)
-                    .items(&[&show_item, &start_item, &stop_item, &sep1,
-                             &mode_item, &sound_item, &pill_item, &hotkey_item,
-                             &settings_item, &sep2, &quit_item])
-                    .build()?;
+                // Build initial menu dynamically from current state/settings/history
+                let tray_menu = build_tray_menu(app.handle())
+                    .expect("Failed to build initial tray menu");
 
                 let icon = app.default_window_icon().cloned()
                     .expect("No default icon — check bundle.icon in tauri.conf.json");
@@ -1220,19 +1375,16 @@ pub fn run() {
                     .menu(&tray_menu)
                     .tooltip("WhisperClick — Ready")
                     .on_menu_event(|app, event| {
-                        match event.id().as_ref() {
+                        let id = event.id().as_ref().to_string();
+                        match id.as_str() {
                             "show" => {
                                 if let Some(w) = app.get_webview_window("main") {
                                     let _ = w.show();
                                     let _ = w.set_focus();
                                 }
                             }
-                            "start-recording" => {
-                                if let Some(w) = app.get_webview_window("main") {
-                                    let _ = w.eval("triggerTrustedHotkeyToggle()");
-                                }
-                            }
-                            "stop-recording" => {
+                            "toggle_recording" => {
+                                // Single dynamic item replaces start-recording/stop-recording
                                 if let Some(w) = app.get_webview_window("main") {
                                     let _ = w.eval("triggerTrustedHotkeyToggle()");
                                 }
@@ -1245,6 +1397,8 @@ pub fn run() {
                                     let mut patch = serde_json::Map::new();
                                     patch.insert("mode".into(), Value::String(new_mode.to_string()));
                                     s.0.save_settings(patch);
+                                    // Rebuild menu to reflect mode label change
+                                    rebuild_tray_menu(app);
                                 }
                             }
                             "toggle-sound" => {
@@ -1254,6 +1408,8 @@ pub fn run() {
                                     let mut patch = serde_json::Map::new();
                                     patch.insert("soundEnabled".into(), Value::Bool(!current));
                                     s.0.save_settings(patch);
+                                    // Rebuild menu to reflect checked state
+                                    rebuild_tray_menu(app);
                                 }
                             }
                             "toggle-pill" => {
@@ -1267,6 +1423,23 @@ pub fn run() {
                                     if let Some(pill) = app.get_webview_window("pill") {
                                         if !current { let _ = pill.show(); } else { let _ = pill.hide(); }
                                     }
+                                    // Rebuild menu to reflect checked state
+                                    rebuild_tray_menu(app);
+                                }
+                            }
+                            "paste_last" => {
+                                // Copy first history entry to clipboard and simulate paste
+                                if let Some(s) = app.try_state::<AppStore>() {
+                                    let history = s.0.get_history();
+                                    if let Some(entry) = history.first() {
+                                        if let Some(text) = entry.get("text").and_then(|v| v.as_str()) {
+                                            let _ = app.clipboard().write_text(text);
+                                            std::thread::spawn(|| {
+                                                std::thread::sleep(Duration::from_millis(150));
+                                                let _ = system::simulate_paste();
+                                            });
+                                        }
+                                    }
                                 }
                             }
                             "settings" => {
@@ -1279,7 +1452,21 @@ pub fn run() {
                             "quit" => {
                                 app.exit(0);
                             }
-                            _ => {}
+                            other => {
+                                // Handle recent_N items (click to copy to clipboard)
+                                if let Some(idx_str) = other.strip_prefix("recent_") {
+                                    if let Ok(idx) = idx_str.parse::<usize>() {
+                                        if let Some(s) = app.try_state::<AppStore>() {
+                                            let history = s.0.get_history();
+                                            if let Some(entry) = history.get(idx) {
+                                                if let Some(text) = entry.get("text").and_then(|v| v.as_str()) {
+                                                    let _ = app.clipboard().write_text(text);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     })
                     .on_tray_icon_event(|tray, event| {
@@ -1314,7 +1501,7 @@ pub fn run() {
                     })
                     .build(app)?;
 
-                println!("[tray] System tray created");
+                println!("[tray] System tray created (dynamic menu)");
             }
 
             // --- Global hotkey (from settings, not hardcoded) ---
@@ -1420,6 +1607,7 @@ pub fn run() {
             toggle_pill, show_main_window, show_settings, hide_pill,
             pill_clicked, pill_set_ignore_mouse, pill_context_menu,
             window_minimize, window_maximize, window_close, window_is_maximized,
+            get_displays, move_pill_to_display,
             js_log,
         ])
         .run(tauri::generate_context!())
