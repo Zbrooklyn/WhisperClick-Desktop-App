@@ -350,9 +350,15 @@ fn verify_api_key(sc: tauri::State<'_, AppSidecar>, provider: String, key: Strin
     params.insert("base_url".to_string(), Value::String(base_url.unwrap_or_default()));
     match sc.0.send_sync("verify_key", params, SIDECAR_TIMEOUT) {
         Ok(resp) => {
-            let valid = resp.result.as_deref() == Some("ok")
-                || resp.data.as_ref().and_then(|d| d.get("valid")).and_then(|v| v.as_bool()).unwrap_or(false);
-            serde_json::json!({ "success": true, "valid": valid })
+            // Engine sends {status, success, valid, http_status, error} as top-level keys (in resp.extra)
+            let valid = resp.extra.get("valid").and_then(|v| v.as_bool()).unwrap_or(false);
+            let success = resp.extra.get("success").and_then(|v| v.as_bool()).unwrap_or(false);
+            let error = resp.extra.get("error").and_then(|v| v.as_str()).map(|s| s.to_string());
+            let mut result = serde_json::json!({ "success": success, "valid": valid });
+            if let Some(err) = error {
+                result["error"] = serde_json::Value::String(err);
+            }
+            result
         }
         Err(e) => {
             eprintln!("[verify_api_key] {}", e);
