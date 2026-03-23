@@ -35,7 +35,7 @@ const isDev = !app.isPackaged;
 const isBeta = app.getVersion().includes('beta');
 const configDir = path.join(
   app.getPath('userData'),
-  isDev ? 'whisperclick-dev' : isBeta ? 'whisperclick-beta' : 'whisperclick'
+  isDev ? 'com.whisperclick.dev' : 'com.whisperclick.app'
 );
 
 // --- Window creation ---
@@ -55,7 +55,7 @@ function createMainWindow() {
     height: winHeight,
     minWidth: 480,
     minHeight: 218,
-    icon: path.join(__dirname, '../icons/icon.ico'),
+    icon: path.join(__dirname, '../../icons/icon.ico'),
     backgroundColor: settings.theme === 'dark' ? '#1C1917' : '#FAFAF9',
     titleBarStyle: 'hidden',
     titleBarOverlay: {
@@ -72,7 +72,7 @@ function createMainWindow() {
   });
 
   // Load the V3 frontend directly (no Vite build step)
-  mainWindow.loadFile(path.join(__dirname, '../src/frontend/index.html'));
+  mainWindow.loadFile(path.join(__dirname, '../../shared/frontend/index.html'));
 
   mainWindow.once('ready-to-show', () => mainWindow.show());
 
@@ -153,7 +153,7 @@ function createPillWindow() {
     },
   });
 
-  pillWindow.loadFile(path.join(__dirname, '../src/pill/pill.html'));
+  pillWindow.loadFile(path.join(__dirname, '../../shared/pill/pill.html'));
   // Click-through: transparent areas pass clicks to apps behind the pill.
   // The renderer toggles this off when the mouse enters visible content.
   pillWindow.setIgnoreMouseEvents(true, { forward: true });
@@ -1206,7 +1206,7 @@ app.whenReady().then(() => {
   registerHotkey(settings.hotkey || 'Ctrl+Alt+R');
 
   // Sidecar
-  const enginePath = process.env.WHISPERCLICK_ENGINE_PATH || path.join(__dirname, '../engine/engine.py');
+  const enginePath = process.env.WHISPERCLICK_ENGINE_PATH || path.join(__dirname, '../../shared/engine/engine.py');
   sidecar = new Sidecar(enginePath);
 
   let sidecarRestartCount = 0;
