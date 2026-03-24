@@ -34,7 +34,12 @@
     click: (action) => invoke('pill_clicked', { action }),
 
     // Window-level concerns
-    setIgnoreMouse: (ignore) => invoke('pill_set_ignore_mouse', { ignore }),
+    // NO-OP: Tauri lacks Electron's {forward: true} option for setIgnoreMouseEvents.
+    // In Electron, ignore=true still forwards mouseenter/mouseleave so the pill can
+    // re-enable itself. In Tauri, ignore=true kills ALL mouse events permanently.
+    // We keep the pill always interactive instead. The 220x140 transparent area
+    // around the capsule will block clicks on apps behind it — acceptable tradeoff.
+    setIgnoreMouse: (_ignore) => { /* no-op for Tauri */ },
     showContextMenu: () => invoke('pill_context_menu'),
   };
 })();
