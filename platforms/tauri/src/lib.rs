@@ -208,12 +208,13 @@ fn stop_recording(
     sm.0.transition(AppState::Processing, None);
     broadcast_state(&sm.0, &app, &store.0);
 
-    // Send stop_rec (fire-and-forget — ack comes back fast)
+    // Send stop_rec to sidecar
     let _ = sc.0.send("stop_rec", HashMap::new(), |_| {});
 
-    // Block until transcription completes: wait for state to leave Processing
-    // The sidecar's "transcription" event handler transitions to Success/Dormant
-    // This matches Electron's behavior where stop-recording blocks until transcription arrives
+    // Block until transcription completes (state leaves Processing).
+    // The sidecar "transcription" event handler transitions to Success.
+    // cancel_processing can run concurrently on another Tauri thread,
+    // transitioning state to Dormant which also exits this loop.
     let start = std::time::Instant::now();
     let timeout = Duration::from_secs(120);
     loop {
@@ -237,11 +238,14 @@ fn cancel_processing(
     store: tauri::State<'_, AppStore>,
     app: AppHandle,
 ) -> ResultPayload {
+    println!("[cancel_processing] called, current state: {:?}", sm.0.state());
     let gate = gate::can_accept_action(&sm.0, "cancel", true, "api");
     if !gate.allowed {
+        println!("[cancel_processing] gate denied: {:?}", gate.error);
         return ResultPayload::err(&gate.error.unwrap_or_default());
     }
 
+    println!("[cancel_processing] gate allowed — transitioning to dormant");
     sm.0.transition(AppState::Dormant, None);
     broadcast_state(&sm.0, &app, &store.0);
 

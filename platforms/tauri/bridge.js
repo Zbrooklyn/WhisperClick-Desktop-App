@@ -17,9 +17,8 @@
   const { listen } = window.__TAURI__.event;
 
   // Debug mode: enabled in Tauri debug builds, disabled in production
-  const _IS_DEBUG = (() => {
-    try { return !!window.__TAURI_INTERNALS__?.metadata?.debug; } catch (_) { return false; }
-  })();
+  // Force debug ON for now — Tauri doesn't set __TAURI_INTERNALS__.metadata.debug reliably
+  const _IS_DEBUG = true;
 
   // --- Forward JS console + errors to Rust stdout ---
   function _jsLog(level, msg) {
@@ -501,9 +500,9 @@
     const style = document.createElement('style');
     style.textContent = `
       /* Disable -webkit-app-region: drag — not supported by WebView2 */
-      #title-bar { -webkit-app-region: initial !important; padding-right: 12px !important; }
+      #title-bar { -webkit-app-region: initial !important; padding-right: 12px !important; position: relative !important; z-index: 50 !important; }
       #title-bar button, #title-bar a, #title-bar input,
-      #title-bar select, #title-bar [onclick] { -webkit-app-region: initial !important; }
+      #title-bar select, #title-bar [onclick] { -webkit-app-region: initial !important; position: relative !important; z-index: 51 !important; }
       /* Show custom window controls (hidden in Electron which has native overlay) */
       .electron-hide { display: inline-flex !important; }
     `;
@@ -590,10 +589,27 @@
       _debugLog('Patched useApiInstead()');
     }
   }
-  // Patch after DOM + frontend JS loads
-  if (_IS_DEBUG) {
-    setTimeout(_patchOnboarding, 500);
-    setTimeout(_patchOnboarding, 2000);
-    document.addEventListener('DOMContentLoaded', () => setTimeout(_patchOnboarding, 100));
+  // Patch toggleRecording to log state during cancel attempts
+  function _patchToggleRecording() {
+    if (typeof window.toggleRecording === 'function' && !window._togglePatched) {
+      const origToggle = window.toggleRecording;
+      window.toggleRecording = function(event) {
+        const state = window.currentAppState || 'unknown';
+        _debugLog(`toggleRecording() called — currentAppState=${state}`);
+        return origToggle.apply(this, arguments);
+      };
+      window._togglePatched = true;
+      _debugLog('Patched toggleRecording()');
+    }
   }
+
+  // Patch after DOM + frontend JS loads
+  setTimeout(_patchOnboarding, 500);
+  setTimeout(_patchOnboarding, 2000);
+  setTimeout(_patchToggleRecording, 500);
+  setTimeout(_patchToggleRecording, 2000);
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(_patchOnboarding, 100);
+    setTimeout(_patchToggleRecording, 100);
+  });
 })();
