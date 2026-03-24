@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::path::PathBuf;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, Listener, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use serde::Serialize;
 use serde_json::Value;
@@ -96,13 +96,19 @@ fn save_settings(
 
     // --- Pill visibility on showPill change ---
     if let Some(show) = patch.get("showPill").and_then(|v| v.as_bool()) {
-        if let Some(pill) = app.get_webview_window("pill") {
-            if show {
+        if show {
+            if app.get_webview_window("pill").is_none() {
+                // Pill window doesn't exist yet — create it at runtime (Fix #6)
+                let _ = create_pill_window(&app);
+            }
+            if let Some(pill) = app.get_webview_window("pill") {
                 // Only show pill if main window is hidden
                 let main_visible = app.get_webview_window("main")
                     .and_then(|w| w.is_visible().ok()).unwrap_or(true);
                 if !main_visible { let _ = pill.show(); }
-            } else {
+            }
+        } else {
+            if let Some(pill) = app.get_webview_window("pill") {
                 let _ = pill.hide();
             }
         }
@@ -577,10 +583,20 @@ fn toggle_pill(app: AppHandle) -> ResultPayload {
 }
 
 #[tauri::command]
-fn show_main_window(app: AppHandle) -> ResultPayload {
+fn show_main_window(app: AppHandle, store: tauri::State<'_, AppStore>) -> ResultPayload {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.show();
         let _ = w.set_focus();
+        // Hide pill when main window is shown (matches Electron)
+        if let Some(pill) = app.get_webview_window("pill") {
+            let _ = pill.hide();
+        }
+        // Reset settings drawer
+        let _ = w.eval("if (typeof closeSettingsDrawer === 'function') closeSettingsDrawer();");
+        // Broadcast state so UI reflects current state
+        if let Some(sm) = app.try_state::<AppStateMachine>() {
+            broadcast_state(&sm.0, &app, &store.0);
+        }
     }
     ResultPayload::ok()
 }
@@ -639,8 +655,30 @@ fn pill_clicked(
             ResultPayload::ok()
         }
         _ => {
-            let gate = gate::can_accept_action(&sm.0, "toggle", true, "api");
-            if !gate.allowed { return ResultPayload::ok(); }
+            let settings = store.0.get_settings();
+            let mode = settings.get("mode").and_then(|v| v.as_str()).unwrap_or("api").to_string();
+            let has_key = settings.get("openaiApiKey").and_then(|v| v.as_str()).map(|s| !s.is_empty()).unwrap_or(false)
+                || settings.get("geminiApiKey").and_then(|v| v.as_str()).map(|s| !s.is_empty()).unwrap_or(false);
+            let gate = gate::can_accept_action(&sm.0, "toggle", has_key, &mode);
+            if !gate.allowed {
+                // Show error in pill (Fix #11)
+                sm.0.transition(AppState::Error, Some(&gate.error.unwrap_or_default()));
+                broadcast_state(&sm.0, &app, &store.0);
+                // Auto-clear after 2s
+                let timer_sm = sm.0.clone();
+                let timer_app = app.clone();
+                let timer_store = store.0.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(Duration::from_secs(2));
+                    if timer_sm.is(&[AppState::Error]) {
+                        timer_sm.transition(AppState::Dormant, None);
+                        broadcast_state(&timer_sm, &timer_app, &timer_store);
+                    }
+                });
+                return ResultPayload::ok();
+            }
+            // Capture foreground window before recording (Fix #7)
+            let _ = sc.0.send("capture_fg", HashMap::new(), |_| {});
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.eval("triggerTrustedHotkeyToggle()");
             }
@@ -664,8 +702,18 @@ fn pill_context_menu() -> ResultPayload {
 }
 
 #[tauri::command]
-fn window_minimize(window: tauri::Window) -> ResultPayload {
+fn window_minimize(window: tauri::Window, sm: tauri::State<'_, AppStateMachine>, app: AppHandle, store: tauri::State<'_, AppStore>) -> ResultPayload {
     let _ = window.minimize();
+    // Show pill when main minimizes (matches Electron behavior)
+    let show_pill = store.0.get_settings()
+        .get("showPill").and_then(|v| v.as_bool()).unwrap_or(false);
+    if show_pill {
+        reposition_pill_to_primary(&app); // Fix #8
+        if let Some(pill) = app.get_webview_window("pill") {
+            let _ = pill.show();
+        }
+        broadcast_state(&sm.0, &app, &store.0); // Fix #13
+    }
     ResultPayload::ok()
 }
 
@@ -677,8 +725,23 @@ fn window_maximize(window: tauri::Window) -> ResultPayload {
 }
 
 #[tauri::command]
-fn window_close(window: tauri::Window) -> ResultPayload {
-    let _ = window.close();
+fn window_close(window: tauri::Window, sm: tauri::State<'_, AppStateMachine>, app: AppHandle, store: tauri::State<'_, AppStore>) -> ResultPayload {
+    let settings = store.0.get_settings();
+    let behavior = settings.get("closeBehavior").and_then(|v| v.as_str()).unwrap_or("tray");
+    if behavior == "close" {
+        let _ = window.close();
+    } else {
+        // Minimize to tray — hide window and show pill
+        let _ = window.hide();
+        let show_pill = settings.get("showPill").and_then(|v| v.as_bool()).unwrap_or(false);
+        if show_pill {
+            reposition_pill_to_primary(&app); // Fix #8
+            if let Some(pill) = app.get_webview_window("pill") {
+                let _ = pill.show();
+            }
+            broadcast_state(&sm.0, &app, &store.0); // Fix #13
+        }
+    }
     ResultPayload::ok()
 }
 
@@ -967,6 +1030,28 @@ fn tint_icon(tint: [u8; 3]) -> Option<tauri::image::Image<'static>> {
     Some(tauri::image::Image::new_owned(rgba.into_raw(), w, h))
 }
 
+/// Reposition the pill window to bottom-center of the primary display (Fix #8)
+fn reposition_pill_to_primary(app: &AppHandle) {
+    const PILL_WIDTH: f64 = 220.0;
+    const PILL_HEIGHT: f64 = 140.0;
+
+    if let Some(pill) = app.get_webview_window("pill") {
+        if let Some(monitor) = app.primary_monitor().ok().flatten() {
+            let pos = monitor.position();
+            let size = monitor.size();
+            let scale = monitor.scale_factor();
+            let screen_w = size.width as f64 / scale;
+            let screen_h = size.height as f64 / scale;
+            let x = pos.x as f64 / scale + (screen_w - PILL_WIDTH) / 2.0;
+            let y = pos.y as f64 / scale + screen_h - PILL_HEIGHT - 60.0;
+            let _ = pill.set_position(tauri::PhysicalPosition::new(
+                (x * scale) as i32,
+                (y * scale) as i32,
+            ));
+        }
+    }
+}
+
 fn build_pill_payload(sm: &StateMachine, auto_enter_mode: &str) -> Value {
     let state = sm.state();
     let shape = match state {
@@ -1014,7 +1099,7 @@ fn send_configure(sc: &Sidecar, store: &Store) {
     let _ = sc.send("configure", params, |_| {});
 }
 
-fn create_pill_window(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+fn create_pill_window(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     use tauri::WebviewUrl;
     use tauri::webview::WebviewWindowBuilder;
 
@@ -1027,14 +1112,15 @@ fn create_pill_window(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>
         let scale = monitor.scale_factor();
         let screen_w = size.width as f64 / scale;
         let screen_h = size.height as f64 / scale;
+        // Position at center-bottom, 60px above screen bottom (accounts for taskbar)
         let x = pos.x as f64 / scale + (screen_w - PILL_WIDTH) / 2.0;
-        let y = pos.y as f64 / scale + screen_h - PILL_HEIGHT - 10.0;
+        let y = pos.y as f64 / scale + screen_h - PILL_HEIGHT - 60.0;
         (x, y)
     } else {
         (400.0, 600.0)
     };
 
-    let pill_url = WebviewUrl::App("../../shared/pill/pill.html".into());
+    let pill_url = WebviewUrl::App("pill/pill.html".into());
     let pill_bridge_js = include_str!("../pill-bridge.js");
     let pill_win = WebviewWindowBuilder::new(app, "pill", pill_url)
         .title("") // empty title prevents taskbar entry on Windows
@@ -1051,7 +1137,14 @@ fn create_pill_window(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>
         .initialization_script(pill_bridge_js)
         .build()?;
 
-    let _ = pill_win.set_ignore_cursor_events(true);
+    // WebView2 transparency: inject CSS to force transparent background
+    // Tauri's .transparent(true) handles the native window layer,
+    // but WebView2 may still render a default background color
+    let _ = pill_win.eval("document.documentElement.style.background='transparent';document.body.style.background='transparent';");
+
+    // Don't ignore cursor events — pill needs to be interactive (Fix #1-2)
+    // The pill is small (220x140) so blocking clicks on that area is acceptable
+    let _ = pill_win.set_ignore_cursor_events(false);
     println!("[pill] Window created at ({}, {})", pill_x as i32, pill_y as i32);
     Ok(())
 }
@@ -1207,6 +1300,16 @@ pub fn run() {
                             .and_then(|v| v.as_str()).unwrap_or("off");
                         let fallback_ms = if auto_enter == "button" { 6000 } else { 1500 };
 
+                        // Fix #10: emit enter-ready shape when autoEnterMode is "button"
+                        if auto_enter == "button" {
+                            let _ = app_handle.emit("pill-render", &serde_json::json!({
+                                "shape": "enter-ready",
+                                "level": 0,
+                                "autoEnterMode": "button",
+                                "message": ""
+                            }));
+                        }
+
                         let timer_sm = sm_for_events.clone();
                         let timer_app = app_handle.clone();
                         let timer_store = store_for_events.clone();
@@ -1219,9 +1322,16 @@ pub fn run() {
                         });
                     }
                     "level" => {
-                        if let Some(level) = data.get("level") {
-                            let _ = app_handle.emit("level-update", level);
-                        }
+                        let level = data.get("level").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                        let _ = app_handle.emit("level-update", &data);
+                        // Send level to pill for voice bar animation (Fix #4)
+                        let pill_payload = serde_json::json!({
+                            "shape": "recording",
+                            "level": level,
+                            "autoEnterMode": "off",
+                            "message": ""
+                        });
+                        let _ = app_handle.emit("pill-render", &pill_payload);
                     }
                     "error" => {
                         let msg = data.get("message").and_then(|v| v.as_str()).unwrap_or("Unknown error");
@@ -1357,49 +1467,15 @@ pub fn run() {
                 let show_pill = store.get_settings()
                     .get("showPill").and_then(|v| v.as_bool()).unwrap_or(false);
                 if show_pill {
-                    create_pill_window(app)?;
+                    create_pill_window(app.handle())?;
                 } else {
                     println!("[pill] Deferred — showPill is false");
                 }
             }
 
-            // --- Pill visibility sync: show pill when main hides, hide when main shows ---
-            {
-                let pill_app = app.handle().clone();
-                let store_for_pill = store.clone();
-                app.listen("tauri://window-event", move |event: tauri::Event| {
-                    let payload = event.payload();
-                    if payload.contains("Minimized") || payload.contains("Hidden") {
-                        // Main window hidden/minimized → show pill (if enabled)
-                        let show_pill = store_for_pill.get_settings()
-                            .get("showPill").and_then(|v| v.as_bool()).unwrap_or(false);
-                        if show_pill {
-                            if let Some(pill) = pill_app.get_webview_window("pill") {
-                                let _ = pill.show();
-                            }
-                        }
-                    } else if payload.contains("Focused") || payload.contains("Shown") {
-                        // Main window shown/focused → hide pill
-                        let show_pill = store_for_pill.get_settings()
-                            .get("showPill").and_then(|v| v.as_bool()).unwrap_or(false);
-                        if show_pill {
-                            if let Some(pill) = pill_app.get_webview_window("pill") {
-                                let _ = pill.hide();
-                            }
-                        }
-
-                        // Reset settings drawer on window show (matches Electron behavior)
-                        if let Some(w) = pill_app.get_webview_window("main") {
-                            let _ = w.eval("if (typeof closeSettingsDrawer === 'function') closeSettingsDrawer();");
-                        }
-
-                        // Broadcast current state so UI reflects recording state after returning from tray
-                        if let Some(sm) = pill_app.try_state::<AppStateMachine>() {
-                            broadcast_state(&sm.0, &pill_app, &store_for_pill);
-                        }
-                    }
-                });
-            }
+            // Note: Pill visibility is handled by commands (window_minimize, window_close,
+            // show_main_window) rather than window events, because Tauri 2's WindowEvent
+            // has no Minimized/Hidden variants.
 
             // --- System tray icon (dynamic menu, mode-aware click) ---
             {
@@ -1423,6 +1499,10 @@ pub fn run() {
                                 if let Some(w) = app.get_webview_window("main") {
                                     let _ = w.show();
                                     let _ = w.set_focus();
+                                }
+                                // Hide pill when showing main window (Fix #12)
+                                if let Some(pill) = app.get_webview_window("pill") {
+                                    let _ = pill.hide();
                                 }
                             }
                             "toggle_recording" => {
@@ -1546,6 +1626,10 @@ pub fn run() {
                                 if let Some(w) = app.get_webview_window("main") {
                                     let _ = w.show();
                                     let _ = w.set_focus();
+                                }
+                                // Hide pill when showing main window (Fix #12)
+                                if let Some(pill) = app.get_webview_window("pill") {
+                                    let _ = pill.hide();
                                 }
                             }
                         }
