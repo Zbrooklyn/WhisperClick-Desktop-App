@@ -208,27 +208,15 @@ fn stop_recording(
     sm.0.transition(AppState::Processing, None);
     broadcast_state(&sm.0, &app, &store.0);
 
-    // Send stop_rec to sidecar
+    // Send stop_rec to sidecar — return immediately.
+    // The sidecar "transcription" event handler (line ~1238) handles:
+    //   - Transition to Success + broadcast
+    //   - History, clipboard, auto-paste
+    // The "cancelled" event handler (line ~1363) handles cancel.
+    // The frontend learns about completion via real-time state-update events.
     let _ = sc.0.send("stop_rec", HashMap::new(), |_| {});
 
-    // Block until transcription completes (state leaves Processing).
-    // The sidecar "transcription" event handler transitions to Success.
-    // cancel_processing can run concurrently on another Tauri thread,
-    // transitioning state to Dormant which also exits this loop.
-    let start = std::time::Instant::now();
-    let timeout = Duration::from_secs(120);
-    loop {
-        if !sm.0.is(&[AppState::Processing]) {
-            return ResultPayload::ok();
-        }
-        if start.elapsed() > timeout {
-            eprintln!("[stop_recording] timeout waiting for transcription");
-            sm.0.transition(AppState::Error, Some("Transcription timed out"));
-            broadcast_state(&sm.0, &app, &store.0);
-            return ResultPayload::err("Transcription timed out");
-        }
-        std::thread::sleep(Duration::from_millis(50));
-    }
+    ResultPayload::ok()
 }
 
 #[tauri::command]
