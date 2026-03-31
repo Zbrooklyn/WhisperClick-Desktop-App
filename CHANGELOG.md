@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.1-beta] — 2026-03-31
+
+### Fixed
+
+- **macOS: save-settings crash** — `setTitleBarOverlay` is Windows-only; now guarded with
+  `process.platform === 'win32'`. Previously crashed on every theme change or settings save
+  on macOS, preventing app initialization.
+
 ## [2.2.0-beta] — 2026-03-22
 
 ### Architecture — State Machine Refactor
