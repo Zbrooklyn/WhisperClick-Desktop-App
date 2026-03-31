@@ -436,10 +436,12 @@ ipcMain.handle('save-settings', (_, patch) => {
   if (mainWindow) {
     const isDark = settings.theme === 'dark';
     mainWindow.setBackgroundColor(isDark ? '#1C1917' : '#FAFAF9');
-    mainWindow.setTitleBarOverlay({
-      color: isDark ? '#1C1917' : '#F5F5F4',
-      symbolColor: isDark ? '#A8A29E' : '#78716C',
-    });
+    if (process.platform === 'win32') {
+      mainWindow.setTitleBarOverlay({
+        color: isDark ? '#1C1917' : '#F5F5F4',
+        symbolColor: isDark ? '#A8A29E' : '#78716C',
+      });
+    }
   }
   // Gap #20: Wire alwaysOnTop
   if (mainWindow && settings.alwaysOnTop !== undefined) {
