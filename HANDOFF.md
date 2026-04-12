@@ -150,6 +150,7 @@ Only 2 changes to the V3 frontend:
 - 3 cross-platform test failures on Linux CI (`continue-on-error: true` as workaround)
 - No code signing for Windows/macOS (SmartScreen/Gatekeeper warnings on install)
 - Recording flow, audio playback, auto-paste, and visualizer need live testing with mic + API key
+- ~~Win+V clipboard history blocked while Tauri app is running~~ — **Could not reproduce 2026-04-10.** Win+V works fine with Tauri app running. Earlier symptom was likely unrelated (possibly caused by lingering Electron instances or the Windows clipboard history service being disrupted by something else).
 - No free tier enforcement (no usage tracking, no feature gating) — see `docs/dev/free-version-edge-case-audit.md`
 
 ## Next Steps

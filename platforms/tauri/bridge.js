@@ -17,9 +17,8 @@
   const { listen } = window.__TAURI__.event;
 
   // Debug mode: enabled in Tauri debug builds, disabled in production
-  const _IS_DEBUG = (() => {
-    try { return !!window.__TAURI_INTERNALS__?.metadata?.debug; } catch (_) { return false; }
-  })();
+  // Force debug ON for now — Tauri doesn't set __TAURI_INTERNALS__.metadata.debug reliably
+  const _IS_DEBUG = true;
 
   // --- Forward JS console + errors to Rust stdout ---
   function _jsLog(level, msg) {
@@ -142,7 +141,12 @@
   let _downloadProgress = null;
 
   // Forward Tauri events to window custom events (same as Electron preload)
+  // Track last state — used by stop_recording's race guard and debug logging
+  window._debugAppState = 'dormant';
   listen('state-update', (event) => {
+    const prev = window._debugAppState;
+    window._debugAppState = event.payload?.state || 'unknown';
+    _debugLog(`[state-update] ${prev} → ${window._debugAppState} (payload: ${JSON.stringify(event.payload)})`);
     window.dispatchEvent(new CustomEvent('state-update', { detail: event.payload }));
   });
 
@@ -231,7 +235,71 @@
       },
 
       async stop_recording() {
-        return await trackedInvoke('stop_recording');
+        // Rust stop_recording returns immediately (state → processing).
+        // We must wait for the state to leave 'processing' before resolving,
+        // matching Electron's pattern where stop-recording waits for sidecar events.
+        const invokeResult = await trackedInvoke('stop_recording');
+        if (!invokeResult?.success) {
+          return invokeResult;
+        }
+
+        // Race guard: check if state already left processing before we listen
+        const currentState = window._debugAppState;
+        if (currentState && currentState !== 'processing') {
+          _debugLog(`[stop_recording] state already left processing: ${currentState}`);
+          if (currentState === 'success') return { success: true };
+          if (currentState === 'dormant') return { success: false, error: 'Cancelled' };
+          return { success: false, error: 'Transcription failed' };
+        }
+
+        _debugLog('[stop_recording] waiting for state to leave processing...');
+
+        return new Promise((resolve) => {
+          let unlisten = null;
+          let timeoutId = null;
+
+          function cleanup() {
+            if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
+            if (unlisten) { unlisten(); unlisten = null; }
+          }
+
+          function onStateUpdate(event) {
+            const state = event.detail?.state;
+            if (!state || state === 'processing') return; // still processing
+
+            cleanup();
+            _debugLog(`[stop_recording] resolved with state: ${state}`);
+
+            if (state === 'success') {
+              resolve({ success: true });
+            } else if (state === 'dormant') {
+              resolve({ success: false, error: 'Cancelled' });
+            } else {
+              resolve({ success: false, error: 'Transcription failed' });
+            }
+          }
+
+          // Listen on the window CustomEvent (dispatched by the Tauri listener above)
+          window.addEventListener('state-update', onStateUpdate);
+          unlisten = () => window.removeEventListener('state-update', onStateUpdate);
+
+          // 120s timeout — same as Electron's ceiling
+          timeoutId = setTimeout(() => {
+            cleanup();
+            _debugLog('[stop_recording] timed out after 120s');
+            resolve({ success: false, error: 'Processing timed out' });
+          }, 120_000);
+
+          // Second race guard: re-check after listener is attached
+          const postState = window._debugAppState;
+          if (postState && postState !== 'processing') {
+            cleanup();
+            _debugLog(`[stop_recording] state changed during setup: ${postState}`);
+            if (postState === 'success') { resolve({ success: true }); return; }
+            if (postState === 'dormant') { resolve({ success: false, error: 'Cancelled' }); return; }
+            resolve({ success: false, error: 'Transcription failed' });
+          }
+        });
       },
 
       async cancel_processing() {
@@ -430,7 +498,9 @@
       },
 
       async get_monitors() {
-        return await this.get_displays();
+        // Don't use `this` — callNativeApi() calls the method as a detached function,
+        // so `this` is undefined. Call trackedInvoke directly.
+        return await trackedInvoke('get_displays');
       },
 
       async move_pill_to_display(id) {
@@ -501,9 +571,9 @@
     const style = document.createElement('style');
     style.textContent = `
       /* Disable -webkit-app-region: drag — not supported by WebView2 */
-      #title-bar { -webkit-app-region: initial !important; padding-right: 12px !important; }
+      #title-bar { -webkit-app-region: initial !important; padding-right: 12px !important; position: relative !important; z-index: 50 !important; }
       #title-bar button, #title-bar a, #title-bar input,
-      #title-bar select, #title-bar [onclick] { -webkit-app-region: initial !important; }
+      #title-bar select, #title-bar [onclick] { -webkit-app-region: initial !important; position: relative !important; z-index: 51 !important; }
       /* Show custom window controls (hidden in Electron which has native overlay) */
       .electron-hide { display: inline-flex !important; }
     `;
@@ -590,10 +660,29 @@
       _debugLog('Patched useApiInstead()');
     }
   }
-  // Patch after DOM + frontend JS loads
-  if (_IS_DEBUG) {
-    setTimeout(_patchOnboarding, 500);
-    setTimeout(_patchOnboarding, 2000);
-    document.addEventListener('DOMContentLoaded', () => setTimeout(_patchOnboarding, 100));
+  // Patch toggleRecording to log state during cancel attempts
+  // NOTE: currentAppState is a closure `let` in index.html — NOT on window.
+  // We use window._debugAppState (set by our state-update listener above) as a proxy.
+  function _patchToggleRecording() {
+    if (typeof window.toggleRecording === 'function' && !window._togglePatched) {
+      const origToggle = window.toggleRecording;
+      window.toggleRecording = function(event) {
+        const tauriState = window._debugAppState || 'no-state-updates-yet';
+        _debugLog(`toggleRecording() called — _debugAppState=${tauriState}, event.type=${event?.type || 'none'}`);
+        return origToggle.apply(this, arguments);
+      };
+      window._togglePatched = true;
+      _debugLog('Patched toggleRecording()');
+    }
   }
+
+  // Patch after DOM + frontend JS loads
+  setTimeout(_patchOnboarding, 500);
+  setTimeout(_patchOnboarding, 2000);
+  setTimeout(_patchToggleRecording, 500);
+  setTimeout(_patchToggleRecording, 2000);
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(_patchOnboarding, 100);
+    setTimeout(_patchToggleRecording, 100);
+  });
 })();
