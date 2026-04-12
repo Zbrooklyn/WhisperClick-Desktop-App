@@ -498,7 +498,9 @@
       },
 
       async get_monitors() {
-        return await this.get_displays();
+        // Don't use `this` — callNativeApi() calls the method as a detached function,
+        // so `this` is undefined. Call trackedInvoke directly.
+        return await trackedInvoke('get_displays');
       },
 
       async move_pill_to_display(id) {
