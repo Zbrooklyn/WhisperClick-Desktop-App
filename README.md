@@ -53,26 +53,23 @@ Right-click the pill for quick access to history, settings, or to hide it entire
       <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest">Setup Installer (.exe)</a><br>
       <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest">Portable (.exe)</a>
     </td>
-    <td>Fully tested &amp; stable</td>
+    <td>Available now</td>
   </tr>
   <tr>
-    <td><strong>macOS</strong></td>
-    <td>
-      <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest">DMG (Apple Silicon)</a> — M1/M2/M3/M4<br>
-      <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest">DMG (Intel)</a> — 2015–2020 Macs
-    </td>
-    <td>Early access</td>
+    <td><strong>macOS</strong> <em>(Apple Silicon)</em></td>
+    <td>DMG — M1/M2/M3/M4</td>
+    <td>Coming soon</td>
   </tr>
   <tr>
     <td><strong>Linux</strong></td>
-    <td><a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest">AppImage</a></td>
-    <td>Early access</td>
+    <td>AppImage</td>
+    <td>Coming soon</td>
   </tr>
 </table>
 
-All downloads are on the [Releases page](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases). The app auto-updates after you install — you only need to download once.
+All Windows downloads are on the [Releases page](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases). The app auto-updates after you install — you only need to download once.
 
-> **macOS and Linux:** Core recording and transcription work on all platforms. Some features like auto-paste and system tray behavior may vary as we continue testing. [Let us know](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/issues) what works and what doesn't — it genuinely helps.
+> **Mac and Linux builds are in progress.** The codebase supports both, but we haven't shipped tested binaries yet. [Watch this repo](https://github.com/Zbrooklyn/WhisperClick-Desktop-App) or [open an issue](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/issues) to be notified when they're available.
 
 ### Getting started
 
