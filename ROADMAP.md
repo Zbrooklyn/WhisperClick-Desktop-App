@@ -1,6 +1,6 @@
 # Roadmap — WhisperClick Electron
 
-> Last updated: 2026-03-18
+> Last updated: 2026-04-12
 
 ---
 
@@ -33,13 +33,13 @@ Everything needed to ship a polished, complete free product.
 ## Phase F0 — State Machine Refactor (Priority)
 
 Recurring state bugs (v2.1.0–v2.1.2) stem from implicit state management.
-Full design: `docs/dev/state-machine-refactor.md`. Branch: `feature/state-machine`.
+Full design: `docs/dev/state-machine-refactor.md`. Branch: `feature/state-machine`. **COMPLETED v2.2.0-beta (2026-03-22)**.
 
-- [ ] **Phase 1**: Extract state machine module — defined states, transitions, guards
-- [ ] **Phase 2**: Single input gate — replace 5 overlapping debounce/guard layers
-- [ ] **Phase 3**: Pill as dumb terminal — zero local state, render payloads from main
-- [ ] **Phase 4**: Frontend state simplification — remove isRecording/isProcessing flags
-- [ ] **Phase 5**: Event-driven transitions — replace timer-based with event + fallback
+- [x] **Phase 1**: Extract state machine module — defined states, transitions, guards
+- [x] **Phase 2**: Single input gate — replace 5 overlapping debounce/guard layers
+- [x] **Phase 3**: Pill as dumb terminal — zero local state, render payloads from main
+- [x] **Phase 4**: Frontend state simplification — remove isRecording/isProcessing flags
+- [x] **Phase 5**: Event-driven transitions — replace timer-based with event + fallback
 
 ## Phase F1 — Stability & CI
 
@@ -53,7 +53,7 @@ Full design: `docs/dev/state-machine-refactor.md`. Branch: `feature/state-machin
   Requires EV code signing certificate ($200+/yr). CI secret + `signtool`.
 - [ ] **Code signing — macOS** Gatekeeper blocks unsigned DMGs.
   Requires Apple Developer certificate ($99/yr) + notarization step in CI.
-- [ ] Landing page / website for free download (alternative to raw GitHub releases)
+- [x] Landing page / website � whisperclick.com live with platform detection, FAQ, SEO, wiki docs (2026-04-12)
 
 ## Phase F3 — Polish (if needed before premium focus)
 

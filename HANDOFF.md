@@ -1,13 +1,13 @@
 # HANDOFF — WhisperClick
 
-> Last updated: 2026-03-23
+> Last updated: 2026-04-12
 
 ## Current State
 
-**Status**: Stable — v2.1.1 (Electron) | Tauri migration complete
+**Status**: v2.2.1-beta (Electron, shipping) | Tauri v3.0.0-alpha.2 (alpha, Windows only)
 
-**Latest stable release**: v2.1.1
-**Latest beta release**: v2.0.22-beta (superseded by v2.1.0 stable)
+**Latest stable release**: v2.1.2 (public, 2026-03-18)
+**Latest beta release**: v2.2.3-beta (public, 2026-04-12)
 
 The repo now supports **two platforms**: Electron and Tauri. Both share the same
 frontend (`shared/frontend/`), pill widget (`shared/pill/`), and Python sidecar
@@ -138,8 +138,8 @@ Only 2 changes to the V3 frontend:
 
 ## CI/CD
 
-- **Workflow**: `.github/workflows/build.yml`
-- **Trigger**: Push to `main` branch
+- **Workflow**: `.github/workflows/build-electron.yml` + `build-tauri.yml`
+- **Trigger**: Platform-prefixed tags (`electron-v*`, `tauri-v*`) on public repo
 - **Builds**: Windows (NSIS + portable), macOS (DMG, arm64), Linux (AppImage)
 - **Release**: Auto-creates GitHub pre-release with all artifacts
 - **Update manifest**: `latest.yml` (used by electron-updater with `allowPrerelease`)
@@ -157,11 +157,7 @@ Only 2 changes to the V3 frontend:
 
 1. **State machine refactor** — 5-phase refactor to eliminate recurring state bugs.
    Design doc: `docs/dev/state-machine-refactor.md`. Branch: `feature/state-machine`.
-   - Phase 1: Extract state machine module (`electron/state-machine.js`) ← IN PROGRESS
-   - Phase 2: Single input gate (replace 5 debounce layers)
-   - Phase 3: Pill as dumb terminal (zero local state)
-   - Phase 4: Frontend state simplification (remove isRecording/isProcessing)
-   - Phase 5: Event-driven transitions (replace timer-based)
+   - All 5 phases COMPLETED in v2.2.0-beta (2026-03-22)
 2. Fix 3 cross-platform test failures (Linux CI, `continue-on-error: true`)
 3. Code signing for Windows/macOS (removes SmartScreen/Gatekeeper warnings)
 4. Live streaming runtime (partial transcription during recording)

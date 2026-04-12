@@ -1,7 +1,7 @@
 # Features — WhisperClick (Electron + Tauri)
 
 > Complete inventory of every user-facing feature and function.
-> Last updated: 2026-03-18 (v2.1.1)
+> Last updated: 2026-04-12 (v2.2.1-beta)
 
 ---
 
@@ -22,7 +22,7 @@
 
 | State | Visual | Icon |
 |-------|--------|------|
-| Idle | Gray mic icon, dimmed visualizer | Microphone |
+| Dormant | Gray mic icon, dimmed visualizer | Microphone |
 | Recording | Pulsing "Listening..." text, active visualizer, accent color | Stop square |
 | Processing | Pulsing "Processing" text, pulse background animation | Cancel X |
 | Success | Brief green flash, auto-returns to idle | — |
