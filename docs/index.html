@@ -2899,6 +2899,29 @@ venv\Scripts\activate
       });
     }
 
+
+    // Platform detection - auto-select download for visitor OS
+    (function() {
+      var detected = 'windows';
+      if (navigator.userAgentData && navigator.userAgentData.platform) {
+        var p = navigator.userAgentData.platform.toLowerCase();
+        if (p === 'macos') detected = 'macos';
+        else if (p === 'linux' || p === 'chromeos') detected = 'linux';
+      } else {
+        var p = (navigator.platform || '').toLowerCase();
+        if (p.indexOf('mac') !== -1) detected = 'macos';
+        else if (p.indexOf('linux') !== -1) detected = 'linux';
+      }
+      window._detectedPlatform = detected;
+      window._heroLabels = { windows: 'Download for Windows', macos: 'Download for macOS', linux: 'Download for Linux' };
+      var heroBtn = document.getElementById('hero-dl-btn');
+      if (heroBtn) {
+        var fullLabel = heroBtn.querySelector('.hero-dl-label-full');
+        if (fullLabel) fullLabel.textContent = window._heroLabels[detected];
+      }
+      switchPlatform(detected);
+    })();
+
     // Mobile nav toggle
     (function() {
       var style = document.createElement('style');
@@ -3311,7 +3334,7 @@ venv\Scripts\activate
               var vSpan = ' <span style="opacity:0.7;font-weight:400;font-size:0.85em;">' + version + '</span>';
               var fullLabel = heroBtn.querySelector('.hero-dl-label-full');
               var shortLabel = heroBtn.querySelector('.hero-dl-label-short');
-              if (fullLabel) fullLabel.innerHTML = 'Download for Windows' + vSpan;
+              var heroLabel = (window._heroLabels && window._heroLabels[window._detectedPlatform]) || 'Download for Windows'; if (fullLabel) fullLabel.innerHTML = heroLabel + vSpan;
               if (shortLabel) shortLabel.innerHTML = 'Download' + vSpan;
             }
           }
@@ -3365,6 +3388,12 @@ venv\Scripts\activate
             var heroLinux = document.getElementById('hero-dl-linux');
             if (heroLinux) heroLinux.href = linuxAsset.browser_download_url;
           }
+
+          // Update hero button link for detected platform
+          var dp = window._detectedPlatform;
+          var hBtn = document.getElementById('hero-dl-btn');
+          if (hBtn && dp === 'macos' && macArm64) hBtn.href = macArm64.browser_download_url;
+          else if (hBtn && dp === 'linux' && linuxAsset) hBtn.href = linuxAsset.browser_download_url;
         })
         .catch(function() {
           // Pre-release fetch failed — clear skeletons, keep fallback links
