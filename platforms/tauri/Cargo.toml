@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "3.0.0-alpha"
+version = "3.0.0-alpha.2"
 description = "WhisperClick — Voice-to-text desktop app"
 authors = ["Edward Shamosh"]
 license = "CC-BY-NC-SA-4.0"
