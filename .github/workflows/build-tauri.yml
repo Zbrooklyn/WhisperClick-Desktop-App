@@ -73,13 +73,13 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: cargo tauri build
+        run: cargo tauri build --bundles nsis
       - uses: actions/upload-artifact@v4
         with:
           name: tauri-windows
           path: |
             platforms/tauri/target/release/bundle/nsis/*.exe
-            platforms/tauri/target/release/bundle/msi/*.msi
+            # MSI skipped — pre-release versions not MSI-compatible
           if-no-files-found: warn
 
   release:
