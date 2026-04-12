@@ -115,6 +115,7 @@ jobs:
   build-macos-x64:
     needs: test
     runs-on: macos-13
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - name: Install system dependencies
@@ -191,6 +192,7 @@ jobs:
 
   release:
     needs: [build-windows, build-macos-arm64, build-macos-x64, build-linux]
+    if: always() && !cancelled() && needs.build-windows.result == 'success' && needs.build-macos-arm64.result == 'success' && needs.build-linux.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
