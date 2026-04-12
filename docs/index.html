@@ -19,6 +19,40 @@
   <meta property="og:url" content="https://whisperclick.com/">
   <meta property="og:image" content="https://whisperclick.com/assets/app-dark.png">
 
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="WhisperClick &mdash; AI Voice-to-Text for Windows, macOS &amp; Linux">
+  <meta name="twitter:description" content="AI speech-to-text that runs offline with Whisper AI or cloud APIs. One hotkey, instant transcription, pasted at your cursor.">
+  <meta name="twitter:image" content="https://whisperclick.com/assets/app-dark.png">
+
+  <!-- Canonical -->
+  <link rel="canonical" href="https://whisperclick.com/">
+
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "WhisperClick",
+    "description": "AI-powered voice typing for your entire desktop. Press a hotkey, talk, and text appears at your cursor.",
+    "url": "https://whisperclick.com",
+    "applicationCategory": "UtilitiesApplication",
+    "operatingSystem": "Windows 10, Windows 11, macOS, Linux",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "downloadUrl": "https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest",
+    "softwareVersion": "2.1.2",
+    "author": {
+      "@type": "Person",
+      "name": "Edward Shamosh"
+    }
+  }
+  </script>
+
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1927,7 +1961,49 @@
       50% { transform: translateY(3px); }
     }
 
-  </style>
+  
+    /* FAQ */
+    .faq { padding: 80px 0; }
+    .faq-list { display: flex; flex-direction: column; gap: 0; }
+    .faq-item {
+      border-bottom: 1px solid var(--border-dim);
+      padding: 0;
+    }
+    .faq-item summary {
+      padding: 20px 0;
+      font-size: 1.05rem;
+      font-weight: 600;
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text);
+      transition: color 0.2s;
+    }
+    .faq-item summary:hover { color: var(--accent); }
+    .faq-item summary::-webkit-details-marker { display: none; }
+    .faq-item summary::after {
+      content: '+';
+      font-size: 1.3rem;
+      font-weight: 300;
+      color: var(--text-muted);
+      transition: transform 0.2s;
+      flex-shrink: 0;
+      margin-left: 16px;
+    }
+    .faq-item[open] summary::after {
+      content: '\2212';
+    }
+    .faq-item p {
+      padding: 0 0 20px;
+      font-size: 0.95rem;
+      color: var(--text-dim);
+      line-height: 1.7;
+      max-width: 600px;
+    }
+
+    </style>
 </head>
 <body>
 
@@ -1975,7 +2051,7 @@
         <div class="hero-content">
           <div class="hero-badge">
             <span class="dot"></span>
-            Free &amp; source available &middot; Windows, macOS &amp; Linux
+            Free &amp; source available &middot; Windows, macOS &amp; Linux <span id="hero-dl-count" style="display:none;"></span>
           </div>
 
           <h1>
@@ -1985,7 +2061,7 @@
 
           <p class="hero-sub">
             AI-powered voice typing for your entire desktop. Press a hotkey from any app,
-            say what you're thinking, and the text appears at your cursor. Runs offline with Whisper AI or connects to OpenAI and Gemini.
+            say what you're thinking, and the text appears at your cursor in seconds. Runs offline with Whisper AI or connects to OpenAI and Gemini for fast, accurate results.
           </p>
 
           <div class="hero-buttons">
@@ -2704,6 +2780,50 @@
     </div>
   </section>
 
+
+  <!-- FAQ -->
+  <section class="faq" id="faq">
+    <div class="container">
+      <div class="section-header reveal">
+        <span class="section-label">FAQ</span>
+        <h2 class="section-title">Common questions</h2>
+      </div>
+      <div class="faq-list reveal" style="max-width:680px;margin:0 auto;">
+
+        <details class="faq-item">
+          <summary>Is WhisperClick free?</summary>
+          <p>Yes. Free for personal and non-commercial use. If you use cloud transcription, your API provider may charge a small amount per request, but typical usage is well under $1/month.</p>
+        </details>
+
+        <details class="faq-item">
+          <summary>Does my voice data leave my computer?</summary>
+          <p>In <strong>local mode</strong>, no. Audio is processed entirely on your hardware. In <strong>API mode</strong>, audio is sent to your chosen provider only when you press the hotkey. Nothing is stored after transcription returns.</p>
+        </details>
+
+        <details class="faq-item">
+          <summary>Can I use it completely offline?</summary>
+          <p>Yes. Download a Whisper model once, then all transcription happens locally with zero internet. Models range from "tiny" (fast, lower accuracy) to "large-v3" (slower, highest accuracy).</p>
+        </details>
+
+        <details class="faq-item">
+          <summary>How are my API keys stored?</summary>
+          <p>Encrypted at rest using your OS native credential store (Windows Credential Locker, macOS Keychain, or Linux secret service). Never stored in plain text.</p>
+        </details>
+
+        <details class="faq-item">
+          <summary>What if auto-paste doesn't work?</summary>
+          <p>Some apps with elevated privileges may block simulated keystrokes. Switch to "Copy only" mode in Settings and paste manually with Ctrl+V (Cmd+V on Mac).</p>
+        </details>
+
+        <details class="faq-item">
+          <summary>macOS says the app can't be opened</summary>
+          <p>macOS Gatekeeper may block unnotarized apps. Right-click the app, choose "Open", then click "Open" in the dialog. You only need to do this once.</p>
+        </details>
+
+      </div>
+    </div>
+  </section>
+
   <!-- ════════════════════════════════════════════════════
        DEVELOPER
        ════════════════════════════════════════════════════ -->
@@ -2920,6 +3040,17 @@ venv\Scripts\activate
         if (fullLabel) fullLabel.textContent = window._heroLabels[detected];
       }
       switchPlatform(detected);
+
+      // Mobile: show "desktop only" since the app can't run on phones
+      var isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent);
+      if (isMobile) {
+        var mobileBtn = document.getElementById('hero-dl-btn');
+        if (mobileBtn) {
+          var mFullLabel = mobileBtn.querySelector('.hero-dl-label-full');
+          if (mFullLabel) mFullLabel.textContent = 'Get it on desktop';
+          mobileBtn.href = '#download';
+        }
+      }
     })();
 
     // Mobile nav toggle
@@ -3317,6 +3448,12 @@ venv\Scripts\activate
           if (totalDownloads > 0) {
             var totalEl = document.getElementById('download-total');
             totalEl.innerHTML = '<strong>' + totalDownloads.toLocaleString() + '</strong> total downloads';
+            // Show download count in hero badge
+            var heroCount = document.getElementById('hero-dl-count');
+            if (heroCount && totalDownloads > 100) {
+              heroCount.textContent = '\u00b7 ' + totalDownloads.toLocaleString() + '+ downloads';
+              heroCount.style.display = 'inline';
+            }
           }
 
           // Update hero button with version + direct link
