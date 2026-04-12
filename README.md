@@ -47,30 +47,48 @@ Right-click the pill for quick access to history, settings, or to hide it entire
 ## Download
 
 <table>
-  <tr>
-    <td><strong>Windows</strong></td>
-    <td>
-      <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest">Setup Installer (.exe)</a><br>
-      <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest">Portable (.exe)</a>
-    </td>
-    <td>Fully tested &amp; stable</td>
-  </tr>
-  <tr>
-    <td><strong>macOS</strong></td>
-    <td>
-      <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest">DMG (Apple Silicon)</a> — M1/M2/M3/M4<br>
-      <a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest">DMG (Intel)</a> — 2015–2020 Macs
-    </td>
-    <td>Early access</td>
-  </tr>
-  <tr>
-    <td><strong>Linux</strong></td>
-    <td><a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest">AppImage</a></td>
-    <td>Early access</td>
-  </tr>
+  <thead>
+    <tr>
+      <th>Platform</th>
+      <th>Architecture</th>
+      <th>Package</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td rowspan="2"><strong>Windows</strong></td>
+      <td rowspan="2">x64 (64-bit)</td>
+      <td><a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest">Setup Installer (.exe)</a></td>
+      <td>Stable &mdash; recommended</td>
+    </tr>
+    <tr>
+      <td><a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest">Portable (.exe)</a></td>
+      <td>Stable &mdash; no install needed</td>
+    </tr>
+    <tr>
+      <td rowspan="2"><strong>macOS</strong></td>
+      <td>Apple Silicon (M1/M2/M3/M4)</td>
+      <td><a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest">DMG (arm64)</a></td>
+      <td>Early access</td>
+    </tr>
+    <tr>
+      <td>Intel (2015&ndash;2020 Macs)</td>
+      <td><a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest">DMG (x64)</a></td>
+      <td>Early access</td>
+    </tr>
+    <tr>
+      <td><strong>Linux</strong></td>
+      <td>x64 (64-bit)</td>
+      <td><a href="https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest">AppImage</a></td>
+      <td>Early access</td>
+    </tr>
+  </tbody>
 </table>
 
 All downloads are on the [Releases page](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases). The app auto-updates after you install — you only need to download once.
+
+> **Not sure which Mac you have?** Click **Apple menu > About This Mac**. If it says M1, M2, M3, or M4, grab the arm64 DMG. Otherwise grab the x64 DMG.
 
 > **macOS and Linux:** Core recording and transcription work on all platforms. Some features like auto-paste and system tray behavior may vary as we continue testing. [Let us know](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/issues) what works and what doesn't — it genuinely helps.
 
