@@ -1,9 +1,6 @@
-# Roadmap — WhisperClick
+# Roadmap — WhisperClick Electron
 
-> Last updated: 2026-04-11
->
-> Mono-repo now contains both Electron (shipping) and Tauri (alpha) platforms.
-> See HANDOFF.md "Path B" for the current blockers on shipping Mac/Linux builds.
+> Last updated: 2026-03-18
 
 ---
 

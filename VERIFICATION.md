@@ -1,8 +1,4 @@
-# Verification Checklist — WhisperClick (Electron + Tauri)
-
-> Last updated: 2026-04-11. Items below are written for the Electron platform
-> (shipping). Tauri verification items live in `platforms/tauri/` and are tracked
-> separately — Tauri is alpha and not yet shipped to users.
+# Verification Checklist — V3 Frontend Electron Integration
 
 ## How to Use
 

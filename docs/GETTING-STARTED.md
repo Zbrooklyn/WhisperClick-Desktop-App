@@ -30,9 +30,10 @@ Download WhisperClick from the official website or GitHub:
 
 | Platform | Download | Notes |
 |----------|----------|-------|
-| **Windows** | Setup Installer (.exe) or Portable (.exe) | Available now |
-| **macOS** | — | Coming soon (codebase supports Apple Silicon and Intel) |
-| **Linux** | — | Coming soon (codebase supports AppImage) |
+| **Windows** | Setup Installer (.exe) or Portable (.exe) | Fully tested and stable |
+| **macOS (Apple Silicon)** | DMG (M1/M2/M3/M4) | Early access |
+| **macOS (Intel)** | DMG (2015--2020 Macs) | Early access |
+| **Linux** | AppImage | Early access |
 
 ### Installer vs. Portable (Windows)
 

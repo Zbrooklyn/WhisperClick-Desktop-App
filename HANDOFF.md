@@ -1,63 +1,13 @@
 # HANDOFF — WhisperClick
 
-> Last updated: 2026-04-11
-
-## Session 2026-04-11 — Public README honesty pass + public sync
-
-**What shipped:**
-- `4d37fa5` — README download table updated: Mac/Linux now say "Coming soon"
-  instead of broken `/releases/latest` links. Honest callout about Mac/Linux
-  builds being in progress.
-- Force-pushed to public via `tools/sync_public.sh`. Public main is now `be22f22`
-  ("Sync from private repo"). Verified live at
-  `raw.githubusercontent.com/Zbrooklyn/WhisperClick-Desktop-App/main/README.md`.
-- Added `public` remote to the WhisperClick Migration checkout (was previously
-  only on the WhisperClick Electron checkout). Migration is now the
-  fully-equipped active checkout.
-
-**Public release state after sync:**
-- Public repo source code: synced through `electron-v2.2.1-beta`-era code (mono-repo, Tauri included)
-- Public `/releases/latest`: still **v2.1.2** from 2026-03-18 (Windows only). No new release tags pushed to public.
-- Windows users: get an old-but-working v2.1.2 build. README accurately says "Available now."
-- Mac/Linux users: see "Coming soon" — no broken links, no false promises.
-
-**Critical pre-existing CI failure (NOT from this session):**
-- `tauri-v3.0.0-alpha.2` build run **24295834943 FAILED** at 2026-04-12 01:25 UTC.
-  Tauri release pipeline is currently broken. Needs investigation before any
-  Tauri release work.
-
-## Open work — Path B (actually shipping Mac/Linux builds)
-
-These are blockers for replacing the "Coming soon" labels with real downloads.
-None were addressed this session — all need a follow-up:
-
-1. **Cross-repo release publishing** — `build-electron.yml` and `build-tauri.yml`
-   currently publish releases to `${{ github.repository }}` which resolves to
-   `Zbrooklyn/whisperclick-dev` (private). Need either:
-   - Add `repository: Zbrooklyn/WhisperClick-Desktop-App` + a fine-grained PAT
-     stored as a repo secret with `contents:write` on the public repo, OR
-   - Move the build workflows to live in the public repo so `github.repository`
-     resolves to public naturally (cleanest option, but requires the workflows
-     to survive the `sync_public.sh` strip — currently `tools/` is stripped but
-     `.github/` is not).
-2. **Intel Mac build missing** — `build-electron.yml` only has `build-macos-arm64`.
-   Either add a `build-macos-x64` job for 2015–2020 Macs, or accept arm64-only
-   and update README accordingly.
-3. **Tauri build is broken in CI** — see failure above. Investigate before
-   committing to any Tauri release path.
-4. **First Mac CI run will be flying blind** — workflow has never produced an
-   actual Mac DMG. Expect 1–2 iterations before it's stable.
-5. **Auto-updater on Mac/Linux** — `build-electron.yml` only uploads
-   `latest.yml` / `latest-mac.yml` / `latest-linux.yml`. Need to verify
-   electron-updater on Mac actually picks them up from a cross-repo release.
+> Last updated: 2026-03-23
 
 ## Current State
 
-**Status**: Stable — v2.1.2 stable / v2.2.1-beta on private (mono-repo) / Tauri 3.0.0-alpha.2 (CI broken)
+**Status**: Stable — v2.1.1 (Electron) | Tauri migration complete
 
-**Latest public stable release**: v2.1.2 (2026-03-18) — Windows only
-**Latest public beta release**: v2.2.0-beta (2026-03-22) — Windows only
-**Latest private tag**: `electron-v2.2.1-beta` (2026-04-10) — never pushed to public, no artifacts
+**Latest stable release**: v2.1.1
+**Latest beta release**: v2.0.22-beta (superseded by v2.1.0 stable)
 
 The repo now supports **two platforms**: Electron and Tauri. Both share the same
 frontend (`shared/frontend/`), pill widget (`shared/pill/`), and Python sidecar
