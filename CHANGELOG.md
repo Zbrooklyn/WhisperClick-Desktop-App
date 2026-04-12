@@ -1,5 +1,42 @@
 # Changelog
 
+## [Unreleased]
+
+> Internal work since v2.2.1-beta. Not yet shipped to users — public releases page is
+> still on v2.2.0-beta. Tauri platform reached v3.0.0-alpha.2 in source but builds
+> are not shipping (CI run for `tauri-v3.0.0-alpha.2` failed 2026-04-12).
+
+### Added — Tauri platform (alpha, not shipped to users)
+
+- **Tauri v3.0.0-alpha.2** in `platforms/tauri/`. Pill widget reached feature parity
+  with Electron (13 fixes covering tooltip, drag, click-through, context menu, error
+  states, multi-monitor positioning).
+
+### Fixed — Tauri
+
+- **`get_monitors` detached-this bug** — multi-monitor enumeration crashed on `this`
+  reference inside `bridge.js`.
+- **`get_displays` Rust command** — was returning empty data on certain display
+  configurations. Merged from dev branch.
+- **`stop_recording` no longer blocks the event loop** — switched to event-based
+  completion driven by the sidecar `transcription` event.
+- **Title bar z-index** — controls were rendering behind other UI elements.
+
+### Removed
+
+- **Win+V issue** — previously logged in v2.2.1-beta CHANGELOG as a known bug.
+  Re-investigation showed it was a misdiagnosis; behavior is correct. Retracted.
+
+### Documentation
+
+- **README** — Mac/Linux download promises rewritten to "Coming soon" (commit `4d37fa5`).
+  Public website (whisperclick.com) updated to match in this same sweep.
+- **HANDOFF** — Documented Path B blockers for shipping Mac/Linux to users:
+  cross-repo release publishing PAT, missing Intel Mac CI job, broken Tauri CI run.
+- **Full doc sync sweep** — FEATURES, ROADMAP, VERIFICATION, FAQ, GETTING-STARTED,
+  CHANGELOG updated to reflect mono-repo + Tauri state and the Windows-only download
+  reality.
+
 ## [2.2.1-beta] — 2026-03-31
 
 ### Fixed

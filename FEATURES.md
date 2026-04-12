@@ -1,7 +1,12 @@
 # Features — WhisperClick (Electron + Tauri)
 
 > Complete inventory of every user-facing feature and function.
-> Last updated: 2026-03-18 (v2.1.1)
+> Last updated: 2026-04-11 (v2.2.1-beta on private; v2.1.2 stable on public)
+>
+> **Platform note:** Electron is the shipping platform (Windows only on public, Mac/Linux
+> code-ready but not yet built). Tauri (`platforms/tauri/`) is at v3.0.0-alpha.2 in source
+> with full pill widget parity, but builds are not shipping. The features below describe
+> the Electron platform unless noted otherwise.
 
 ---
 

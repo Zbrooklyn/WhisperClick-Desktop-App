@@ -18,11 +18,11 @@ Yes. WhisperClick is free for personal and non-commercial use under the [CC BY-N
 
 | Platform | Status | Download |
 |----------|--------|----------|
-| **Windows** | Fully tested and stable | Setup installer (.exe) or portable (.exe) |
-| **macOS** | Early access | DMG for Apple Silicon (M1/M2/M3/M4) and Intel (2015-2020) |
-| **Linux** | Early access | AppImage |
+| **Windows** | Available now | Setup installer (.exe) or portable (.exe) |
+| **macOS** | Coming soon | The codebase supports Apple Silicon and Intel, but builds aren't shipping yet |
+| **Linux** | Coming soon | The codebase supports Linux, but the AppImage isn't shipping yet |
 
-All downloads are on the [GitHub Releases page](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest). The app auto-updates after you install, so you only need to download once.
+Windows downloads are on the [GitHub Releases page](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/latest). The app auto-updates after you install, so you only need to download once. To be notified when Mac and Linux builds ship, [open an issue](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/issues) or watch the repo.
 
 ### Does my voice data leave my computer?
 
