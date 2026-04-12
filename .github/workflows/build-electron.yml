@@ -111,6 +111,47 @@ jobs:
             release/latest-mac.yml
           if-no-files-found: error
 
+
+  build-macos-x64:
+    needs: test
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: brew install portaudio libsndfile
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          pip install pyinstaller
+          pip install -r shared/engine/requirements.txt
+      - run: pyinstaller shared/engine/engine.spec --noconfirm
+      - run: mkdir -p engine-dist && mv dist/engine engine-dist/engine
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Patch package.json
+        run: |
+          node -e "
+            const pkg = require('./package.json');
+            const fs = require('fs');
+            pkg.build.extraResources = [{ from: 'engine-dist/engine/', to: 'engine-bin/' }];
+            pkg.build.mac.target = [{ target: 'dmg', arch: ['x64'] }];
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '
+');
+          "
+      - run: npx electron-builder --mac --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: electron-macos-x64
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/beta-mac.yml
+            release/latest-mac.yml
+          if-no-files-found: error
+
   build-linux:
     needs: test
     runs-on: ubuntu-latest
@@ -148,7 +189,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    needs: [build-windows, build-macos-arm64, build-linux]
+    needs: [build-windows, build-macos-arm64, build-macos-x64, build-linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -177,4 +218,5 @@ jobs:
           files: |
             artifacts/electron-windows/*
             artifacts/electron-macos-arm64/*
+            artifacts/electron-macos-x64/*
             artifacts/electron-linux/*
