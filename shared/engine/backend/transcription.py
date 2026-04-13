@@ -34,14 +34,35 @@ class TranscriptionService:
         self._openai_client = None
         self._openai_client_key = None
         self.detected_language = None
+        self._preload_lock = threading.Lock()
+        self._preloading = False
 
     def set_mode(self, mode):
         self.mode = mode
+        if mode == "local":
+            self._preload_model_async()
 
     def set_model(self, model_name):
         if model_name != self._model_name:
             self._model_name = model_name
             self._local_model = None
+            if self.mode == "local":
+                self._preload_model_async()
+
+    def _preload_model_async(self):
+        """Load the local model in a background thread so it's ready when needed."""
+        def _load():
+            self._preloading = True
+            try:
+                _log.info("Pre-loading local model '%s' in background...", self._model_name)
+                self.load_local_model()
+                _log.info("Local model '%s' ready.", self._model_name)
+            except Exception as exc:
+                _log.warning("Background model pre-load failed: %s", exc)
+            finally:
+                self._preloading = False
+
+        threading.Thread(target=_load, daemon=True).start()
 
     def set_language(self, language):
         self._language = language if language != "auto" else None
@@ -89,34 +110,35 @@ class TranscriptionService:
         return self._cancel_requested.is_set()
 
     def load_local_model(self):
-        if self._local_model is None:
-            from faster_whisper import WhisperModel
+        with self._preload_lock:
+            if self._local_model is None:
+                from faster_whisper import WhisperModel
 
-            device = "cpu"
-            compute = self._compute_type
-            try:
-                import torch
+                device = "cpu"
+                compute = self._compute_type
+                try:
+                    import torch
 
-                if torch.cuda.is_available():
-                    device = "cuda"
-                    compute = "float16"
-            except ImportError:
-                pass
+                    if torch.cuda.is_available():
+                        device = "cuda"
+                        compute = "float16"
+                except ImportError:
+                    pass
 
-            try:
-                from .models import HF_CACHE_DIR
+                try:
+                    from .models import HF_CACHE_DIR
 
-                self._local_model = WhisperModel(
-                    self._model_name,
-                    device=device,
-                    compute_type=compute,
-                    download_root=HF_CACHE_DIR,
-                )
-            except FileNotFoundError:
-                raise ValueError(f"Model '{self._model_name}' not found. Download it from Settings > Models.") from None
-            except Exception as exc:
-                raise ValueError(f"Failed to load model '{self._model_name}': {exc}") from exc
-        return self._local_model
+                    self._local_model = WhisperModel(
+                        self._model_name,
+                        device=device,
+                        compute_type=compute,
+                        download_root=HF_CACHE_DIR,
+                    )
+                except FileNotFoundError:
+                    raise ValueError(f"Model '{self._model_name}' not found. Download it from Settings > Models.") from None
+                except Exception as exc:
+                    raise ValueError(f"Failed to load model '{self._model_name}': {exc}") from exc
+            return self._local_model
 
     def transcribe(self, wav_bytes) -> str:
         if self.mode == "local":

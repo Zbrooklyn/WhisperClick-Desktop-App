@@ -1133,83 +1133,84 @@ app.on('second-instance', () => {
 });
 
 app.whenReady().then(() => {
+  // ── PHASE 1: Critical path — get window visible + hotkey active ASAP ──
   store = new Store(configDir);
   const settings = store.getSettings();
-
-  // Initialize debug logger (writes to configDir/debug.log when enabled)
   log.init(configDir, settings.debugLogging, isDev);
 
   createMainWindow();
-  // Pre-create pill (hidden via show:false) — it shows when main window is hidden/minimized
-  if (settings.showPill) {
-    createPillWindow();
-  }
-
-  // Auto-updater
-  initUpdater(mainWindow, store, sidecar);
-  setTimeout(() => checkForUpdatesQuietly(), 10_000);
-  // Re-check every 4 hours
-  setInterval(() => checkForUpdatesQuietly(), 4 * 60 * 60 * 1000);
-
-  // Post-update success notification (system notification since app may start in tray)
-  const updateResult = checkUpdateMarker();
-  if (updateResult.updated) {
-    log.info(`Post-update launch: ${updateResult.from} → ${updateResult.to}`);
-    if (Notification.isSupported()) {
-      const n = new Notification({
-        title: 'WhisperClick Updated',
-        body: `Successfully updated to v${updateResult.to}`,
-      });
-      n.on('click', () => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.show();
-          mainWindow.focus();
-        }
-      });
-      n.show();
-    }
-    // Also send to renderer in case window is visible
-    mainWindow.webContents.once('did-finish-load', () => {
-      mainWindow.webContents.send('update-success', updateResult);
-    });
-  }
-
-  // System tray — dynamic menu rebuilt on each right-click
-  tray = createTray({
-    onShow: () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } },
-    onBuildMenu: () => buildRichMenuTemplate({ includeQuit: true }),
-    onToggleRecording: () => trayToggleRecording(),
-    onCancelRecording: async () => {
-      log.tray('cancel-recording', `state=${sm.state}`);
-      const gate = canAcceptAction('cancel');
-      if (!gate.allowed) return;
-      setAppState('dormant');
-      broadcastState();
-      if (sidecar && sidecar.isRunning) {
-        try { await sidecar.send('cancel'); } catch { /* ignore */ }
-      }
-    },
-    getIsRecordingActive: () => sm.state === 'recording' || sm.state === 'processing',
-    onBalloonClick: () => {
-      if (mainWindow) {
-        mainWindow.show();
-        mainWindow.focus();
-        mainWindow.webContents.executeJavaScript('openSettingsDrawer()').catch(() => {});
-      }
-    },
-    getTrayClickAction: () => store.getSettings().trayClickAction || 'show',
-    onCaptureTarget: () => {
-      if (sidecar && sidecar.isRunning) sidecar.send('capture_fg').catch(() => {});
-    },
-    isDev,
-  });
-
-  // Hotkey
   registerHotkey(settings.hotkey || 'Ctrl+Alt+R');
 
-  // Sidecar
+  // Start sidecar early — Python spawn takes time, run in parallel with UI setup
   const enginePath = process.env.WHISPERCLICK_ENGINE_PATH || path.join(__dirname, '../../shared/engine/engine.py');
   sidecar = new Sidecar(enginePath);
+
+  // ── PHASE 2: Next tick — non-critical UI that user doesn't see immediately ──
+  setImmediate(() => {
+    if (settings.showPill) {
+      createPillWindow();
+    }
+
+    tray = createTray({
+      onShow: () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } },
+      onBuildMenu: () => buildRichMenuTemplate({ includeQuit: true }),
+      onToggleRecording: () => trayToggleRecording(),
+      onCancelRecording: async () => {
+        log.tray('cancel-recording', `state=${sm.state}`);
+        const gate = canAcceptAction('cancel');
+        if (!gate.allowed) return;
+        setAppState('dormant');
+        broadcastState();
+        if (sidecar && sidecar.isRunning) {
+          try { await sidecar.send('cancel'); } catch { /* ignore */ }
+        }
+      },
+      getIsRecordingActive: () => sm.state === 'recording' || sm.state === 'processing',
+      onBalloonClick: () => {
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+          mainWindow.webContents.executeJavaScript('openSettingsDrawer()').catch(() => {});
+        }
+      },
+      getTrayClickAction: () => store.getSettings().trayClickAction || 'show',
+      onCaptureTarget: () => {
+        if (sidecar && sidecar.isRunning) sidecar.send('capture_fg').catch(() => {});
+      },
+      isDev,
+    });
+  });
+
+  // ── PHASE 3: Deferred — updater, history preload, post-update check ──
+  setTimeout(() => {
+    // Pre-warm history cache so first getHistory() call doesn't block main process
+    store.getHistory();
+
+    initUpdater(mainWindow, store, sidecar);
+    setTimeout(() => checkForUpdatesQuietly(), 8_000);
+    setInterval(() => checkForUpdatesQuietly(), 4 * 60 * 60 * 1000);
+
+    const updateResult = checkUpdateMarker();
+    if (updateResult.updated) {
+      log.info(`Post-update launch: ${updateResult.from} → ${updateResult.to}`);
+      if (Notification.isSupported()) {
+        const n = new Notification({
+          title: 'WhisperClick Updated',
+          body: `Successfully updated to v${updateResult.to}`,
+        });
+        n.on('click', () => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.show();
+            mainWindow.focus();
+          }
+        });
+        n.show();
+      }
+      mainWindow.webContents.once('did-finish-load', () => {
+        mainWindow.webContents.send('update-success', updateResult);
+      });
+    }
+  }, 500);
 
   let sidecarRestartCount = 0;
 
