@@ -51,12 +51,18 @@ class TranscriptionService:
 
     def _preload_model_async(self):
         """Load the local model in a background thread so it's ready when needed."""
+        target_model = self._model_name  # capture at dispatch time
+
         def _load():
             self._preloading = True
             try:
-                _log.info("Pre-loading local model '%s' in background...", self._model_name)
+                # Abort if user already switched to a different model
+                if self._model_name != target_model:
+                    _log.info("Skipping stale preload of '%s' (now '%s')", target_model, self._model_name)
+                    return
+                _log.info("Pre-loading local model '%s' in background...", target_model)
                 self.load_local_model()
-                _log.info("Local model '%s' ready.", self._model_name)
+                _log.info("Local model '%s' ready.", target_model)
             except Exception as exc:
                 _log.warning("Background model pre-load failed: %s", exc)
             finally:
