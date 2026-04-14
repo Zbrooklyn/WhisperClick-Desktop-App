@@ -1,13 +1,34 @@
 # HANDOFF — WhisperClick
 
-> Last updated: 2026-04-12
+> Last updated: 2026-04-14
 
 ## Current State
 
-**Status**: v2.2.1-beta (Electron, shipping) | Tauri v3.0.0-alpha.2 (alpha, Windows only)
+**Status**: v2.2.4-beta (Electron, hotfix branch) | Tauri preview (GitHub release removed 2026-04-14, alpha still on feat branches)
 
 **Latest stable release**: v2.1.2 (public, 2026-03-18)
-**Latest beta release**: v2.2.3-beta (public, 2026-04-12)
+**Latest beta release**: v2.2.3-beta (public, 2026-04-12) — 2.2.4-beta in flight as of 2026-04-14
+
+## Incident 2026-04-14 — Silent Updater & Key UX Failures
+
+**User impact:** v2.2.0-beta through v2.2.3-beta users saw `Cannot find latest.yml … HttpError 404` every time the app checked for updates (live ~3 weeks). Separately, recordings could return "0 chars" with no feedback — users assumed their API key or mic was broken.
+
+**Root causes:**
+1. **Update feed collision.** Tauri tag `tauri-v3.0.0-alpha.2` (2026-04-12) semver-outranked every `electron-v*` beta. electron-updater parses `releases.atom`, which lists a tag even when its Release is Draft. The GitHub provider has no tag-prefix filter, so every Electron client tried to pull `latest.yml` from the Tauri release and hit 404.
+2. **Silent empty transcription.** `onTranscription` in main.js resolved `{success: true, text: ''}` when the sidecar returned an empty string — frontend UI showed nothing.
+3. **Silent safeStorage decrypt failure.** `store._decryptKey` returned `''` on exception with no log or user-facing indication. Profile moves / Windows user changes silently wiped stored keys.
+
+**Fixes (2026-04-14):**
+- GitHub-side: `gh release delete tauri-v3.0.0-alpha.2 --cleanup-tag` + `git push origin --delete tauri-v3.0.0-alpha.2`. Atom feed now tops with `electron-v2.2.3-beta`. No client update needed to resolve the 404.
+- Electron v2.2.4-beta: empty transcription surfaces "No speech detected. Check your microphone and try again." toast + `success: false`. safeStorage decrypt failure is logged via `console.error` and tracked in `store._decryptFailures`, exposed via new `get-decrypt-failures` IPC. Frontend shows a toast + inline warn status "Saved key could not be decrypted — please re-enter."
+
+**Process gaps to close:**
+- No pre-release smoke test of the upgrade path (install N-1 → check for updates → install N).
+- No tag-prefix channel isolation. Planned follow-up: switch Electron updater to `provider: generic` with feed at `whisperclick.com/updates/beta/latest.yml`, populated by a GitHub Action that only publishes for `electron-v*` tags.
+- Silent catches (`} catch {}` / `return ''`) swallowed failures end-to-end. Audit pass planned.
+
+---
+
 
 The repo now supports **two platforms**: Electron and Tauri. Both share the same
 frontend (`shared/frontend/`), pill widget (`shared/pill/`), and Python sidecar

@@ -427,6 +427,7 @@ function configureSidecar() {
 
 // Settings
 ipcMain.handle('get-settings', () => store.getSettings());
+ipcMain.handle('get-decrypt-failures', () => store.getDecryptFailures());
 ipcMain.handle('save-settings', (_, patch) => {
   log.ipc('save-settings', Object.keys(patch).join(', '));
   const prev = store.getSettings();
@@ -708,8 +709,16 @@ ipcMain.handle('stop-recording', async () => {
       sidecar.removeListener('exit', onExit);
     }
     function onTranscription(data) {
-      log.ipc('stop-recording', `transcription received (${(data.text || '').length} chars)`);
+      const text = String(data.text || '');
+      log.ipc('stop-recording', `transcription received (${text.length} chars)`);
       cleanup();
+      if (text.trim().length === 0) {
+        // Surface empty transcription instead of silently succeeding — prior
+        // versions let users record, see nothing, and assume the app or key
+        // was broken. A clear message lets them retry or check their mic.
+        resolve({ success: false, error: 'No speech detected. Check your microphone and try again.' });
+        return;
+      }
       resolve({ success: true, text: data.text });
     }
     function onError(data) {

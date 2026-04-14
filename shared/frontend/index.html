@@ -2246,8 +2246,19 @@
                 geminiApiKeyMemory = String(response.gemini || '').trim();
                 if (openaiApiKeyInput) openaiApiKeyInput.value = openAiApiKeyMemory;
                 if (geminiApiKeyInput) geminiApiKeyInput.value = geminiApiKeyMemory;
-                setApiKeyStatus('openai', openAiApiKeyMemory ? 'Key loaded. Paste/edit to re-verify.' : 'No key entered', openAiApiKeyMemory ? 'info' : 'muted');
-                setApiKeyStatus('gemini', geminiApiKeyMemory ? 'Key loaded. Paste/edit to re-verify.' : 'No key entered', geminiApiKeyMemory ? 'info' : 'muted');
+                const openaiDecryptFailed = !!response.openai_decrypt_failed;
+                const geminiDecryptFailed = !!response.gemini_decrypt_failed;
+                setApiKeyStatus('openai',
+                    openaiDecryptFailed ? 'Saved key could not be decrypted — please re-enter.' :
+                    openAiApiKeyMemory ? 'Key loaded. Paste/edit to re-verify.' : 'No key entered',
+                    openaiDecryptFailed ? 'warn' : (openAiApiKeyMemory ? 'info' : 'muted'));
+                setApiKeyStatus('gemini',
+                    geminiDecryptFailed ? 'Saved key could not be decrypted — please re-enter.' :
+                    geminiApiKeyMemory ? 'Key loaded. Paste/edit to re-verify.' : 'No key entered',
+                    geminiDecryptFailed ? 'warn' : (geminiApiKeyMemory ? 'info' : 'muted'));
+                if (openaiDecryptFailed || geminiDecryptFailed) {
+                    showToast('Stored API key could not be decrypted. Open Settings and re-enter your key.', 'error');
+                }
                 syncOnboardingApiInputFromProvider();
             } catch {
                 // Keep in-memory values if secure storage read fails.

@@ -201,7 +201,7 @@ describe('settings handlers', () => {
     const settings = await ipcMain._invoke('get-settings');
     expect(settings.openaiApiKey).toBe('sk-test-key'); // decrypted on read
 
-    const configDir = path.join(TEST_CONFIG_BASE, 'whisperclick-dev');
+    const configDir = path.join(TEST_CONFIG_BASE, 'com.whisperclick.dev');
     const raw = JSON.parse(realFs.readFileSync(path.join(configDir, 'settings.json'), 'utf8'));
     expect(raw.openaiApiKey).toMatch(/^enc:/);
   });

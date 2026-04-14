@@ -221,10 +221,13 @@ contextBridge.exposeInMainWorld('pywebview', {
     // ── API Keys ──────────────────────────────────────────────────────────
     async get_api_keys() {
       const settings = await ipcRenderer.invoke('get-settings');
+      const failures = (await ipcRenderer.invoke('get-decrypt-failures').catch(() => null)) || {};
       return {
         success: true,
         openai: settings.openaiApiKey || '',
         gemini: settings.geminiApiKey || '',
+        openai_decrypt_failed: !!failures.openaiApiKey,
+        gemini_decrypt_failed: !!failures.geminiApiKey,
       };
     },
 

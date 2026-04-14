@@ -48,6 +48,16 @@ class Store {
     // on every IPC handler, tray menu build, pill visibility check, etc.).
     this._settingsCache = null;
     this._historyCache = null;
+    this._decryptFailures = {};
+  }
+
+  // Map of {field: true} for KEY_FIELDS that were present on disk as enc:…
+  // but failed to decrypt (profile moved between machines, DPAPI key rotated,
+  // running under a different Windows user, etc.). Main can surface a banner
+  // so the user knows to re-enter rather than staring at an empty field.
+  getDecryptFailures() {
+    this.getSettings();
+    return { ...this._decryptFailures };
   }
 
   _ensureDir() {
@@ -86,13 +96,15 @@ class Store {
     return plain;
   }
 
-  _decryptKey(stored) {
+  _decryptKey(stored, fieldName) {
     if (!stored) return stored;
     if (stored.startsWith('enc:')) {
       try {
         const buf = Buffer.from(stored.slice(4), 'base64');
         return safeStorage.decryptString(buf);
-      } catch {
+      } catch (err) {
+        if (fieldName) this._decryptFailures[fieldName] = true;
+        try { console.error(`[store] decrypt failed for ${fieldName || 'key'}: ${err && err.message}`); } catch {}
         return '';
       }
     }
@@ -106,8 +118,9 @@ class Store {
     if (!this._settingsCache) {
       const raw = this._safeReadJSON(this.settingsPath, { ...DEFAULT_SETTINGS });
       const settings = { ...DEFAULT_SETTINGS, ...raw };
+      this._decryptFailures = {};
       for (const field of KEY_FIELDS) {
-        settings[field] = this._decryptKey(settings[field]);
+        settings[field] = this._decryptKey(settings[field], field);
       }
       this._settingsCache = settings;
     }
