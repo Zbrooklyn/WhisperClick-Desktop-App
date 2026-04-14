@@ -4,10 +4,23 @@
 
 ## Current State
 
-**Status**: v2.2.5-beta (Electron, hotfix branch) | Tauri preview (GitHub release removed 2026-04-14, alpha still on feat branches)
+**Status**: v2.2.6-beta (Electron, hotfix branch) | Tauri preview (GitHub release removed 2026-04-14, alpha still on feat branches)
 
 **Latest stable release**: v2.1.2 (public, 2026-03-18)
-**Latest beta release**: v2.2.4-beta (public, 2026-04-14) — 2.2.5-beta in flight as of 2026-04-14
+**Latest beta release**: v2.2.5-beta (public, 2026-04-14) — 2.2.6-beta in flight as of 2026-04-14
+
+## 2026-04-14 (Part 3) — Migration Framework + CI Smoke Test
+
+After 2.2.5-beta shipped the minimum-viable migration, 2.2.6-beta upgrades it to a structured system so this class of bug can't recur silently:
+
+- **FOLDER_REGISTRY** (in `migration.js`): every historical configDir name has an entry with channel, deprecation version, and reason. Test invariants (`every entry has required fields`, `registry contains all known historical beta/stable paths`) fail if the registry drifts from what the code actually uses. New rule: any config-path rename requires a registry entry or tests fail.
+- **`_migrated-from.json` provenance file**: written to the current configDir after every successful migration. Makes migration idempotent (won't re-run for the same legacy path) and gives future Settings → Data UI something to read.
+- **`hasRealData` heuristic**: only surfaces legacy folders that contain an actual API key or non-empty history. Factory-default folders are ignored to avoid user noise.
+- **User-facing toast**: `get-migration-notice` IPC + frontend boot-time read. User sees "Restored N files, M transcripts from your previous install" when migration actually runs.
+- **CI smoke-test job** (`tools/smoke-test-release.js` + new job in `build-electron.yml`): before the release job runs, downloads all build artifacts, parses every `latest*.yml`, validates that each referenced installer exists on disk with matching sha512. This is the gate that was missing for the 404 bug. Tested against real 2.2.5-beta release (passes) and a tampered fixture (fails with exit 1).
+- Migration tests: 7 → 22 covering registry invariants, heuristic edge cases, priority order, idempotency, introspection API.
+
+---
 
 ## Incident 2026-04-14 — Silent Updater & Key UX Failures
 

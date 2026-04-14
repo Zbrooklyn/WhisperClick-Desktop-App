@@ -2793,6 +2793,22 @@
                     });
                 }
             } catch { /* version display is non-critical */ }
+
+            // One-shot migration notice: if the main process imported data
+            // from a legacy config folder during startup, surface a toast so
+            // the user knows their settings and history came from an earlier
+            // install rather than silently repopulating.
+            try {
+                const notice = await callNativeApi('get_migration_notice');
+                if (notice && notice.from) {
+                    const parts = [];
+                    if (notice.filesCopied > 0) parts.push(`${notice.filesCopied} file${notice.filesCopied === 1 ? '' : 's'}`);
+                    if (notice.historyCount > 0) parts.push(`${notice.historyCount} transcript${notice.historyCount === 1 ? '' : 's'}`);
+                    const detail = parts.length ? parts.join(', ') : 'saved data';
+                    showToast(`Restored ${detail} from your previous install.`, 'info');
+                }
+            } catch { /* migration notice is non-critical */ }
+
             await hydrateApiKeysFromBackend();
 
             // Show onboarding when backend has never completed it (first run or factory reset).

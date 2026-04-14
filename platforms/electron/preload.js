@@ -231,6 +231,10 @@ contextBridge.exposeInMainWorld('pywebview', {
       };
     },
 
+    async get_migration_notice() {
+      return await ipcRenderer.invoke('get-migration-notice').catch(() => null);
+    },
+
     async set_api_key(provider, key) {
       const field = provider === 'gemini' ? 'geminiApiKey' : 'openaiApiKey';
       await ipcRenderer.invoke('save-settings', { [field]: key });

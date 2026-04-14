@@ -27,6 +27,7 @@ let pillWindow = null;
 let tray = null;
 let store = null;
 let sidecar = null;
+let migrationNotice = null; // set during app.whenReady, read by get-migration-notice IPC
 // State machine — single source of truth for app state
 const sm = new StateMachine('dormant', { logger: (...args) => log.info(...args) });
 
@@ -430,6 +431,14 @@ function configureSidecar() {
 // Settings
 ipcMain.handle('get-settings', () => store.getSettings());
 ipcMain.handle('get-decrypt-failures', () => store.getDecryptFailures());
+// One-shot: returns the migration result if legacy data was restored this
+// launch. Null otherwise. Frontend reads once at boot and shows a toast so
+// the user knows their settings + history came from a previous install.
+ipcMain.handle('get-migration-notice', () => {
+  const notice = migrationNotice;
+  migrationNotice = null; // one-shot; don't show the same toast twice
+  return notice;
+});
 ipcMain.handle('save-settings', (_, patch) => {
   log.ipc('save-settings', Object.keys(patch).join(', '));
   const prev = store.getSettings();
@@ -1148,12 +1157,17 @@ app.whenReady().then(() => {
   // Migrate legacy config folders before constructing the Store. If the
   // current configDir has no settings.json but a legacy path does, copy
   // settings + history over. See platforms/electron/migration.js.
-  const migratedFrom = migrateLegacyConfig(app.getPath('userData'), configDir, channel);
+  migrationNotice = migrateLegacyConfig(
+    app.getPath('userData'),
+    configDir,
+    channel,
+    app.getVersion(),
+  );
   store = new Store(configDir);
   const settings = store.getSettings();
   log.init(configDir, settings.debugLogging, isDev);
-  if (migratedFrom) {
-    log.info(`[migration] restored config from legacy path: ${migratedFrom}`);
+  if (migrationNotice) {
+    log.info(`[migration] restored config from ${migrationNotice.from} (${migrationNotice.filesCopied} files, ${migrationNotice.historyCount} history entries)`);
   }
 
   createMainWindow();

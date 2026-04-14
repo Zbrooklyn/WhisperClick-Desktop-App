@@ -190,9 +190,28 @@ jobs:
             release/latest-linux.yml
           if-no-files-found: error
 
+  smoke-test:
+    # Validates that every installer referenced by latest*.yml exists and has
+    # the right sha512 before we publish. This is the gate we didn't have
+    # when 2.2.1-beta through 2.2.4-beta shipped with broken update paths.
+    # Failure here blocks the release job from running.
+    needs: [build-windows, build-macos-arm64, build-linux]
+    if: always() && needs.build-windows.result == 'success' && needs.build-macos-arm64.result == 'success' && needs.build-linux.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Validate update manifests against built installers
+        run: node tools/smoke-test-release.js artifacts
+
   release:
-    needs: [build-windows, build-macos-arm64, build-macos-x64, build-linux]
-    if: always() && !cancelled() && needs.build-windows.result == 'success' && needs.build-macos-arm64.result == 'success' && needs.build-linux.result == 'success'
+    needs: [smoke-test, build-windows, build-macos-arm64, build-macos-x64, build-linux]
+    if: always() && !cancelled() && needs.smoke-test.result == 'success' && needs.build-windows.result == 'success' && needs.build-macos-arm64.result == 'success' && needs.build-linux.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
