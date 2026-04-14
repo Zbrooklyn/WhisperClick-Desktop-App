@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, screen, globalShortcut, clipboard, Menu, No
 const path = require('path');
 const fs = require('fs');
 const Store = require('./store');
+const { migrateLegacyConfig } = require('./migration');
 const Sidecar = require('./sidecar');
 const { createTray, updateTrayIcon, updateTrayTooltip, showTrayBalloon, flashTrayError } = require('./tray');
 const { initUpdater, checkForUpdatesQuietly, checkUpdateMarker } = require('./updater');
@@ -33,9 +34,10 @@ let isQuitting = false;
 
 const isDev = !app.isPackaged;
 const isBeta = app.getVersion().includes('beta');
+const channel = isDev ? 'dev' : isBeta ? 'beta' : 'stable';
 const configDir = path.join(
   app.getPath('userData'),
-  isDev ? 'com.whisperclick.dev' : 'com.whisperclick.app'
+  isDev ? 'com.whisperclick.dev' : isBeta ? 'com.whisperclick.beta' : 'com.whisperclick.app'
 );
 
 // --- Window creation ---
@@ -1143,9 +1145,16 @@ app.on('second-instance', () => {
 
 app.whenReady().then(() => {
   // ── PHASE 1: Critical path — get window visible + hotkey active ASAP ──
+  // Migrate legacy config folders before constructing the Store. If the
+  // current configDir has no settings.json but a legacy path does, copy
+  // settings + history over. See platforms/electron/migration.js.
+  const migratedFrom = migrateLegacyConfig(app.getPath('userData'), configDir, channel);
   store = new Store(configDir);
   const settings = store.getSettings();
   log.init(configDir, settings.debugLogging, isDev);
+  if (migratedFrom) {
+    log.info(`[migration] restored config from legacy path: ${migratedFrom}`);
+  }
 
   createMainWindow();
   registerHotkey(settings.hotkey || 'Ctrl+Alt+R');

@@ -4,10 +4,10 @@
 
 ## Current State
 
-**Status**: v2.2.4-beta (Electron, hotfix branch) | Tauri preview (GitHub release removed 2026-04-14, alpha still on feat branches)
+**Status**: v2.2.5-beta (Electron, hotfix branch) | Tauri preview (GitHub release removed 2026-04-14, alpha still on feat branches)
 
 **Latest stable release**: v2.1.2 (public, 2026-03-18)
-**Latest beta release**: v2.2.3-beta (public, 2026-04-12) — 2.2.4-beta in flight as of 2026-04-14
+**Latest beta release**: v2.2.4-beta (public, 2026-04-14) — 2.2.5-beta in flight as of 2026-04-14
 
 ## Incident 2026-04-14 — Silent Updater & Key UX Failures
 
@@ -26,6 +26,24 @@
 - No pre-release smoke test of the upgrade path (install N-1 → check for updates → install N).
 - No tag-prefix channel isolation. Planned follow-up: switch Electron updater to `provider: generic` with feed at `whisperclick.com/updates/beta/latest.yml`, populated by a GitHub Action that only publishes for `electron-v*` tags.
 - Silent catches (`} catch {}` / `return ''`) swallowed failures end-to-end. Audit pass planned.
+
+## Incident 2026-04-14 (Part 2) — Post-2.2.4 Regressions Surfaced
+
+**User impact:** First upgrade from v2.2.0-beta to v2.2.4-beta (the first beta users could actually install after the 404 fix) landed with three regressions that had been shipping silently since **v2.2.1-beta (2026-03-22, commit `23c19a5`)** but were hidden by the updater bug:
+
+1. **Config folder renamed with no migration.** `whisperclick-beta/` → `com.whisperclick.app/`. Users' settings, history, and encrypted API keys appeared wiped on upgrade. (Data was never deleted, only orphaned in the old folder.)
+2. **Beta and stable share the same folder.** The `isBeta` branch was dropped. Both channels wrote to `com.whisperclick.app`, so installing stable over beta (or vice versa) would overwrite the other's data.
+3. **Tray icon shows a colored circle instead of the microphone.** Mono-repo restructure broke the path in `tray.js:59` — `'../icons/icon.png'` resolves to `platforms/icons/icon.png` instead of the actual repo-root `icons/icon.png`. Fallback icon (a colored dot) has been shipping for ~3 weeks.
+
+**Fixes (2026-04-14, v2.2.5-beta):**
+- New `platforms/electron/migration.js` — on startup, if the current configDir has no `settings.json`, walks legacy paths in priority order (`whisperclick-beta` → `com.whisperclick.app` for beta, `whisperclick` for stable) and copies `settings.json` + `history.json` (+ `.bak` variants) over. Non-destructive — old folder stays intact. Covered by 7 unit tests.
+- Restored `isBeta` split in `main.js`: `isDev ? 'com.whisperclick.dev' : isBeta ? 'com.whisperclick.beta' : 'com.whisperclick.app'`.
+- Fixed `tray.js:59` to `'../../icons/icon.png'`. Confirmed by path-resolution test that this maps to `app.asar/icons/icon.png` at runtime. `icons/**` was already in `build.files`, so the PNG already ships in the asar — the only bug was the lookup path.
+
+**Still open:**
+- Intel Mac build (`macos-13` runner deprecated by GitHub, Intel DMG missing since 2.2.1-beta). Decision pending: pay $2.40/release for `macos-13-large` vs sunset announcement.
+- Permanent updater channel fix (`provider: generic` + custom feed).
+- Pre-release smoke test CI job.
 
 ---
 

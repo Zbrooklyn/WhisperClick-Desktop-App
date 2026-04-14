@@ -1,6 +1,6 @@
 {
   "name": "whisperclick",
-  "version": "2.2.4-beta",
+  "version": "2.2.5-beta",
   "description": "WhisperClick — Voice-to-text desktop app",
   "author": "Edward Shamosh",
   "main": "platforms/electron/main.js",
