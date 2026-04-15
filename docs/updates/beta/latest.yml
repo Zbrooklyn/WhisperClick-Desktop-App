@@ -1,8 +1,8 @@
-version: 2.3.0-beta
+version: 2.3.1-beta
 files:
-  - url: WhisperClick-Setup-2.3.0-beta.exe
-    sha512: mMbye76UWr4nTlVH3nQZSpYnGU1OP0/FeoQxn/K6ncXe2ZgDmCsv6N82/cld+fCDf7UCHOQelqo4qKo5BAjzcA==
-    size: 170594088
-path: WhisperClick-Setup-2.3.0-beta.exe
-sha512: mMbye76UWr4nTlVH3nQZSpYnGU1OP0/FeoQxn/K6ncXe2ZgDmCsv6N82/cld+fCDf7UCHOQelqo4qKo5BAjzcA==
-releaseDate: '2026-04-15T07:08:31.882Z'
+  - url: https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/download/electron-v2.3.1-beta/WhisperClick-Setup-2.3.1-beta.exe
+    sha512: pH2DMLdKrlUh2SuDKTbAJNZwlHX4AmLL5TZQegNsh17WGJ9NvGGKJQRrNGW5d5LtH+Kl9f0teiiyRPXmpCEF+A==
+    size: 170595797
+path: https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/download/electron-v2.3.1-beta/WhisperClick-Setup-2.3.1-beta.exe
+sha512: pH2DMLdKrlUh2SuDKTbAJNZwlHX4AmLL5TZQegNsh17WGJ9NvGGKJQRrNGW5d5LtH+Kl9f0teiiyRPXmpCEF+A==
+releaseDate: '2026-04-15T08:51:44.102Z'
