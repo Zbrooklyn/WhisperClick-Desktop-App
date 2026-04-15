@@ -1,0 +1,8 @@
+version: 2.3.0-beta
+files:
+  - url: WhisperClick-Setup-2.3.0-beta.exe
+    sha512: mMbye76UWr4nTlVH3nQZSpYnGU1OP0/FeoQxn/K6ncXe2ZgDmCsv6N82/cld+fCDf7UCHOQelqo4qKo5BAjzcA==
+    size: 170594088
+path: WhisperClick-Setup-2.3.0-beta.exe
+sha512: mMbye76UWr4nTlVH3nQZSpYnGU1OP0/FeoQxn/K6ncXe2ZgDmCsv6N82/cld+fCDf7UCHOQelqo4qKo5BAjzcA==
+releaseDate: '2026-04-15T07:08:31.882Z'

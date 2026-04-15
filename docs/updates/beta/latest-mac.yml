@@ -1,0 +1,8 @@
+version: 2.3.0-beta
+files:
+  - url: WhisperClick-2.3.0-beta-arm64.dmg
+    sha512: DAOOJtknKJIRbfPIcy/t4HonE4WBBHnZVUrm93ZPrvoC0UR/FdnjY3azU/ph6Bybv4ambnc/zZV5sI3oP+35wA==
+    size: 181645385
+path: WhisperClick-2.3.0-beta-arm64.dmg
+sha512: DAOOJtknKJIRbfPIcy/t4HonE4WBBHnZVUrm93ZPrvoC0UR/FdnjY3azU/ph6Bybv4ambnc/zZV5sI3oP+35wA==
+releaseDate: '2026-04-15T07:06:41.270Z'
