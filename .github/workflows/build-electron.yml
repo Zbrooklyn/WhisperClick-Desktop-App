@@ -290,6 +290,37 @@ jobs:
             fi
           done
           ls -la "$DEST"
+      - name: Rewrite relative URLs to absolute GitHub release URLs
+        env:
+          RELEASE_BASE: "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}"
+        run: |
+          # electron-builder writes installer filenames as relative entries in
+          # latest*.yml. With a generic provider, electron-updater resolves
+          # those against publish.url (whisperclick.com/updates/beta/), which
+          # is where the yml lives but NOT where the 170 MB installers live.
+          # Rewrite each `url:` / `path:` line so it points at the GitHub
+          # release directly. Downloads stay on GitHub; only discovery moves.
+          CHANNEL="${{ steps.channel.outputs.channel }}"
+          DEST="docs/updates/$CHANNEL"
+          python3 - <<'PY' "$DEST"/*.yml
+          import os, re, sys
+          base = os.environ['RELEASE_BASE']
+          def rewrite_line(m):
+              prefix, value = m.group(1), m.group(2).strip()
+              if '://' in value:  # already absolute, leave it
+                  return m.group(0)
+              return f"{prefix}{base}/{value}"
+          for path in sys.argv[1:]:
+              with open(path) as f:
+                  text = f.read()
+              text = re.sub(r'^(  - url: )(.+)$', rewrite_line, text, flags=re.MULTILINE)
+              text = re.sub(r'^(path: )(.+)$', rewrite_line, text, flags=re.MULTILINE)
+              with open(path, 'w') as f:
+                  f.write(text)
+              print(f"Rewrote URLs in {path}:")
+              with open(path) as f:
+                  print(f.read())
+          PY
       - name: Commit and push to main
         run: |
           git config user.name "github-actions[bot]"
