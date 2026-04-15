@@ -1,8 +1,8 @@
-version: 2.3.0-beta
+version: 2.3.1-beta
 files:
-  - url: WhisperClick-2.3.0-beta-arm64.dmg
-    sha512: E43WFOuyFbMaJNeQ8qba/l+2k6Ej5c9VWiIwFs3KSqyVMAk3yDjNk5ILYueR+kHov8KSgDAbf+yT25BKyIhyXg==
-    size: 181642482
-path: WhisperClick-2.3.0-beta-arm64.dmg
-sha512: E43WFOuyFbMaJNeQ8qba/l+2k6Ej5c9VWiIwFs3KSqyVMAk3yDjNk5ILYueR+kHov8KSgDAbf+yT25BKyIhyXg==
-releaseDate: '2026-04-15T07:05:11.220Z'
+  - url: https://github.com/Zbrooklyn/whisperclick-dev/releases/download/electron-v2.3.1-beta/WhisperClick-2.3.1-beta-arm64.dmg
+    sha512: xFelSpoUwO4U1AtbxHdt8h48WvaOt6eicRe29fscPQ7NvUD4FcQMZml7f/XC+yWGOeJTbgPepJSqDEy3joRLNQ==
+    size: 181643826
+path: https://github.com/Zbrooklyn/whisperclick-dev/releases/download/electron-v2.3.1-beta/WhisperClick-2.3.1-beta-arm64.dmg
+sha512: xFelSpoUwO4U1AtbxHdt8h48WvaOt6eicRe29fscPQ7NvUD4FcQMZml7f/XC+yWGOeJTbgPepJSqDEy3joRLNQ==
+releaseDate: '2026-04-15T08:51:10.751Z'

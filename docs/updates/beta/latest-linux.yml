@@ -1,9 +1,9 @@
-version: 2.3.0-beta
+version: 2.3.1-beta
 files:
-  - url: WhisperClick-2.3.0-beta.AppImage
-    sha512: 4NOhqmYN3mZ3vJkBpsQfC6LK3Uau4mcapmjdTsEV6/cE8YIM+qm/aLCXtQvagrK0iuKOM4ZxXXXHSO6SMsCXCw==
-    size: 266125655
-    blockMapSize: 278891
-path: WhisperClick-2.3.0-beta.AppImage
-sha512: 4NOhqmYN3mZ3vJkBpsQfC6LK3Uau4mcapmjdTsEV6/cE8YIM+qm/aLCXtQvagrK0iuKOM4ZxXXXHSO6SMsCXCw==
-releaseDate: '2026-04-15T07:05:39.973Z'
+  - url: https://github.com/Zbrooklyn/whisperclick-dev/releases/download/electron-v2.3.1-beta/WhisperClick-2.3.1-beta.AppImage
+    sha512: k182iGNaabBP2yYW3QxUkAKVR8ZH4vwHKzZMZdo4yGfvm9HmJYnBx8kUBksMu8aPw36hJbvYlIlgLRz9GGnJSg==
+    size: 266125588
+    blockMapSize: 278824
+path: https://github.com/Zbrooklyn/whisperclick-dev/releases/download/electron-v2.3.1-beta/WhisperClick-2.3.1-beta.AppImage
+sha512: k182iGNaabBP2yYW3QxUkAKVR8ZH4vwHKzZMZdo4yGfvm9HmJYnBx8kUBksMu8aPw36hJbvYlIlgLRz9GGnJSg==
+releaseDate: '2026-04-15T08:51:21.078Z'
