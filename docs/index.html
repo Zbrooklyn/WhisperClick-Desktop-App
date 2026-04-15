@@ -1356,6 +1356,12 @@
       font-weight: 500;
       color: var(--text-dim);
       font-variant-numeric: tabular-nums;
+      /* Single-line version string. `overflow` + ellipsis guards against any
+         future long tag pushing the tab height or wrapping mid-version. */
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
     }
     .channel-tab .channel-note {
       font-size: 0.75rem;
@@ -1508,6 +1514,10 @@
       gap: 12px;
       margin-bottom: 16px;
       min-height: 24px;
+      /* Wrap the ROW when the card is narrow, but never split an individual
+         chip ("162.6 MB", "142 downloads") across two lines. */
+      flex-wrap: wrap;
+      row-gap: 6px;
     }
     .package-version {
       font-size: 0.78rem;
@@ -1517,10 +1527,12 @@
       border: 1px solid rgba(207,150,115,0.2);
       padding: 2px 10px;
       border-radius: 9999px;
+      white-space: nowrap;
     }
     .package-size {
       font-size: 0.78rem;
       color: var(--text-muted);
+      white-space: nowrap;
     }
     .package-dl-btn {
       display: flex;
@@ -1698,6 +1710,11 @@
       font-size: 0.85rem;
       line-height: 1.7;
       color: var(--text-dim);
+      /* Wrap long lines (e.g. the git clone URL) instead of producing a
+         horizontal scroll that hard-cuts the command. Preserves newlines
+         but softwraps within each line. */
+      white-space: pre-wrap;
+      word-break: break-word;
       overflow-x: auto;
     }
     .developer-code .cmd { color: var(--accent); }
@@ -1854,6 +1871,9 @@
       .download-packages { grid-template-columns: 1fr; max-width: 400px; }
       .macos-soon { padding: 36px 28px; }
       .footer-inner { flex-direction: column; }
+      /* Collapse nav to hamburger sooner — 641–899px was cramming 6 links + logo + CTA into a row that couldn't fit, causing the logo to visually overlap the first nav item. */
+      .nav-links { display: none; }
+      .nav-toggle { display: block; }
     }
 
     @media (max-width: 640px) {
@@ -1930,8 +1950,6 @@
       .steps-row { grid-template-columns: 1fr; }
       .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
       .stat-item .stat-value { font-size: 1.5rem; }
-      .nav-links { display: none; }
-      .nav-toggle { display: block; }
       .quick-start { padding: 24px 20px; }
       .platform-tabs { max-width: 320px; }
       .macos-soon { padding: 32px 20px; }
@@ -3124,7 +3142,7 @@ venv\Scripts\activate
     // Mobile nav toggle
     (function() {
       var style = document.createElement('style');
-      style.textContent = '@media(max-width:640px){.nav-links.open{display:flex;position:absolute;top:var(--nav-h);left:0;right:0;flex-direction:column;background:rgba(12,10,9,0.95);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--border-dim);padding:16px 24px;gap:16px;}.nav-links.open .nav-cta{text-align:center;}}';
+      style.textContent = '@media(max-width:900px){.nav-links.open{display:flex;position:absolute;top:var(--nav-h);left:0;right:0;flex-direction:column;background:rgba(12,10,9,0.95);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--border-dim);padding:16px 24px;gap:16px;}.nav-links.open .nav-cta{text-align:center;}}';
       document.head.appendChild(style);
     })();
 
@@ -3446,7 +3464,7 @@ venv\Scripts\activate
           if (version) {
             var vBadge = document.createElement('span');
             vBadge.className = 'package-version';
-            vBadge.textContent = version;
+            vBadge.textContent = displayTag(version);
             meta.appendChild(vBadge);
           }
           var sizeEl = document.createElement('span');
@@ -3492,7 +3510,7 @@ venv\Scripts\activate
             if (version) {
               var vBadge = document.createElement('span');
               vBadge.className = 'package-version';
-              vBadge.textContent = version;
+              vBadge.textContent = displayTag(version);
               meta.appendChild(vBadge);
             }
             var sizeEl = document.createElement('span');
@@ -3551,7 +3569,7 @@ venv\Scripts\activate
           else if (dp === 'macos' && macArm64) heroBtn.href = macArm64.browser_download_url;
           else if (dp === 'linux' && linuxAsset) heroBtn.href = linuxAsset.browser_download_url;
           if (version) {
-            var vSpan = ' <span style="opacity:0.7;font-weight:400;font-size:0.85em;">' + version + '</span>';
+            var vSpan = ' <span style="opacity:0.7;font-weight:400;font-size:0.85em;">' + displayTag(version) + '</span>';
             var fullLabel = heroBtn.querySelector('.hero-dl-label-full');
             var shortLabel = heroBtn.querySelector('.hero-dl-label-short');
             var heroLabel = (window._heroLabels && window._heroLabels[dp]) || 'Download for Windows';
@@ -3580,11 +3598,19 @@ venv\Scripts\activate
         }
       }
 
+      function displayTag(tag) {
+        // Strip the "electron-" prefix the mono-repo adds — the channel tab
+        // already says "Beta", so "electron-v2.3.1-beta" reads redundantly
+        // and wraps mid-version at narrow widths (~375px). "v2.3.1-beta" is
+        // 11 chars and fits clean.
+        return (tag || '').replace(/^electron-/, '');
+      }
+
       function updateChannelLabels() {
         var sLbl = document.getElementById('stable-version-label');
         var bLbl = document.getElementById('beta-version-label');
-        if (sLbl) sLbl.textContent = state.stable ? (state.stable.tag_name || '') : '—';
-        if (bLbl) bLbl.textContent = state.beta ? (state.beta.tag_name || '') : '—';
+        if (sLbl) sLbl.textContent = state.stable ? displayTag(state.stable.tag_name) : '—';
+        if (bLbl) bLbl.textContent = state.beta ? displayTag(state.beta.tag_name) : '—';
       }
 
       // Exposed globally so the channel-tab onclick can call it.
