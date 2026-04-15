@@ -1,0 +1,9 @@
+version: 2.3.0-beta
+files:
+  - url: WhisperClick-2.3.0-beta.AppImage
+    sha512: 4NOhqmYN3mZ3vJkBpsQfC6LK3Uau4mcapmjdTsEV6/cE8YIM+qm/aLCXtQvagrK0iuKOM4ZxXXXHSO6SMsCXCw==
+    size: 266125655
+    blockMapSize: 278891
+path: WhisperClick-2.3.0-beta.AppImage
+sha512: 4NOhqmYN3mZ3vJkBpsQfC6LK3Uau4mcapmjdTsEV6/cE8YIM+qm/aLCXtQvagrK0iuKOM4ZxXXXHSO6SMsCXCw==
+releaseDate: '2026-04-15T07:05:39.973Z'
