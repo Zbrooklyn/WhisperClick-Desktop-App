@@ -4,10 +4,24 @@
 
 ## Current State
 
-**Status**: v2.2.6-beta (Electron, hotfix branch) | Tauri preview (GitHub release removed 2026-04-14, alpha still on feat branches)
+**Status**: v2.3.0-beta (Electron, hotfix branch — channel migration) | Tauri preview (GitHub release removed 2026-04-14, alpha still on feat branches)
 
 **Latest stable release**: v2.1.2 (public, 2026-03-18)
-**Latest beta release**: v2.2.5-beta (public, 2026-04-14) — 2.2.6-beta in flight as of 2026-04-14
+**Latest beta release**: v2.2.6-beta (public, 2026-04-14) — 2.3.0-beta in flight as of 2026-04-15
+
+## 2026-04-15 — 2.3.0-beta: Permanent Updater Channel Fix
+
+Closes the architectural gap behind the 404 incident. Electron's updater no longer reads GitHub's releases atom feed — which mixes Electron and Tauri tags together and caused the 404 when a Tauri tag outranked Electron betas by semver. Instead:
+
+- `package.json` `publish` changed from `github` provider to `generic` provider pointing at `https://whisperclick.com/updates/beta/`. Installed apps from 2.3.0-beta onward fetch their update manifest from that URL.
+- New CI job `publish-update-feed` in `build-electron.yml`: after every Electron release is published to GitHub, mirrors `latest.yml` / `latest-mac.yml` / `latest-linux.yml` into `docs/updates/<channel>/` on `main` of the public repo. `<channel>` = `beta` or `stable` depending on whether the tag contains `-beta`. Commit message is `publish(updater): <tag> → docs/updates/<channel>/`.
+- whisperclick.com is served from `main/docs/` on the public repo via GitHub Pages, so the commit is effectively the deploy.
+- Installer binaries still live on GitHub releases — only the ~300-byte yml discovery files are mirrored to our site. Download URLs in the yml still point at `github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/download/...`.
+- Migration flow for existing users: 2.2.6-beta users have updaters that still read the GitHub atom feed. They download 2.3.0-beta from GitHub as normal (since 2.2.6 was built with the old publish config pointing at GitHub). Once installed, 2.3.0-beta's updater reads whisperclick.com. From then on, Tauri tags on the same repo can no longer break Electron updates.
+- Dual-publish protection: the existing GitHub release (with its `latest.yml`) still happens on every tag. Pre-2.3.0 users continue to receive updates via the GitHub atom feed. The new site-hosted feed is additive.
+- Future stable releases (tags without `-beta`) will automatically publish to `docs/updates/stable/` thanks to the channel detection step. The `publish` URL in `package.json` will need a one-line change from `beta/` to `stable/` at that point (or a build-time patch like the existing Mac-arch patch does).
+
+---
 
 ## 2026-04-14 (Part 3) — Migration Framework + CI Smoke Test
 
