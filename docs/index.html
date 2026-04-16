@@ -1927,10 +1927,14 @@
       .hero-dl-group .btn-primary {
         font-size: 0.9rem;
         padding: 11px 20px;
-        /* Restore full pill shape — the split-toggle is hidden on mobile
-           so the primary button needs rounded right corners again. */
         border-radius: 9999px;
         justify-content: center;
+      }
+      /* Match secondary to primary's mobile size so both stacked pills
+         are identical height + font. */
+      .hero-buttons .btn-secondary {
+        font-size: 0.9rem;
+        padding: 11px 20px;
       }
       .hero-dl-label-full { display: none !important; }
       .hero-dl-label-short { display: inline !important; }
