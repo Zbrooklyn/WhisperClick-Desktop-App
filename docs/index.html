@@ -404,29 +404,25 @@
     }
 
     .hero-badge {
-      /* flex-wrap + justify-content:center so the pill wraps cleanly on
-         narrow viewports instead of splitting text and the download-count
-         span into separate left/right columns. */
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 8px;
+      display: inline-block;
+      text-align: center;
       background: var(--accent-subtle);
       border: 1px solid rgba(207,150,115,0.2);
       border-radius: 9999px;
-      padding: 6px 16px;
+      padding: 8px 20px;
       font-size: 0.82rem;
       font-weight: 500;
       color: var(--accent);
       margin-bottom: 28px;
-      text-align: center;
-      line-height: 1.5;
+      line-height: 1.6;
     }
     .hero-badge .dot {
+      display: inline-block;
       width: 6px; height: 6px;
       background: var(--accent);
       border-radius: 50%;
+      vertical-align: middle;
+      margin-right: 6px;
       animation: pulse 2s ease-in-out infinite;
     }
     @keyframes pulse {
