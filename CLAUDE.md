@@ -228,6 +228,19 @@ Files: `settings.json`, `settings.json.bak`, `history.json`, `history.json.bak`
 API keys in `settings.json` are encrypted as `enc:BASE64...` via Electron `safeStorage`.
 Legacy plaintext keys auto-migrate on next save.
 
+## Public/Private Repo Sync — CRITICAL
+- **NEVER push directly to the `public` remote** — leaks private files (CLAUDE.md, HANDOFF.md, ROADMAP.md, etc.)
+- Private: `origin` → `Zbrooklyn/whisperclick-dev` (has everything)
+- Public: `public` → `Zbrooklyn/WhisperClick-Desktop-App` (stripped)
+- **ALL branches must track `origin`** (private), NEVER `public`. Verify: `git branch -vv`
+- **Push = `git push origin <branch>`** — always explicit remote, always `origin`
+- After pushing to origin main: `bash tools/sync_public.sh`
+- Sync script strips: CLAUDE.md, HANDOFF.md, ROADMAP.md, FEATURES.md, TESTING.md, VERIFICATION.md, tools/
+
+## Version Bumps — MANDATORY
+- Always bump version in `package.json` + add CHANGELOG entry with every code change
+- Auto-updater needs new versions to deliver updates — without a bump, users never get the update
+
 ## Known Gaps
 
 (None currently tracked)
