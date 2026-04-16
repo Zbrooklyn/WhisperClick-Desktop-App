@@ -3168,15 +3168,21 @@ venv\Scripts\activate
       document.querySelectorAll('.platform-panel').forEach(function(p) {
         p.classList.toggle('active', p.id === 'panel-' + platform);
       });
-      // Only scroll if the tabs aren't already visible. With sticky tabs,
-      // the user often has the switcher already pinned at the top — forcing
-      // scrollIntoView in that case makes the page jump unnecessarily.
+      // Preserve the tab bar's viewport position across the panel swap.
+      // Panels have very different heights (Windows 1346px vs Linux 377px at
+      // 375px) so the document height changes on switch — without this, the
+      // browser auto-clamps scrollY and the page visibly jumps.
       var tabs = document.querySelector('.platform-tabs');
-      var rect = tabs.getBoundingClientRect();
-      var inView = rect.top >= 0 && rect.top <= window.innerHeight - rect.height;
-      if (!inView) {
-        document.querySelector('#download').scrollIntoView({ block: 'start', behavior: 'smooth' });
-      }
+      var tabTopBefore = tabs.getBoundingClientRect().top;
+      var wasVisible = tabTopBefore >= 0 && tabTopBefore <= window.innerHeight - tabs.offsetHeight;
+      requestAnimationFrame(function() {
+        if (wasVisible) {
+          var delta = tabs.getBoundingClientRect().top - tabTopBefore;
+          if (Math.abs(delta) > 0.5) window.scrollBy(0, delta);
+        } else {
+          document.querySelector('#download').scrollIntoView({ block: 'start', behavior: 'smooth' });
+        }
+      });
     }
 
 
@@ -3695,16 +3701,20 @@ venv\Scripts\activate
           t.classList.toggle('active', t.dataset.channel === channel);
           t.setAttribute('aria-selected', t.dataset.channel === channel ? 'true' : 'false');
         });
+        // Capture tab position BEFORE populate (which may change doc height).
+        var cTabs = document.querySelector('.platform-tabs');
+        var cTopBefore = cTabs.getBoundingClientRect().top;
+        var cWasVisible = cTopBefore >= 0 && cTopBefore <= window.innerHeight - cTabs.offsetHeight;
         var rel = channel === 'stable' ? state.stable : state.beta;
         populateFromRelease(rel);
-        // Only scroll if tabs aren't already in view — avoids a jump when
-        // the user is already inside the download section.
-        var cTabs = document.querySelector('.platform-tabs');
-        var cRect = cTabs.getBoundingClientRect();
-        var cInView = cRect.top >= 0 && cRect.top <= window.innerHeight - cRect.height;
-        if (!cInView) {
-          document.querySelector('#download').scrollIntoView({ block: 'start', behavior: 'smooth' });
-        }
+        requestAnimationFrame(function() {
+          if (cWasVisible) {
+            var cDelta = cTabs.getBoundingClientRect().top - cTopBefore;
+            if (Math.abs(cDelta) > 0.5) window.scrollBy(0, cDelta);
+          } else {
+            document.querySelector('#download').scrollIntoView({ block: 'start', behavior: 'smooth' });
+          }
+        });
       };
 
       // Fetch stable
