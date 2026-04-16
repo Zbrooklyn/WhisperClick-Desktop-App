@@ -1445,9 +1445,24 @@
       color: var(--text-dim);
     }
 
-    /* Platform panels */
-    .platform-panel { display: none; }
-    .platform-panel.active { display: block; }
+    /* Platform panels — grid stacking: all panels occupy the same cell so
+       container height is always the max panel height. Switching tabs can't
+       change doc height, so it can't jump scroll position. Inactive panels
+       are visibility:hidden (not display:none) so they contribute to the
+       cell size. */
+    .platform-panels {
+      display: grid;
+    }
+    .platform-panel {
+      grid-column: 1;
+      grid-row: 1;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .platform-panel.active {
+      visibility: visible;
+      pointer-events: auto;
+    }
 
     /* macOS coming soon card */
     .macos-soon {
@@ -2805,6 +2820,10 @@
         </button>
       </div>
 
+      <!-- Panels wrapper: uses CSS grid stacking so all three panels occupy
+           the same grid cell. Doc height stays constant (= tallest panel)
+           regardless of active tab, so clicking tabs never jumps the page. -->
+      <div class="platform-panels">
       <!-- Windows panel -->
       <div class="platform-panel active" id="panel-windows">
         <div class="download-packages stagger reveal" id="download-packages">
@@ -2906,7 +2925,7 @@
       </div>
 
       <!-- Linux panel -->
-      <div class="platform-panel" id="panel-linux">
+      <div class="platform-panel" id="panel-linux" data-panels-last-child>
         <div class="download-packages stagger reveal" style="grid-template-columns:1fr;max-width:400px;" id="linux-packages">
           <div class="package-card package-recommended" id="linux-appimage-card">
             <h3>Linux (AppImage)</h3>
@@ -2927,6 +2946,7 @@
           </a>
         </div>
       </div>
+      </div><!-- /.platform-panels -->
 
     </div>
   </section>
