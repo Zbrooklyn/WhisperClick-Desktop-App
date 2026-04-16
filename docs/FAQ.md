@@ -12,7 +12,7 @@ WhisperClick is a desktop voice-to-text app. Press a hotkey from any application
 
 ### Is it free?
 
-Yes. WhisperClick is free for personal and non-commercial use under the [CC BY-NC-SA 4.0](../LICENSE) license. The app itself costs nothing. If you use cloud transcription (API mode), your API provider may charge a small amount per request, but typical usage runs well under $1/month.
+Yes. WhisperClick is free for personal and non-commercial use under the [CC BY-NC-SA 4.0](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/blob/main/LICENSE) license. The app itself costs nothing. If you use cloud transcription (API mode), your API provider may charge a small amount per request, but typical usage runs well under $1/month.
 
 ### What platforms does it support?
 
@@ -31,7 +31,7 @@ It depends on which mode you use:
 - **Local mode**: Audio never leaves your computer. Everything is processed on-device using a downloaded Whisper model. No network requests are made during transcription.
 - **API mode**: Audio is sent to your chosen provider (OpenAI or Google) only when you press the hotkey. Nothing is sent otherwise. WhisperClick does not store or retain audio after the transcription response comes back.
 
-There is no telemetry, no analytics, and no background network activity. See [PRIVACY.md](../PRIVACY.md) for full details.
+There is no telemetry, no analytics, and no background network activity. See the [Privacy Policy](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/blob/main/PRIVACY.md) for full details.
 
 ### What is the difference between local mode and cloud mode?
 
@@ -179,9 +179,9 @@ Windows SmartScreen may show a warning like "Windows protected your PC" when you
 1. Click "More info" on the SmartScreen dialog.
 2. Click "Run anyway."
 
-This is a one-time step. The app is safe. Code signing is on the roadmap (see [ROADMAP.md](../ROADMAP.md)).
+This is a one-time step. The app is safe. Code signing is on the roadmap.
 
-If you prefer not to bypass SmartScreen, you can use the portable version instead of the installer, or build from source (see the [README](../README.md)).
+If you prefer not to bypass SmartScreen, you can use the portable version instead of the installer, or build from source (see the [README](https://github.com/Zbrooklyn/WhisperClick-Desktop-App/blob/main/README.md)).
 
 ### macOS Gatekeeper blocks the app
 
@@ -195,7 +195,7 @@ macOS may show "WhisperClick can't be opened because it is from an unidentified 
 
 Alternatively, right-click the app in Finder and select "Open" from the context menu. This bypasses Gatekeeper for that specific app.
 
-Apple notarization is on the roadmap (see [ROADMAP.md](../ROADMAP.md)).
+Apple notarization is on the roadmap.
 
 ### App not pasting text after transcription
 
