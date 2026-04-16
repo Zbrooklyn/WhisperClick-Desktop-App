@@ -3161,6 +3161,11 @@ venv\Scripts\activate
       document.querySelectorAll('.platform-panel').forEach(function(p) {
         p.classList.toggle('active', p.id === 'panel-' + platform);
       });
+      // Anchor the tab bar at the top of the viewport after switching.
+      // Panels have very different heights (Windows 1346px vs Linux 377px
+      // at 375px) so without this, switching from a tall panel to a short
+      // one makes the page jump as content above collapses.
+      document.querySelector('.platform-tabs').scrollIntoView({ block: 'nearest', behavior: 'instant' });
     }
 
 
@@ -3681,6 +3686,7 @@ venv\Scripts\activate
         });
         var rel = channel === 'stable' ? state.stable : state.beta;
         populateFromRelease(rel);
+        document.querySelector('.channel-tabs').scrollIntoView({ block: 'nearest', behavior: 'instant' });
       };
 
       // Fetch stable
