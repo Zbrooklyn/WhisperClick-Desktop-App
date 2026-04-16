@@ -1316,14 +1316,15 @@
       padding: 100px 0;
       text-align: center;
       position: relative;
-      overflow: hidden;
+      /* overflow:hidden would break position:sticky on .platform-tabs — glow
+         is contained via max width/height + bottom anchor below. */
     }
     /* Glow behind CTA */
     .download::before {
       content: '';
       position: absolute;
       bottom: 0; left: 50%; transform: translateX(-50%);
-      width: 800px; height: 400px;
+      width: min(800px, 100%); height: 400px;
       background: radial-gradient(ellipse at center bottom, rgba(207,150,115,0.08) 0%, transparent 70%);
       pointer-events: none;
     }
@@ -1397,7 +1398,8 @@
       border: 0;
     }
 
-    /* Platform tabs */
+    /* Platform tabs — sticky so the switcher stays visible as the user
+       scrolls through a long platform panel (Windows has 3 cards). */
     .platform-tabs {
       display: flex;
       justify-content: center;
@@ -1410,6 +1412,11 @@
       margin-left: auto;
       margin-right: auto;
       border: 1px solid var(--border-dim);
+      position: sticky;
+      top: 12px;
+      z-index: 10;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
     }
     .platform-tab {
       flex: 1;
@@ -3161,11 +3168,10 @@ venv\Scripts\activate
       document.querySelectorAll('.platform-panel').forEach(function(p) {
         p.classList.toggle('active', p.id === 'panel-' + platform);
       });
-      // Anchor the tab bar at the top of the viewport after switching.
-      // Panels have very different heights (Windows 1346px vs Linux 377px
-      // at 375px) so without this, switching from a tall panel to a short
-      // one makes the page jump as content above collapses.
-      document.querySelector('.platform-tabs').scrollIntoView({ block: 'nearest', behavior: 'instant' });
+      // Snap to top of the download section so the section header is visible
+      // and the user feels anchored in the download context. Sticky platform
+      // tabs (see .platform-tabs CSS) keep the switcher visible as they scroll.
+      document.querySelector('#download').scrollIntoView({ block: 'start', behavior: 'smooth' });
     }
 
 
@@ -3686,7 +3692,7 @@ venv\Scripts\activate
         });
         var rel = channel === 'stable' ? state.stable : state.beta;
         populateFromRelease(rel);
-        document.querySelector('.channel-tabs').scrollIntoView({ block: 'nearest', behavior: 'instant' });
+        document.querySelector('#download').scrollIntoView({ block: 'start', behavior: 'smooth' });
       };
 
       // Fetch stable
