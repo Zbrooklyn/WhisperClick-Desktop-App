@@ -3168,10 +3168,15 @@ venv\Scripts\activate
       document.querySelectorAll('.platform-panel').forEach(function(p) {
         p.classList.toggle('active', p.id === 'panel-' + platform);
       });
-      // Snap to top of the download section so the section header is visible
-      // and the user feels anchored in the download context. Sticky platform
-      // tabs (see .platform-tabs CSS) keep the switcher visible as they scroll.
-      document.querySelector('#download').scrollIntoView({ block: 'start', behavior: 'smooth' });
+      // Only scroll if the tabs aren't already visible. With sticky tabs,
+      // the user often has the switcher already pinned at the top — forcing
+      // scrollIntoView in that case makes the page jump unnecessarily.
+      var tabs = document.querySelector('.platform-tabs');
+      var rect = tabs.getBoundingClientRect();
+      var inView = rect.top >= 0 && rect.top <= window.innerHeight - rect.height;
+      if (!inView) {
+        document.querySelector('#download').scrollIntoView({ block: 'start', behavior: 'smooth' });
+      }
     }
 
 
@@ -3692,7 +3697,14 @@ venv\Scripts\activate
         });
         var rel = channel === 'stable' ? state.stable : state.beta;
         populateFromRelease(rel);
-        document.querySelector('#download').scrollIntoView({ block: 'start', behavior: 'smooth' });
+        // Only scroll if tabs aren't already in view — avoids a jump when
+        // the user is already inside the download section.
+        var cTabs = document.querySelector('.platform-tabs');
+        var cRect = cTabs.getBoundingClientRect();
+        var cInView = cRect.top >= 0 && cRect.top <= window.innerHeight - cRect.height;
+        if (!cInView) {
+          document.querySelector('#download').scrollIntoView({ block: 'start', behavior: 'smooth' });
+        }
       };
 
       // Fetch stable
