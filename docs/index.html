@@ -404,8 +404,13 @@
     }
 
     .hero-badge {
+      /* flex-wrap + justify-content:center so the pill wraps cleanly on
+         narrow viewports instead of splitting text and the download-count
+         span into separate left/right columns. */
       display: inline-flex;
       align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
       gap: 8px;
       background: var(--accent-subtle);
       border: 1px solid rgba(207,150,115,0.2);
@@ -415,6 +420,8 @@
       font-weight: 500;
       color: var(--accent);
       margin-bottom: 28px;
+      text-align: center;
+      line-height: 1.5;
     }
     .hero-badge .dot {
       width: 6px; height: 6px;
@@ -450,10 +457,25 @@
     }
 
     .hero-buttons {
-      display: flex;
+      /* Stack the Download and View source buttons vertically and stretch
+         both to the same width (inline-flex shrinks the wrapper to the
+         widest child, then align-items:stretch gives both children equal
+         width). Keeps the pair visually balanced instead of the secondary
+         looking undersized next to the Download+toggle combo. */
+      display: inline-flex;
+      flex-direction: column;
+      align-items: stretch;
       gap: 12px;
-      flex-wrap: wrap;
       margin-bottom: 16px;
+    }
+    /* Keep secondary hero button at the same height and type size as the
+       primary Download button; center its content since it's now stretched
+       to the full width of the wrapper. Global .btn-secondary stays
+       smaller for non-hero use. */
+    .hero-buttons .btn-secondary {
+      font-size: 1.05rem;
+      padding: 15px 28px;
+      justify-content: center;
     }
 
     .hero-note {
@@ -1311,62 +1333,72 @@
     }
     .download .container { position: relative; z-index: 1; }
 
-    /* Channel tabs (stable / beta) */
+    /* Channel tabs (stable / beta) — segmented control matching .platform-tabs
+       scale below. Prior version was an oversized bordered-card layout that
+       visually dominated the download section and pushed the platform tabs
+       out of hierarchy. */
     .channel-tabs {
       display: flex;
       justify-content: center;
-      gap: 8px;
-      margin-bottom: 24px;
-      max-width: 560px;
+      gap: 4px;
+      margin-bottom: 16px;
+      background: var(--bg-raised);
+      border-radius: 12px;
+      padding: 4px;
+      max-width: 360px;
       margin-left: auto;
       margin-right: auto;
+      border: 1px solid var(--border-dim);
     }
     .channel-tab {
       flex: 1;
       display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 2px;
-      padding: 12px 16px;
-      border-radius: 10px;
-      background: var(--bg-raised);
-      border: 1px solid var(--border-dim);
-      cursor: pointer;
-      font-family: inherit;
-      text-align: left;
-      transition: all 0.2s;
-    }
-    .channel-tab:not(.active):hover {
-      border-color: var(--border);
-      background: var(--bg-elevated);
-    }
-    .channel-tab.active {
-      border-color: var(--accent);
-      background: var(--bg-elevated);
-      box-shadow: 0 0 0 1px var(--accent);
-    }
-    .channel-tab .channel-name {
-      font-size: 0.95rem;
+      align-items: baseline;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 9px;
+      font-size: 0.85rem;
       font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      font-family: inherit;
+      transition: all 0.25s;
+      white-space: nowrap;
+      overflow: hidden;
+      min-width: 0;
+    }
+    .channel-tab:not(.active):hover { color: var(--text-dim); }
+    .channel-tab.active {
+      background: var(--bg-elevated);
       color: var(--text);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     }
     .channel-tab.active .channel-name { color: var(--accent); }
     .channel-tab .channel-version {
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       font-weight: 500;
-      color: var(--text-dim);
+      color: var(--text-muted);
       font-variant-numeric: tabular-nums;
-      /* Single-line version string. `overflow` + ellipsis guards against any
-         future long tag pushing the tab height or wrapping mid-version. */
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 100%;
+      min-width: 0;
     }
+    /* "Recommended" / "Latest fixes · pre-release" text is kept in the DOM
+       for accessibility but visually hidden at this scale — the active-state
+       color already communicates "this is the selected recommendation" and
+       "pre-release" is made clear by the tag being obviously a -beta. */
     .channel-tab .channel-note {
-      font-size: 0.75rem;
-      font-weight: 400;
-      color: var(--text-muted);
+      position: absolute;
+      width: 1px; height: 1px;
+      padding: 0; margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
     }
 
     /* Platform tabs */
@@ -1477,6 +1509,15 @@
       gap: 16px;
       max-width: 780px;
       margin: 0 auto 48px;
+    }
+    /* macOS has 2 cards (Apple Silicon + Intel) — use a 2-column grid with
+       a narrower max-width so the pair sits balanced in the section instead
+       of left-aligning in the 3-col Windows grid with an empty right column.
+       The existing @media (max-width: 900px) 1-column override still
+       applies at mobile. */
+    #macos-packages {
+      grid-template-columns: repeat(2, 1fr);
+      max-width: 540px;
     }
     .package-card {
       background: var(--bg);
@@ -1868,7 +1909,8 @@
       .support-grid { grid-template-columns: repeat(2, 1fr); }
       .steps-row { grid-template-columns: repeat(2, 1fr); gap: 32px; }
       .steps-row::before { display: none; }
-      .download-packages { grid-template-columns: 1fr; max-width: 400px; }
+      .download-packages,
+      #macos-packages { grid-template-columns: 1fr; max-width: 400px; }
       .macos-soon { padding: 36px 28px; }
       .footer-inner { flex-direction: column; }
       /* Collapse nav to hamburger sooner — 641–899px was cramming 6 links + logo + CTA into a row that couldn't fit, causing the logo to visually overlap the first nav item. */
@@ -1881,12 +1923,23 @@
       .hero { padding-top: calc(var(--nav-h) + 32px); padding-bottom: 32px; }
       .hero h1 { font-size: 2.2rem; }
       .hero-sub { font-size: 1.05rem; }
-      .hero-buttons { flex-direction: column; align-items: center; }
-      .hero-dl-group .btn-primary { font-size: 0.9rem; padding: 11px 20px; }
+      .hero-buttons { align-items: stretch; }
+      .hero-dl-group .btn-primary {
+        font-size: 0.9rem;
+        padding: 11px 20px;
+        /* Restore full pill shape — the split-toggle is hidden on mobile
+           so the primary button needs rounded right corners again. */
+        border-radius: 9999px;
+        justify-content: center;
+      }
       .hero-dl-label-full { display: none !important; }
       .hero-dl-label-short { display: inline !important; }
-      .hero-dl-toggle { width: 36px; }
-      .hero-dl-toggle svg { width: 14px; height: 14px; }
+      /* Hide the split-toggle chevron on mobile so the Download pill matches
+         the View source pill below — both become identical centered pills.
+         Users can still reach alternative platforms via the download section
+         platform tabs or the "More download options" in the hero dropdown
+         which remains functional above 640px. */
+      .hero-dl-toggle { display: none; }
       .hero-dl-menu { min-width: 230px; left: 50%; transform: translateX(-50%); }
       .hero-dl-item { padding: 10px 14px; font-size: 0.82rem; gap: 8px; }
       .hero-platforms { justify-content: center; }
@@ -2126,8 +2179,8 @@
             Free &amp; source available &middot; Windows, macOS &amp; Linux <span id="hero-dl-count" style="display:none;"></span>
           </div>
 
-          <h1>
-            <span class="gradient">Talk instead of type.</span><br>
+          <h1 class="gradient">
+            Talk instead of type.<br>
             Anywhere on your desktop.
           </h1>
 
@@ -2806,6 +2859,9 @@
 
       <!-- macOS panel -->
       <div class="platform-panel" id="panel-macos">
+        <!-- #macos-packages uses a CSS rule (not inline style) so the mobile
+             1-column media query can still override at ≤900px. Inline style
+             was trapping it in 2-column mode at 375, cramming the cards. -->
         <div class="download-packages stagger reveal" id="macos-packages">
           <div class="package-card package-recommended" id="macos-arm64-card">
             <h3>Apple Silicon</h3>
