@@ -3188,21 +3188,8 @@ venv\Scripts\activate
       document.querySelectorAll('.platform-panel').forEach(function(p) {
         p.classList.toggle('active', p.id === 'panel-' + platform);
       });
-      // Preserve the tab bar's viewport position across the panel swap.
-      // Panels have very different heights (Windows 1346px vs Linux 377px at
-      // 375px) so the document height changes on switch — without this, the
-      // browser auto-clamps scrollY and the page visibly jumps.
-      var tabs = document.querySelector('.platform-tabs');
-      var tabTopBefore = tabs.getBoundingClientRect().top;
-      var wasVisible = tabTopBefore >= 0 && tabTopBefore <= window.innerHeight - tabs.offsetHeight;
-      requestAnimationFrame(function() {
-        if (wasVisible) {
-          var delta = tabs.getBoundingClientRect().top - tabTopBefore;
-          if (Math.abs(delta) > 0.5) window.scrollBy(0, delta);
-        } else {
-          document.querySelector('#download').scrollIntoView({ block: 'start', behavior: 'smooth' });
-        }
-      });
+      // Panels use grid stacking (.platform-panels) so doc height is
+      // constant — no scroll manipulation needed here.
     }
 
 
@@ -3721,20 +3708,8 @@ venv\Scripts\activate
           t.classList.toggle('active', t.dataset.channel === channel);
           t.setAttribute('aria-selected', t.dataset.channel === channel ? 'true' : 'false');
         });
-        // Capture tab position BEFORE populate (which may change doc height).
-        var cTabs = document.querySelector('.platform-tabs');
-        var cTopBefore = cTabs.getBoundingClientRect().top;
-        var cWasVisible = cTopBefore >= 0 && cTopBefore <= window.innerHeight - cTabs.offsetHeight;
         var rel = channel === 'stable' ? state.stable : state.beta;
         populateFromRelease(rel);
-        requestAnimationFrame(function() {
-          if (cWasVisible) {
-            var cDelta = cTabs.getBoundingClientRect().top - cTopBefore;
-            if (Math.abs(cDelta) > 0.5) window.scrollBy(0, cDelta);
-          } else {
-            document.querySelector('#download').scrollIntoView({ block: 'start', behavior: 'smooth' });
-          }
-        });
       };
 
       // Fetch stable
