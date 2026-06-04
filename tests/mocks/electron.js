@@ -85,6 +85,7 @@ class BrowserWindow {
       send: jest.fn(),
       executeJavaScript: jest.fn().mockResolvedValue(undefined),
       once: jest.fn((event, cb) => { cb(); }),
+      on: jest.fn(), // R4: pill registers 'render-process-gone' here
     };
     // jest.fn() wrappers for assertability
     this.loadFile = jest.fn().mockResolvedValue(undefined);

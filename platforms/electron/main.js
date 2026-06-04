@@ -27,6 +27,7 @@ let pillWindow = null;
 let tray = null;
 let store = null;
 let sidecar = null;
+let pillReconciler = null; // R4: interval that self-heals a vanished pill
 // State machine — single source of truth for app state
 const sm = new StateMachine('dormant', { logger: (...args) => log.info(...args) });
 
@@ -167,10 +168,42 @@ function createPillWindow() {
     }
   });
 
+  // R4: if the pill's renderer crashes, drop the dead window and self-heal
+  // immediately (the reconciler is the slower backstop).
+  pillWindow.webContents.on('render-process-gone', (_event, details) => {
+    log.error(`Pill renderer gone: ${details && details.reason}`);
+    if (pillWindow && !pillWindow.isDestroyed()) {
+      try { pillWindow.destroy(); } catch { /* ignore */ }
+    }
+    pillWindow = null;
+    ensurePill();
+  });
+
   pillWindow.on('closed', () => {
     log.info('Pill window closed/destroyed');
     pillWindow = null;
   });
+}
+
+/**
+ * R4 — pill self-heal. `showPill` (the setting) is the single source of truth
+ * for whether the pill should exist. When it should but the window is missing
+ * or destroyed (renderer crash, display change, GPU reset), recreate it.
+ * Idempotent and cheap; safe to call on a timer.
+ */
+function pillShouldShow() {
+  if (!store) return false;
+  try { return !!store.getSettings().showPill; } catch { return false; }
+}
+
+function ensurePill() {
+  const alive = pillWindow && !pillWindow.isDestroyed();
+  if (pillShouldShow() && !alive) {
+    log.info('ensurePill: recreating missing pill');
+    createPillWindow();
+    return true;
+  }
+  return !!alive;
 }
 
 // --- State transitions ---
@@ -1152,6 +1185,12 @@ app.whenReady().then(() => {
       createPillWindow();
     }
 
+    // R4: reconciler backstop — every ~4s, recreate the pill if it should be
+    // showing but has vanished (renderer crash, display change). unref so it
+    // never keeps the process (or a test runner) alive on its own.
+    pillReconciler = setInterval(ensurePill, 4000);
+    if (pillReconciler.unref) pillReconciler.unref();
+
     tray = createTray({
       onShow: () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } },
       onBuildMenu: () => buildRichMenuTemplate({ includeQuit: true }),
@@ -1360,6 +1399,7 @@ app.on('before-quit', () => {
 app.on('will-quit', () => {
   isQuitting = true;
   globalShortcut.unregisterAll();
+  if (pillReconciler) { clearInterval(pillReconciler); pillReconciler = null; }
   // R5: force-reap synchronously so the engine child can't be orphaned if the
   // app process exits before a deferred kill timer would have fired.
   if (sidecar) sidecar.stop({ force: true });
