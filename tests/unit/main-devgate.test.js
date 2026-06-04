@@ -56,9 +56,9 @@ afterAll(() => {
 });
 
 describe('R10 dev safety gate', () => {
-  test('orphan sweep (tasklist) is NOT invoked at startup in dev', async () => {
+  test('orphan sweep is NOT invoked at startup in dev (no engine query, no taskkill)', async () => {
     await tick(60);
-    const ranTasklist = execFile.mock.calls.some((c) => c[0] === 'tasklist');
-    expect(ranTasklist).toBe(false);
+    const ranSweep = execFile.mock.calls.some((c) => c[0] === 'powershell' || c[0] === 'tasklist' || c[0] === 'taskkill');
+    expect(ranSweep).toBe(false);
   });
 });

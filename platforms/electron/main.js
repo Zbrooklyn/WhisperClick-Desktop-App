@@ -1388,7 +1388,11 @@ app.whenReady().then(() => {
   // belongs to a *different* (packaged) install — sweeping there would kill a
   // bystander's live engine. (Surfaced by live testing 2026-06-03.)
   if (!isDev) {
-    sweepStaleEngines({ keepPid: sidecar.pid })
+    // Scoped by executable PATH (ownDir = our resourcesPath): only engines that
+    // live under THIS install are eligible, and keepPid spares the live one. It
+    // cannot touch a different install, a dev instance, or an unrelated
+    // engine.exe. (Path-scoping added 2026-06-04 after live testing.)
+    sweepStaleEngines({ keepPid: sidecar.pid, ownDir: process.resourcesPath })
       .then((r) => {
         if (r.swept && r.swept.length) {
           log.sidecar('orphan-sweep', `killed ${r.swept.length} stale engine(s): ${r.swept.join(',')}`);

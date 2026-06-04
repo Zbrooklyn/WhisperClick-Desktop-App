@@ -1,15 +1,23 @@
-const { sweepStaleEngines } = require('../../platforms/electron/orphan-sweep');
+const { sweepStaleEngines, isUnder } = require('../../platforms/electron/orphan-sweep');
+
+// Our install marker (resourcesPath) and engine paths relative to it.
+const OWN = 'C:\\Program Files\\WhisperClick\\resources';
+const ownEngine = (pid) => ({ pid, path: OWN + '\\engine-bin\\engine.exe' });
+const otherInstallEngine = (pid) => ({ pid, path: 'C:\\Program Files\\WhisperClick2\\resources\\engine-bin\\engine.exe' });
+const unrelatedEngine = (pid) => ({ pid, path: 'C:\\Tools\\SomethingElse\\engine.exe' });
+const unknownPathEngine = (pid) => ({ pid, path: '' });
 
 /**
- * Build a fake execFile that responds based on the command:
- *  - 'tasklist' -> calls back with the provided CSV stdout (or an error)
- *  - 'taskkill' -> records the killed pid; errors for pids in `failKills`
+ * Fake execFile:
+ *  - 'powershell' -> CIM-style "PID\tPATH" lines for the given engines (or error)
+ *  - 'taskkill'   -> records the killed pid; errors for pids in failKills
  */
-function makeExec({ tasklistOut = '', tasklistErr = null, failKills = [] } = {}) {
+function makeExec({ engines = [], psErr = null, failKills = [] } = {}) {
   const killed = [];
   const exec = jest.fn((cmd, args, cb) => {
-    if (cmd === 'tasklist') {
-      cb(tasklistErr, tasklistOut);
+    if (cmd === 'powershell') {
+      const out = engines.map((e) => `${e.pid}\t${e.path}`).join('\r\n') + '\r\n';
+      cb(psErr, out);
     } else if (cmd === 'taskkill') {
       const pid = parseInt(args[args.indexOf('/PID') + 1], 10);
       if (failKills.includes(pid)) cb(new Error('access denied'));
@@ -20,52 +28,98 @@ function makeExec({ tasklistOut = '', tasklistErr = null, failKills = [] } = {})
   return exec;
 }
 
-const CSV = (...pids) =>
-  pids.map(p => `"engine.exe","${p}","Console","1","45,000 K"`).join('\r\n') + '\r\n';
+const run = (opts) => sweepStaleEngines({ platform: 'win32', ownDir: OWN, ...opts });
 
-describe('sweepStaleEngines', () => {
-  test('no-op on non-win32 (never shells out)', async () => {
+describe('isUnder (path ownership)', () => {
+  test('engine under our resources is owned', () => {
+    expect(isUnder(OWN, OWN + '\\engine-bin\\engine.exe')).toBe(true);
+  });
+  test('case-insensitive on Windows paths', () => {
+    expect(isUnder(OWN.toUpperCase(), OWN.toLowerCase() + '\\engine-bin\\engine.exe')).toBe(true);
+  });
+  test('different install is NOT owned', () => {
+    expect(isUnder(OWN, 'C:\\Program Files\\WhisperClick2\\resources\\engine-bin\\engine.exe')).toBe(false);
+  });
+  test('sibling-prefix dir is NOT owned (no false prefix match)', () => {
+    expect(isUnder(OWN, 'C:\\Program Files\\WhisperClick\\resources-other\\engine.exe')).toBe(false);
+  });
+});
+
+describe('sweepStaleEngines — path-scoped', () => {
+  test('no-op on non-win32', async () => {
     const exec = makeExec();
-    const res = await sweepStaleEngines({ platform: 'darwin', exec });
-    expect(res).toEqual({ swept: [], skipped: true });
+    const res = await sweepStaleEngines({ platform: 'darwin', ownDir: OWN, exec });
+    expect(res).toEqual({ swept: [], spared: [], skipped: true });
     expect(exec).not.toHaveBeenCalled();
   });
 
-  test('kills every engine.exe when nothing is kept', async () => {
-    const exec = makeExec({ tasklistOut: CSV(101, 202) });
-    const res = await sweepStaleEngines({ keepPid: null, platform: 'win32', exec });
-    expect(res.swept.sort()).toEqual([101, 202]);
-    expect(exec._killed.sort()).toEqual([101, 202]);
+  test('no-op when no ownership marker (ownDir missing)', async () => {
+    const exec = makeExec({ engines: [ownEngine(101)] });
+    const res = await sweepStaleEngines({ platform: 'win32', ownDir: undefined, exec });
+    expect(res).toEqual({ swept: [], spared: [], skipped: false });
+    expect(exec).not.toHaveBeenCalled(); // never even queries
   });
 
-  test('spares the live engine (keepPid)', async () => {
-    const exec = makeExec({ tasklistOut: CSV(101, 202, 303) });
-    const res = await sweepStaleEngines({ keepPid: 202, platform: 'win32', exec });
-    expect(res.swept.sort()).toEqual([101, 303]);
+  // (1) same-app stale engine gets swept
+  test('sweeps a stale engine from THIS install', async () => {
+    const exec = makeExec({ engines: [ownEngine(101)] });
+    const res = await run({ keepPid: null, exec });
+    expect(res.swept).toEqual([101]);
+    expect(exec._killed).toEqual([101]);
+  });
+
+  // (2) current live engine is spared
+  test('spares the live engine (keepPid) even though it is ours', async () => {
+    const exec = makeExec({ engines: [ownEngine(101), ownEngine(202)] });
+    const res = await run({ keepPid: 202, exec });
+    expect(res.swept).toEqual([101]);
+    expect(res.spared).toContain(202);
     expect(exec._killed).not.toContain(202);
   });
 
-  test('no engines running -> nothing swept', async () => {
-    const exec = makeExec({ tasklistOut: '\r\n' });
-    const res = await sweepStaleEngines({ platform: 'win32', exec });
-    expect(res).toEqual({ swept: [], skipped: false });
+  // (3) different packaged install is spared
+  test("spares a DIFFERENT install's engine (path not under ownDir)", async () => {
+    const exec = makeExec({ engines: [ownEngine(101), otherInstallEngine(900)] });
+    const res = await run({ keepPid: null, exec });
+    expect(res.swept).toEqual([101]);
+    expect(res.spared).toContain(900);
+    expect(exec._killed).not.toContain(900);
   });
 
-  test('tasklist error -> swept empty, not skipped', async () => {
-    const exec = makeExec({ tasklistErr: new Error('boom') });
-    const res = await sweepStaleEngines({ platform: 'win32', exec });
-    expect(res).toEqual({ swept: [], skipped: false });
+  // (5) unrelated engine.exe is spared
+  test('spares an unrelated third-party engine.exe', async () => {
+    const exec = makeExec({ engines: [unrelatedEngine(700)] });
+    const res = await run({ keepPid: null, exec });
+    expect(res.swept).toEqual([]);
+    expect(res.spared).toContain(700);
+    expect(exec._killed).toEqual([]);
   });
 
-  test('a failed kill is excluded from swept but does not abort the sweep', async () => {
-    const exec = makeExec({ tasklistOut: CSV(101, 202), failKills: [101] });
-    const res = await sweepStaleEngines({ platform: 'win32', exec });
+  test('spares an engine whose path is unreadable (ownership unprovable)', async () => {
+    const exec = makeExec({ engines: [unknownPathEngine(500)] });
+    const res = await run({ keepPid: null, exec });
+    expect(res.swept).toEqual([]);
+    expect(res.spared).toContain(500);
+  });
+
+  test('mixed reality: kills only our orphans, spares everything else', async () => {
+    const exec = makeExec({
+      engines: [ownEngine(101), ownEngine(202), otherInstallEngine(900), unrelatedEngine(700), unknownPathEngine(500)],
+    });
+    const res = await run({ keepPid: 202, exec });
+    expect(res.swept).toEqual([101]);            // only our non-live orphan
+    expect(res.spared.sort((a, b) => a - b)).toEqual([202, 500, 700, 900]);
+  });
+
+  test('powershell query error -> nothing swept', async () => {
+    const exec = makeExec({ psErr: new Error('boom') });
+    const res = await run({ exec });
+    expect(res).toEqual({ swept: [], spared: [], skipped: false });
+  });
+
+  test('a failed taskkill is excluded from swept but does not abort', async () => {
+    const exec = makeExec({ engines: [ownEngine(101), ownEngine(202)], failKills: [101] });
+    const res = await run({ keepPid: null, exec });
     expect(res.swept).toEqual([202]);
-  });
-
-  test('ignores malformed tasklist lines', async () => {
-    const exec = makeExec({ tasklistOut: 'garbage line\r\n"engine.exe","777","Console","1","1 K"\r\n' });
-    const res = await sweepStaleEngines({ platform: 'win32', exec });
-    expect(res.swept).toEqual([777]);
   });
 });

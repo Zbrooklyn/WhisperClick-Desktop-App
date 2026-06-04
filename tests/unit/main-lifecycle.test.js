@@ -45,9 +45,10 @@ const { spawn, execFile } = require('child_process');
 
 app.getPath = (name) => (name === 'userData' ? TEST_CONFIG_BASE : os.tmpdir());
 // R10 sweep is production-only (dev engine is `python`, not engine.exe). Mark
-// packaged so the production sweep path is exercised here. Must be set BEFORE
-// requiring main.js (isDev is computed at module load).
+// packaged AND give a resourcesPath (the sweep's ownership marker) so the
+// production sweep path is exercised. Both must be set BEFORE requiring main.js.
 app.isPackaged = true;
+process.resourcesPath = path.join(TEST_CONFIG_BASE, 'resources');
 
 require('../../platforms/electron/main');
 app._triggerReady();
@@ -59,10 +60,10 @@ afterAll(() => {
 });
 
 describe('R10: startup orphan sweep', () => {
-  test('runs tasklist to sweep stale engines during startup', async () => {
+  test('queries running engines (powershell) to sweep during startup', async () => {
     await tick(50); // let the sweep promise resolve and start() fire
-    const ranTasklist = execFile.mock.calls.some((c) => c[0] === 'tasklist');
-    expect(ranTasklist).toBe(true);
+    const ranQuery = execFile.mock.calls.some((c) => c[0] === 'powershell');
+    expect(ranQuery).toBe(true);
   });
 
   test('sidecar is started after the sweep completes', async () => {
