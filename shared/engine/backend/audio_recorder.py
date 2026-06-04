@@ -11,6 +11,29 @@ from .logger import get as get_logger
 _log = get_logger("audio_recorder")
 
 
+def resolve_input_device(stored_id, devices):
+    """Return a known-valid input-device index, or None for the system default.
+
+    A stored device id can go stale — the mic was unplugged, or the OS
+    reordered the device list — and handing a stale index to PortAudio is what
+    makes recording hang for up to a minute. When the stored id is missing,
+    malformed, out of range, or points at an output-only device, fall back to
+    the system default (None) so recording stays responsive.
+
+    `devices` is the live device table (a list of dicts, as returned by
+    ``sounddevice.query_devices()``).
+    """
+    if stored_id is None:
+        return None
+    if not isinstance(stored_id, int) or isinstance(stored_id, bool):
+        return None
+    if stored_id < 0 or stored_id >= len(devices):
+        return None
+    if devices[stored_id].get("max_input_channels", 0) < 1:
+        return None
+    return stored_id
+
+
 class AudioRecorder:
     def __init__(self):
         self._buffer = []
@@ -33,14 +56,20 @@ class AudioRecorder:
     def start(self):
         self._buffer = []
         self._recording = True
+        device = resolve_input_device(self._device_id, sd.query_devices())
+        if device is None and self._device_id is not None:
+            _log.warning(
+                "Stored input device %r is no longer valid; "
+                "falling back to system default",
+                self._device_id,
+            )
         kwargs = {
             "samplerate": SAMPLE_RATE,
             "channels": CHANNELS,
             "dtype": "float32",
             "callback": self._callback,
+            "device": device,
         }
-        if self._device_id is not None:
-            kwargs["device"] = self._device_id
         try:
             self._stream = sd.InputStream(**kwargs)
             self._stream.start()
