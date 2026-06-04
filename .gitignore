@@ -5,7 +5,9 @@ package-lock.json
 *.log
 .DS_Store
 venv/
+.venv/
 __pycache__/
+.pytest_cache/
 *.pyc
 coverage/
 platforms/tauri/target/
