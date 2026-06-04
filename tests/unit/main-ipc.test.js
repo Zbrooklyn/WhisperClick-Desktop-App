@@ -28,6 +28,9 @@ jest.mock('child_process', () => {
       return proc;
     }),
     exec: jest.fn(),
+    // R10: orphan-sweep uses execFile. Stub it to report "no engines running"
+    // so the startup sweep is a safe no-op in tests (never runs real taskkill).
+    execFile: jest.fn((cmd, args, cb) => cb(null, '')),
   };
 });
 

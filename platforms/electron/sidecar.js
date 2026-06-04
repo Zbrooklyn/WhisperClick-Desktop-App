@@ -104,18 +104,27 @@ class Sidecar extends EventEmitter {
     });
   }
 
-  stop() {
-    if (this.proc) {
-      try {
-        this.proc.stdin.write(JSON.stringify({ id: 0, command: 'quit' }) + '\n');
-      } catch { /* ignore */ }
-      setTimeout(() => {
-        if (this.proc) {
-          this.proc.kill();
-          this.proc = null;
-        }
-      }, 2000);
+  stop({ force = false } = {}) {
+    if (!this.proc) return;
+
+    if (force) {
+      // Synchronous, guaranteed reap. Used on app quit: a deferred timer can be
+      // skipped if the app process exits first, leaving an orphaned engine
+      // child holding the mic. Kill immediately instead.
+      try { this.proc.kill(); } catch { /* ignore */ }
+      this.proc = null;
+      return;
     }
+
+    try {
+      this.proc.stdin.write(JSON.stringify({ id: 0, command: 'quit' }) + '\n');
+    } catch { /* ignore */ }
+    setTimeout(() => {
+      if (this.proc) {
+        this.proc.kill();
+        this.proc = null;
+      }
+    }, 2000);
   }
 
   restart() {
@@ -125,6 +134,12 @@ class Sidecar extends EventEmitter {
 
   get isRunning() {
     return this.proc !== null;
+  }
+
+  // The engine child's OS pid (or null when not running). Used by the startup
+  // orphan sweep to spare the live engine while killing stale ones.
+  get pid() {
+    return this.proc ? this.proc.pid : null;
   }
 }
 

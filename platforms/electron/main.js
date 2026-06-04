@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const Store = require('./store');
 const Sidecar = require('./sidecar');
+const { sweepStaleEngines } = require('./orphan-sweep');
 const { createTray, updateTrayIcon, updateTrayTooltip, showTrayBalloon, flashTrayError } = require('./tray');
 const { initUpdater, checkForUpdatesQuietly, checkUpdateMarker } = require('./updater');
 const log = require('./logger');
@@ -1331,13 +1332,25 @@ app.whenReady().then(() => {
     }
   });
 
-  // Start sidecar
+  // Start sidecar (synchronously — engine spawn takes time, run early).
   try {
     log.sidecar('start', `engine=${enginePath}`);
     sidecar.start();
   } catch (err) {
     log.error(`Failed to start sidecar: ${err.message}`);
   }
+
+  // R10: sweep orphaned engine.exe left by a prior crashed/hard-killed run,
+  // sparing the engine we just started (keepPid). Best-effort and async — it
+  // never blocks startup, and the live engine can't be caught because its pid
+  // is excluded.
+  sweepStaleEngines({ keepPid: sidecar.pid })
+    .then((r) => {
+      if (r.swept && r.swept.length) {
+        log.sidecar('orphan-sweep', `killed ${r.swept.length} stale engine(s): ${r.swept.join(',')}`);
+      }
+    })
+    .catch(() => { /* sweep is best-effort */ });
 });
 
 app.on('before-quit', () => {
@@ -1347,7 +1360,9 @@ app.on('before-quit', () => {
 app.on('will-quit', () => {
   isQuitting = true;
   globalShortcut.unregisterAll();
-  if (sidecar) sidecar.stop();
+  // R5: force-reap synchronously so the engine child can't be orphaned if the
+  // app process exits before a deferred kill timer would have fired.
+  if (sidecar) sidecar.stop({ force: true });
 });
 
 app.on('window-all-closed', () => {

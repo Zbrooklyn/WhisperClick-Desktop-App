@@ -98,6 +98,45 @@ describe('lifecycle', () => {
     expect(fakeProc.kill).toHaveBeenCalled();
     jest.useRealTimers();
   });
+
+  // ── R5: synchronous force-reap on quit ──────────────────────────────────
+
+  test('stop({force:true}) kills synchronously, no timer wait', () => {
+    jest.useFakeTimers();
+    const sc = new Sidecar('/path/to/engine.py');
+    sc.start();
+
+    sc.stop({ force: true });
+
+    // Killed immediately — without advancing any timers.
+    expect(fakeProc.kill).toHaveBeenCalled();
+    expect(sc.isRunning).toBe(false);
+    expect(jest.getTimerCount()).toBe(0); // no deferred 2s kill was scheduled
+    jest.useRealTimers();
+  });
+
+  test('stop({force:true}) on a never-started sidecar is safe', () => {
+    const sc = new Sidecar('/path/to/engine.py');
+    expect(() => sc.stop({ force: true })).not.toThrow();
+  });
+});
+
+// ── R5: pid getter ────────────────────────────────────────────────────────
+
+describe('pid getter', () => {
+  test('exposes the child pid while running, null otherwise', () => {
+    const sc = new Sidecar('/path/to/engine.py');
+    expect(sc.pid).toBeNull();
+    sc.start();
+    expect(sc.pid).toBe(12345);
+  });
+
+  test('pid returns to null after a force stop', () => {
+    const sc = new Sidecar('/path/to/engine.py');
+    sc.start();
+    sc.stop({ force: true });
+    expect(sc.pid).toBeNull();
+  });
 });
 
 // ── JSON protocol ───────────────────────────────────────────────────────
