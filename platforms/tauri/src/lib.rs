@@ -6,17 +6,17 @@ mod state_machine;
 mod store;
 mod system;
 
-use sidecar::Sidecar;
-use state_machine::{AppState, StateMachine};
-use store::Store;
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::path::PathBuf;
-use std::time::Duration;
-use tauri::{AppHandle, Emitter, Manager};
-use tauri_plugin_clipboard_manager::ClipboardExt;
 use serde::Serialize;
 use serde_json::Value;
+use sidecar::Sidecar;
+use state_machine::{AppState, StateMachine};
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Duration;
+use store::Store;
+use tauri::{AppHandle, Emitter, Manager};
+use tauri_plugin_clipboard_manager::ClipboardExt;
 
 /// Default timeout for synchronous sidecar commands (60 seconds)
 const SIDECAR_TIMEOUT: Duration = Duration::from_secs(60);
@@ -45,9 +45,27 @@ struct ResultPayload {
 }
 
 impl ResultPayload {
-    fn ok() -> Self { Self { success: true, error: None, text: None } }
-    fn err(msg: &str) -> Self { Self { success: false, error: Some(msg.to_string()), text: None } }
-    fn ok_with_text(t: &str) -> Self { Self { success: true, error: None, text: Some(t.to_string()) } }
+    fn ok() -> Self {
+        Self {
+            success: true,
+            error: None,
+            text: None,
+        }
+    }
+    fn err(msg: &str) -> Self {
+        Self {
+            success: false,
+            error: Some(msg.to_string()),
+            text: None,
+        }
+    }
+    fn ok_with_text(t: &str) -> Self {
+        Self {
+            success: true,
+            error: None,
+            text: Some(t.to_string()),
+        }
+    }
 }
 
 // --- State commands ---
@@ -58,7 +76,11 @@ fn get_state(sm: tauri::State<'_, AppStateMachine>) -> Value {
 }
 
 #[tauri::command]
-fn ack_state(sm: tauri::State<'_, AppStateMachine>, app: AppHandle, store: tauri::State<'_, AppStore>) -> ResultPayload {
+fn ack_state(
+    sm: tauri::State<'_, AppStateMachine>,
+    app: AppHandle,
+    store: tauri::State<'_, AppStore>,
+) -> ResultPayload {
     if sm.0.is(&[AppState::Success, AppState::Error]) {
         sm.0.transition(AppState::Dormant, None);
         broadcast_state(&sm.0, &app, &store.0);
@@ -89,8 +111,15 @@ fn save_settings(
             let _ = w.set_always_on_top(aot);
         }
         if let Some(theme) = patch.get("theme").and_then(|v| v.as_str()) {
-            let bg = if theme == "light" { "#F5F5F4" } else { "#1C1917" };
-            let _ = w.eval(&format!("document.documentElement.style.backgroundColor = '{}'", bg));
+            let bg = if theme == "light" {
+                "#F5F5F4"
+            } else {
+                "#1C1917"
+            };
+            let _ = w.eval(&format!(
+                "document.documentElement.style.backgroundColor = '{}'",
+                bg
+            ));
         }
     }
 
@@ -103,9 +132,13 @@ fn save_settings(
             }
             if let Some(pill) = app.get_webview_window("pill") {
                 // Only show pill if main window is hidden
-                let main_visible = app.get_webview_window("main")
-                    .and_then(|w| w.is_visible().ok()).unwrap_or(true);
-                if !main_visible { let _ = pill.show(); }
+                let main_visible = app
+                    .get_webview_window("main")
+                    .and_then(|w| w.is_visible().ok())
+                    .unwrap_or(true);
+                if !main_visible {
+                    let _ = pill.show();
+                }
             }
         } else {
             if let Some(pill) = app.get_webview_window("pill") {
@@ -123,7 +156,11 @@ fn save_settings(
     if let Some(auto_start) = patch.get("autoStart").and_then(|v| v.as_bool()) {
         use tauri_plugin_autostart::ManagerExt;
         let manager = app.autolaunch();
-        if auto_start { let _ = manager.enable(); } else { let _ = manager.disable(); }
+        if auto_start {
+            let _ = manager.enable();
+        } else {
+            let _ = manager.disable();
+        }
     }
 
     // --- Hotkey re-registration ---
@@ -133,14 +170,16 @@ fn save_settings(
         let _ = app.global_shortcut().unregister_all();
         let normalized = new_hotkey.to_lowercase().replace(" ", "");
         let hk_app = app.clone();
-        let reg_result = app.global_shortcut().on_shortcut(normalized.as_str(), move |_a, _s, event| {
-            use tauri_plugin_global_shortcut::ShortcutState;
-            if event.state == ShortcutState::Pressed {
-                if let Some(w) = hk_app.get_webview_window("main") {
-                    let _ = w.eval("triggerTrustedHotkeyToggle()");
-                }
-            }
-        });
+        let reg_result =
+            app.global_shortcut()
+                .on_shortcut(normalized.as_str(), move |_a, _s, event| {
+                    use tauri_plugin_global_shortcut::ShortcutState;
+                    if event.state == ShortcutState::Pressed {
+                        if let Some(w) = hk_app.get_webview_window("main") {
+                            let _ = w.eval("triggerTrustedHotkeyToggle()");
+                        }
+                    }
+                });
         if let Err(e) = reg_result {
             eprintln!("[hotkey] Failed to register '{}': {}", normalized, e);
         }
@@ -167,9 +206,21 @@ fn start_recording(
     app: AppHandle,
 ) -> ResultPayload {
     let settings = store.0.get_settings();
-    let mode = settings.get("mode").and_then(|v| v.as_str()).unwrap_or("api").to_string();
-    let has_key = settings.get("openaiApiKey").and_then(|v| v.as_str()).map(|s| !s.is_empty()).unwrap_or(false)
-        || settings.get("geminiApiKey").and_then(|v| v.as_str()).map(|s| !s.is_empty()).unwrap_or(false);
+    let mode = settings
+        .get("mode")
+        .and_then(|v| v.as_str())
+        .unwrap_or("api")
+        .to_string();
+    let has_key = settings
+        .get("openaiApiKey")
+        .and_then(|v| v.as_str())
+        .map(|s| !s.is_empty())
+        .unwrap_or(false)
+        || settings
+            .get("geminiApiKey")
+            .and_then(|v| v.as_str())
+            .map(|s| !s.is_empty())
+            .unwrap_or(false);
 
     let gate = gate::can_accept_action(&sm.0, "start", has_key, &mode);
     if !gate.allowed {
@@ -226,7 +277,10 @@ fn cancel_processing(
     store: tauri::State<'_, AppStore>,
     app: AppHandle,
 ) -> ResultPayload {
-    println!("[cancel_processing] called, current state: {:?}", sm.0.state());
+    println!(
+        "[cancel_processing] called, current state: {:?}",
+        sm.0.state()
+    );
     let gate = gate::can_accept_action(&sm.0, "cancel", true, "api");
     if !gate.allowed {
         println!("[cancel_processing] gate denied: {:?}", gate.error);
@@ -252,7 +306,10 @@ fn get_history(store: tauri::State<'_, AppStore>) -> Vec<Value> {
 #[tauri::command]
 fn delete_history(store: tauri::State<'_, AppStore>, id: String) -> ResultPayload {
     let history = store.0.get_history();
-    if let Some(entry) = history.iter().find(|e| e.get("id").and_then(|v| v.as_str()) == Some(&id)) {
+    if let Some(entry) = history
+        .iter()
+        .find(|e| e.get("id").and_then(|v| v.as_str()) == Some(&id))
+    {
         if let Some(path) = entry.get("audio_file").and_then(|v| v.as_str()) {
             let _ = std::fs::remove_file(path);
         }
@@ -277,7 +334,10 @@ fn clear_history(store: tauri::State<'_, AppStore>) -> ResultPayload {
 
 #[tauri::command]
 fn list_models(sc: tauri::State<'_, AppSidecar>) -> Value {
-    match sc.0.send_sync("list_models", HashMap::new(), SIDECAR_TIMEOUT) {
+    match sc
+        .0
+        .send_sync("list_models", HashMap::new(), SIDECAR_TIMEOUT)
+    {
         Ok(resp) => {
             // Engine sends {id, status, models: [...]} — models is in extra, not data
             if let Some(models) = resp.extra.get("models") {
@@ -353,17 +413,37 @@ fn set_mic(sc: tauri::State<'_, AppSidecar>, id: i32) -> ResultPayload {
 }
 
 #[tauri::command]
-fn verify_api_key(sc: tauri::State<'_, AppSidecar>, provider: String, key: String, base_url: Option<String>) -> Value {
+fn verify_api_key(
+    sc: tauri::State<'_, AppSidecar>,
+    provider: String,
+    key: String,
+    base_url: Option<String>,
+) -> Value {
     let mut params = HashMap::new();
     params.insert("provider".to_string(), Value::String(provider));
     params.insert("api_key".to_string(), Value::String(key));
-    params.insert("base_url".to_string(), Value::String(base_url.unwrap_or_default()));
+    params.insert(
+        "base_url".to_string(),
+        Value::String(base_url.unwrap_or_default()),
+    );
     match sc.0.send_sync("verify_key", params, SIDECAR_TIMEOUT) {
         Ok(resp) => {
             // Engine sends {status, success, valid, http_status, error} as top-level keys (in resp.extra)
-            let valid = resp.extra.get("valid").and_then(|v| v.as_bool()).unwrap_or(false);
-            let success = resp.extra.get("success").and_then(|v| v.as_bool()).unwrap_or(false);
-            let error = resp.extra.get("error").and_then(|v| v.as_str()).map(|s| s.to_string());
+            let valid = resp
+                .extra
+                .get("valid")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let success = resp
+                .extra
+                .get("success")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let error = resp
+                .extra
+                .get("error")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
             let mut result = serde_json::json!({ "success": success, "valid": valid });
             if let Some(err) = error {
                 result["error"] = serde_json::Value::String(err);
@@ -410,7 +490,11 @@ fn delete_api_key(provider: String) -> ResultPayload {
 fn set_auto_start(app: AppHandle, enabled: bool) -> ResultPayload {
     use tauri_plugin_autostart::ManagerExt;
     let manager = app.autolaunch();
-    let result = if enabled { manager.enable() } else { manager.disable() };
+    let result = if enabled {
+        manager.enable()
+    } else {
+        manager.disable()
+    };
     match result {
         Ok(_) => ResultPayload::ok(),
         Err(e) => ResultPayload::err(&format!("autostart error: {}", e)),
@@ -459,7 +543,10 @@ async fn install_update(app: AppHandle) -> ResultPayload {
     };
     match updater.check().await {
         Ok(Some(update)) => {
-            match update.download_and_install(|_downloaded, _total| {}, || {}).await {
+            match update
+                .download_and_install(|_downloaded, _total| {}, || {})
+                .await
+            {
                 Ok(_) => {
                     // restart() never returns, but we satisfy the type checker
                     app.restart();
@@ -479,14 +566,17 @@ async fn install_update(app: AppHandle) -> ResultPayload {
 #[tauri::command]
 fn get_audio(store: tauri::State<'_, AppStore>, id: String) -> Value {
     let history = store.0.get_history();
-    if let Some(entry) = history.iter().find(|e| e.get("id").and_then(|v| v.as_str()) == Some(&id)) {
+    if let Some(entry) = history
+        .iter()
+        .find(|e| e.get("id").and_then(|v| v.as_str()) == Some(&id))
+    {
         if let Some(audio_path) = entry.get("audio_file").and_then(|v| v.as_str()) {
             let path = std::path::Path::new(audio_path);
             if !path.exists() {
                 return serde_json::json!({ "success": false, "error": "Audio file not found" });
             }
             if let Ok(bytes) = std::fs::read(audio_path) {
-                use base64::{Engine as _, engine::general_purpose::STANDARD};
+                use base64::{engine::general_purpose::STANDARD, Engine as _};
                 let b64 = STANDARD.encode(&bytes);
                 let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("wav");
                 let mime = match ext {
@@ -506,7 +596,8 @@ fn get_audio(store: tauri::State<'_, AppStore>, id: String) -> Value {
 fn export_transcription(app: AppHandle, text: String, format: String) -> ResultPayload {
     use tauri_plugin_dialog::DialogExt;
     let ext = if format == "md" { "md" } else { "txt" };
-    app.dialog().file()
+    app.dialog()
+        .file()
         .set_file_name(&format!("transcription.{}", ext))
         .save_file(move |path| {
             if let Some(path) = path {
@@ -632,7 +723,9 @@ fn pill_clicked(
         }
         "stop" => {
             let gate = gate::can_accept_action(&sm.0, "stop", true, "api");
-            if !gate.allowed { return ResultPayload::ok(); }
+            if !gate.allowed {
+                return ResultPayload::ok();
+            }
             sm.0.transition(AppState::Processing, None);
             broadcast_state(&sm.0, &app, &store.0);
             let _ = sc.0.send("stop_rec", HashMap::new(), |_| {});
@@ -640,7 +733,9 @@ fn pill_clicked(
         }
         "cancel" => {
             let gate = gate::can_accept_action(&sm.0, "cancel", true, "api");
-            if !gate.allowed { return ResultPayload::ok(); }
+            if !gate.allowed {
+                return ResultPayload::ok();
+            }
             sm.0.transition(AppState::Dormant, None);
             broadcast_state(&sm.0, &app, &store.0);
             let _ = sc.0.send("cancel", HashMap::new(), |_| {});
@@ -648,9 +743,21 @@ fn pill_clicked(
         }
         _ => {
             let settings = store.0.get_settings();
-            let mode = settings.get("mode").and_then(|v| v.as_str()).unwrap_or("api").to_string();
-            let has_key = settings.get("openaiApiKey").and_then(|v| v.as_str()).map(|s| !s.is_empty()).unwrap_or(false)
-                || settings.get("geminiApiKey").and_then(|v| v.as_str()).map(|s| !s.is_empty()).unwrap_or(false);
+            let mode = settings
+                .get("mode")
+                .and_then(|v| v.as_str())
+                .unwrap_or("api")
+                .to_string();
+            let has_key = settings
+                .get("openaiApiKey")
+                .and_then(|v| v.as_str())
+                .map(|s| !s.is_empty())
+                .unwrap_or(false)
+                || settings
+                    .get("geminiApiKey")
+                    .and_then(|v| v.as_str())
+                    .map(|s| !s.is_empty())
+                    .unwrap_or(false);
             let gate = gate::can_accept_action(&sm.0, "toggle", has_key, &mode);
             if !gate.allowed {
                 // Show error in pill (Fix #11)
@@ -694,11 +801,20 @@ fn pill_context_menu() -> ResultPayload {
 }
 
 #[tauri::command]
-fn window_minimize(window: tauri::Window, sm: tauri::State<'_, AppStateMachine>, app: AppHandle, store: tauri::State<'_, AppStore>) -> ResultPayload {
+fn window_minimize(
+    window: tauri::Window,
+    sm: tauri::State<'_, AppStateMachine>,
+    app: AppHandle,
+    store: tauri::State<'_, AppStore>,
+) -> ResultPayload {
     let _ = window.minimize();
     // Show pill when main minimizes (matches Electron behavior)
-    let show_pill = store.0.get_settings()
-        .get("showPill").and_then(|v| v.as_bool()).unwrap_or(false);
+    let show_pill = store
+        .0
+        .get_settings()
+        .get("showPill")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     if show_pill {
         reposition_pill_to_primary(&app); // Fix #8
         if let Some(pill) = app.get_webview_window("pill") {
@@ -711,21 +827,35 @@ fn window_minimize(window: tauri::Window, sm: tauri::State<'_, AppStateMachine>,
 
 #[tauri::command]
 fn window_maximize(window: tauri::Window) -> ResultPayload {
-    if window.is_maximized().unwrap_or(false) { let _ = window.unmaximize(); }
-    else { let _ = window.maximize(); }
+    if window.is_maximized().unwrap_or(false) {
+        let _ = window.unmaximize();
+    } else {
+        let _ = window.maximize();
+    }
     ResultPayload::ok()
 }
 
 #[tauri::command]
-fn window_close(window: tauri::Window, sm: tauri::State<'_, AppStateMachine>, app: AppHandle, store: tauri::State<'_, AppStore>) -> ResultPayload {
+fn window_close(
+    window: tauri::Window,
+    sm: tauri::State<'_, AppStateMachine>,
+    app: AppHandle,
+    store: tauri::State<'_, AppStore>,
+) -> ResultPayload {
     let settings = store.0.get_settings();
-    let behavior = settings.get("closeBehavior").and_then(|v| v.as_str()).unwrap_or("tray");
+    let behavior = settings
+        .get("closeBehavior")
+        .and_then(|v| v.as_str())
+        .unwrap_or("tray");
     if behavior == "close" {
         let _ = window.close();
     } else {
         // Minimize to tray — hide window and show pill
         let _ = window.hide();
-        let show_pill = settings.get("showPill").and_then(|v| v.as_bool()).unwrap_or(false);
+        let show_pill = settings
+            .get("showPill")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
         if show_pill {
             reposition_pill_to_primary(&app); // Fix #8
             if let Some(pill) = app.get_webview_window("pill") {
@@ -765,7 +895,8 @@ fn get_displays(app: AppHandle) -> Value {
         }
     }
     if displays.is_empty() {
-        displays.push(serde_json::json!({ "index": 0, "id": 0, "label": "Primary", "primary": true }));
+        displays
+            .push(serde_json::json!({ "index": 0, "id": 0, "label": "Primary", "primary": true }));
     }
     serde_json::json!(displays)
 }
@@ -800,7 +931,11 @@ fn move_pill_to_display(app: AppHandle, display_id: usize) -> ResultPayload {
 
 fn broadcast_state(sm: &StateMachine, app: &AppHandle, store: &Store) {
     let settings = store.get_settings();
-    let aem = settings.get("autoEnterMode").and_then(|v| v.as_str()).unwrap_or("off").to_string();
+    let aem = settings
+        .get("autoEnterMode")
+        .and_then(|v| v.as_str())
+        .unwrap_or("off")
+        .to_string();
     let state = sm.state();
     let payload = StatePayload {
         state: state.to_string(),
@@ -822,24 +957,49 @@ fn broadcast_state(sm: &StateMachine, app: &AppHandle, store: &Store) {
 
 /// Build a dynamic tray menu reflecting current state, settings, and history.
 /// Called on every state change and at tray creation time.
-fn build_tray_menu(app: &AppHandle) -> Result<tauri::menu::Menu<tauri::Wry>, Box<dyn std::error::Error>> {
-    use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder, CheckMenuItemBuilder};
+fn build_tray_menu(
+    app: &AppHandle,
+) -> Result<tauri::menu::Menu<tauri::Wry>, Box<dyn std::error::Error>> {
+    use tauri::menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 
     // Read current state from managed state
-    let sm_state = app.try_state::<AppStateMachine>()
+    let sm_state = app
+        .try_state::<AppStateMachine>()
         .map(|s| s.0.state())
         .unwrap_or(AppState::Dormant);
     let store = app.try_state::<AppStore>();
-    let settings = store.as_ref().map(|s| s.0.get_settings()).unwrap_or_default();
-    let history = store.as_ref().map(|s| s.0.get_history()).unwrap_or_default();
+    let settings = store
+        .as_ref()
+        .map(|s| s.0.get_settings())
+        .unwrap_or_default();
+    let history = store
+        .as_ref()
+        .map(|s| s.0.get_history())
+        .unwrap_or_default();
 
     let is_recording = sm_state == AppState::Recording;
     let is_processing = sm_state == AppState::Processing;
-    let sound_enabled = settings.get("soundEnabled").and_then(|v| v.as_bool()).unwrap_or(true);
-    let show_pill = settings.get("showPill").and_then(|v| v.as_bool()).unwrap_or(false);
-    let hotkey = settings.get("hotkey").and_then(|v| v.as_str()).unwrap_or("Ctrl+Alt+R");
-    let current_mode = settings.get("mode").and_then(|v| v.as_str()).unwrap_or("api");
-    let mode_label = if current_mode == "local" { "Switch to API Mode" } else { "Switch to Local Mode" };
+    let sound_enabled = settings
+        .get("soundEnabled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    let show_pill = settings
+        .get("showPill")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    let hotkey = settings
+        .get("hotkey")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Ctrl+Alt+R");
+    let current_mode = settings
+        .get("mode")
+        .and_then(|v| v.as_str())
+        .unwrap_or("api");
+    let mode_label = if current_mode == "local" {
+        "Switch to API Mode"
+    } else {
+        "Switch to Local Mode"
+    };
 
     let mut builder = MenuBuilder::new(app);
 
@@ -859,7 +1019,7 @@ fn build_tray_menu(app: &AppHandle) -> Result<tauri::menu::Menu<tauri::Wry>, Box
     builder = builder.item(
         &MenuItemBuilder::with_id("toggle_recording", rec_label)
             .enabled(rec_enabled)
-            .build(app)?
+            .build(app)?,
     );
     builder = builder.separator();
 
@@ -870,14 +1030,14 @@ fn build_tray_menu(app: &AppHandle) -> Result<tauri::menu::Menu<tauri::Wry>, Box
     builder = builder.item(
         &CheckMenuItemBuilder::with_id("toggle-sound", "Sound Effects")
             .checked(sound_enabled)
-            .build(app)?
+            .build(app)?,
     );
 
     // Show Pill Widget (checked)
     builder = builder.item(
         &CheckMenuItemBuilder::with_id("toggle-pill", "Show Pill Widget")
             .checked(show_pill)
-            .build(app)?
+            .build(app)?,
     );
     builder = builder.separator();
 
@@ -885,31 +1045,37 @@ fn build_tray_menu(app: &AppHandle) -> Result<tauri::menu::Menu<tauri::Wry>, Box
     if !history.is_empty() {
         let mut recent_sub = SubmenuBuilder::with_id(app, "recent", "Recent Transcriptions");
         for (i, entry) in history.iter().take(3).enumerate() {
-            let text = entry.get("text").and_then(|v| v.as_str()).unwrap_or("(empty)");
+            let text = entry
+                .get("text")
+                .and_then(|v| v.as_str())
+                .unwrap_or("(empty)");
             let truncated = if text.len() > 40 {
                 // Safely truncate at char boundary
-                let end = text.char_indices().take(40).last().map(|(i, c)| i + c.len_utf8()).unwrap_or(40);
+                let end = text
+                    .char_indices()
+                    .take(40)
+                    .last()
+                    .map(|(i, c)| i + c.len_utf8())
+                    .unwrap_or(40);
                 format!("{}...", &text[..end])
             } else {
                 text.to_string()
             };
-            recent_sub = recent_sub.item(
-                &MenuItemBuilder::with_id(&format!("recent_{}", i), &truncated).build(app)?
-            );
+            recent_sub = recent_sub
+                .item(&MenuItemBuilder::with_id(&format!("recent_{}", i), &truncated).build(app)?);
         }
         builder = builder.item(&recent_sub.build()?);
 
         // Paste Last Transcript
-        builder = builder.item(
-            &MenuItemBuilder::with_id("paste_last", "Paste Last Transcript").build(app)?
-        );
+        builder = builder
+            .item(&MenuItemBuilder::with_id("paste_last", "Paste Last Transcript").build(app)?);
     } else {
         // Show disabled "No transcriptions yet" entry
         let mut recent_sub = SubmenuBuilder::with_id(app, "recent", "Recent Transcriptions");
         recent_sub = recent_sub.item(
             &MenuItemBuilder::with_id("recent_none", "No transcriptions yet")
                 .enabled(false)
-                .build(app)?
+                .build(app)?,
         );
         builder = builder.item(&recent_sub.build()?);
     }
@@ -919,7 +1085,7 @@ fn build_tray_menu(app: &AppHandle) -> Result<tauri::menu::Menu<tauri::Wry>, Box
     builder = builder.item(
         &MenuItemBuilder::with_id("hotkey-display", &format!("Hotkey: {}", hotkey))
             .enabled(false)
-            .build(app)?
+            .build(app)?,
     );
 
     // Settings
@@ -961,10 +1127,10 @@ fn update_tray_for_state(app: &AppHandle, state: AppState) {
         // Tint the icon based on state
         let tint: [u8; 3] = match state {
             AppState::Dormant => [207, 150, 115],    // tan
-            AppState::Recording => [220, 100, 80],    // red
-            AppState::Processing => [207, 150, 115],  // tan
-            AppState::Success => [163, 177, 138],     // green
-            AppState::Error => [220, 100, 80],        // red
+            AppState::Recording => [220, 100, 80],   // red
+            AppState::Processing => [207, 150, 115], // tan
+            AppState::Success => [163, 177, 138],    // green
+            AppState::Error => [220, 100, 80],       // red
         };
 
         if let Some(icon) = tint_icon(tint) {
@@ -979,13 +1145,15 @@ fn update_tray_for_state(app: &AppHandle, state: AppState) {
                 for _ in 0..2 {
                     std::thread::sleep(Duration::from_millis(500));
                     if let Some(tray) = flash_app.tray_by_id("main-tray") {
-                        if let Some(icon) = tint_icon([207, 150, 115]) { // dormant color
+                        if let Some(icon) = tint_icon([207, 150, 115]) {
+                            // dormant color
                             let _ = tray.set_icon(Some(icon));
                         }
                     }
                     std::thread::sleep(Duration::from_millis(500));
                     if let Some(tray) = flash_app.tray_by_id("main-tray") {
-                        if let Some(icon) = tint_icon([220, 100, 80]) { // error red
+                        if let Some(icon) = tint_icon([220, 100, 80]) {
+                            // error red
                             let _ = tray.set_icon(Some(icon));
                         }
                     }
@@ -993,10 +1161,13 @@ fn update_tray_for_state(app: &AppHandle, state: AppState) {
             });
 
             // Emit notification event for frontend to show toast
-            let _ = app.emit("tray-error-notification", &serde_json::json!({
-                "title": "WhisperClick Error",
-                "body": tooltip,
-            }));
+            let _ = app.emit(
+                "tray-error-notification",
+                &serde_json::json!({
+                    "title": "WhisperClick Error",
+                    "body": tooltip,
+                }),
+            );
         }
     }
 }
@@ -1011,7 +1182,8 @@ fn tint_icon(tint: [u8; 3]) -> Option<tauri::image::Image<'static>> {
         let a = pixel[3] as f32 / 255.0;
         if a > 0.0 {
             // Luminance of original pixel
-            let lum = (pixel[0] as f32 * 0.299 + pixel[1] as f32 * 0.587 + pixel[2] as f32 * 0.114) / 255.0;
+            let lum = (pixel[0] as f32 * 0.299 + pixel[1] as f32 * 0.587 + pixel[2] as f32 * 0.114)
+                / 255.0;
             pixel[0] = (tint[0] as f32 * lum) as u8;
             pixel[1] = (tint[1] as f32 * lum) as u8;
             pixel[2] = (tint[2] as f32 * lum) as u8;
@@ -1065,35 +1237,120 @@ fn send_configure(sc: &Sidecar, store: &Store) {
     let s = store.get_settings();
 
     // Pick the right API key based on provider (matches Electron's configureSidecar)
-    let provider = s.get("provider").and_then(|v| v.as_str()).unwrap_or("openai");
+    let provider = s
+        .get("provider")
+        .and_then(|v| v.as_str())
+        .unwrap_or("openai");
     // Read real API key from keyring (not the '***secured***' marker in settings)
     let api_key = if provider == "gemini" {
-        encryption::get_key("apikey-gemini").ok().flatten().unwrap_or_default()
+        encryption::get_key("apikey-gemini")
+            .ok()
+            .flatten()
+            .unwrap_or_default()
     } else {
-        encryption::get_key("apikey-openai").ok().flatten().unwrap_or_default()
+        encryption::get_key("apikey-openai")
+            .ok()
+            .flatten()
+            .unwrap_or_default()
     };
 
     // Transform camelCase store keys → snake_case engine keys (must match exactly)
     let mut params = HashMap::new();
-    params.insert("mode".into(), Value::String(s.get("mode").and_then(|v| v.as_str()).unwrap_or("api").into()));
-    params.insert("language".into(), Value::String(s.get("sourceLanguage").and_then(|v| v.as_str()).unwrap_or("auto").into()));
-    params.insert("model".into(), Value::String(s.get("localModel").and_then(|v| v.as_str()).unwrap_or("base").into()));
+    params.insert(
+        "mode".into(),
+        Value::String(
+            s.get("mode")
+                .and_then(|v| v.as_str())
+                .unwrap_or("api")
+                .into(),
+        ),
+    );
+    params.insert(
+        "language".into(),
+        Value::String(
+            s.get("sourceLanguage")
+                .and_then(|v| v.as_str())
+                .unwrap_or("auto")
+                .into(),
+        ),
+    );
+    params.insert(
+        "model".into(),
+        Value::String(
+            s.get("localModel")
+                .and_then(|v| v.as_str())
+                .unwrap_or("base")
+                .into(),
+        ),
+    );
     params.insert("provider".into(), Value::String(provider.into()));
     params.insert("api_key".into(), Value::String(api_key.into()));
-    params.insert("base_url".into(), Value::String(s.get("customBaseUrl").and_then(|v| v.as_str()).unwrap_or("").into()));
-    params.insert("api_model".into(), Value::String(s.get("apiModel").and_then(|v| v.as_str()).unwrap_or("whisper-1").into()));
-    params.insert("sound_enabled".into(), Value::Bool(s.get("soundEnabled").and_then(|v| v.as_bool()).unwrap_or(true)));
-    params.insert("output_mode".into(), Value::String(s.get("outputMode").and_then(|v| v.as_str()).unwrap_or("transcribe").into()));
-    params.insert("target_language".into(), Value::String(s.get("targetLanguage").and_then(|v| v.as_str()).unwrap_or("en").into()));
-    params.insert("source_language".into(), Value::String(s.get("sourceLanguage").and_then(|v| v.as_str()).unwrap_or("auto").into()));
-    params.insert("audio_retention_days".into(), s.get("audioRetentionDays").cloned().unwrap_or(Value::Number(30.into())));
+    params.insert(
+        "base_url".into(),
+        Value::String(
+            s.get("customBaseUrl")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .into(),
+        ),
+    );
+    params.insert(
+        "api_model".into(),
+        Value::String(
+            s.get("apiModel")
+                .and_then(|v| v.as_str())
+                .unwrap_or("whisper-1")
+                .into(),
+        ),
+    );
+    params.insert(
+        "sound_enabled".into(),
+        Value::Bool(
+            s.get("soundEnabled")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true),
+        ),
+    );
+    params.insert(
+        "output_mode".into(),
+        Value::String(
+            s.get("outputMode")
+                .and_then(|v| v.as_str())
+                .unwrap_or("transcribe")
+                .into(),
+        ),
+    );
+    params.insert(
+        "target_language".into(),
+        Value::String(
+            s.get("targetLanguage")
+                .and_then(|v| v.as_str())
+                .unwrap_or("en")
+                .into(),
+        ),
+    );
+    params.insert(
+        "source_language".into(),
+        Value::String(
+            s.get("sourceLanguage")
+                .and_then(|v| v.as_str())
+                .unwrap_or("auto")
+                .into(),
+        ),
+    );
+    params.insert(
+        "audio_retention_days".into(),
+        s.get("audioRetentionDays")
+            .cloned()
+            .unwrap_or(Value::Number(30.into())),
+    );
 
     let _ = sc.send("configure", params, |_| {});
 }
 
 fn create_pill_window(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    use tauri::WebviewUrl;
     use tauri::webview::WebviewWindowBuilder;
+    use tauri::WebviewUrl;
 
     const PILL_WIDTH: f64 = 220.0;
     const PILL_HEIGHT: f64 = 140.0;
@@ -1137,7 +1394,10 @@ fn create_pill_window(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>>
     // Don't ignore cursor events — pill needs to be interactive (Fix #1-2)
     // The pill is small (220x140) so blocking clicks on that area is acceptable
     let _ = pill_win.set_ignore_cursor_events(false);
-    println!("[pill] Window created at ({}, {})", pill_x as i32, pill_y as i32);
+    println!(
+        "[pill] Window created at ({}, {})",
+        pill_x as i32, pill_y as i32
+    );
     Ok(())
 }
 
@@ -1162,7 +1422,11 @@ fn find_python() -> String {
     candidates.push("python3".to_string());
 
     for candidate in &candidates {
-        if std::process::Command::new(candidate).arg("--version").output().is_ok() {
+        if std::process::Command::new(candidate)
+            .arg("--version")
+            .output()
+            .is_ok()
+        {
             println!("[sidecar] Using python: {}", candidate);
             return candidate.to_string();
         }

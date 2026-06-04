@@ -33,10 +33,50 @@ pub fn simulate_paste() -> Result<(), String> {
 
     unsafe {
         let inputs = [
-            win::INPUT { r#type: win::INPUT_KEYBOARD, ki: win::KEYBDINPUT { wVk: win::VK_CONTROL, wScan: 0, dwFlags: 0, time: 0, dwExtraInfo: 0 }, padding: [0; 8] },
-            win::INPUT { r#type: win::INPUT_KEYBOARD, ki: win::KEYBDINPUT { wVk: win::VK_V, wScan: 0, dwFlags: 0, time: 0, dwExtraInfo: 0 }, padding: [0; 8] },
-            win::INPUT { r#type: win::INPUT_KEYBOARD, ki: win::KEYBDINPUT { wVk: win::VK_V, wScan: 0, dwFlags: win::KEYEVENTF_KEYUP, time: 0, dwExtraInfo: 0 }, padding: [0; 8] },
-            win::INPUT { r#type: win::INPUT_KEYBOARD, ki: win::KEYBDINPUT { wVk: win::VK_CONTROL, wScan: 0, dwFlags: win::KEYEVENTF_KEYUP, time: 0, dwExtraInfo: 0 }, padding: [0; 8] },
+            win::INPUT {
+                r#type: win::INPUT_KEYBOARD,
+                ki: win::KEYBDINPUT {
+                    wVk: win::VK_CONTROL,
+                    wScan: 0,
+                    dwFlags: 0,
+                    time: 0,
+                    dwExtraInfo: 0,
+                },
+                padding: [0; 8],
+            },
+            win::INPUT {
+                r#type: win::INPUT_KEYBOARD,
+                ki: win::KEYBDINPUT {
+                    wVk: win::VK_V,
+                    wScan: 0,
+                    dwFlags: 0,
+                    time: 0,
+                    dwExtraInfo: 0,
+                },
+                padding: [0; 8],
+            },
+            win::INPUT {
+                r#type: win::INPUT_KEYBOARD,
+                ki: win::KEYBDINPUT {
+                    wVk: win::VK_V,
+                    wScan: 0,
+                    dwFlags: win::KEYEVENTF_KEYUP,
+                    time: 0,
+                    dwExtraInfo: 0,
+                },
+                padding: [0; 8],
+            },
+            win::INPUT {
+                r#type: win::INPUT_KEYBOARD,
+                ki: win::KEYBDINPUT {
+                    wVk: win::VK_CONTROL,
+                    wScan: 0,
+                    dwFlags: win::KEYEVENTF_KEYUP,
+                    time: 0,
+                    dwExtraInfo: 0,
+                },
+                padding: [0; 8],
+            },
         ];
         win::SendInput(4, inputs.as_ptr(), size_of::<win::INPUT>() as i32);
     }
@@ -75,8 +115,28 @@ pub fn simulate_enter_key() -> Result<(), String> {
 
     unsafe {
         let inputs = [
-            win::INPUT { r#type: win::INPUT_KEYBOARD, ki: win::KEYBDINPUT { wVk: win::VK_RETURN, wScan: 0, dwFlags: 0, time: 0, dwExtraInfo: 0 }, padding: [0; 8] },
-            win::INPUT { r#type: win::INPUT_KEYBOARD, ki: win::KEYBDINPUT { wVk: win::VK_RETURN, wScan: 0, dwFlags: win::KEYEVENTF_KEYUP, time: 0, dwExtraInfo: 0 }, padding: [0; 8] },
+            win::INPUT {
+                r#type: win::INPUT_KEYBOARD,
+                ki: win::KEYBDINPUT {
+                    wVk: win::VK_RETURN,
+                    wScan: 0,
+                    dwFlags: 0,
+                    time: 0,
+                    dwExtraInfo: 0,
+                },
+                padding: [0; 8],
+            },
+            win::INPUT {
+                r#type: win::INPUT_KEYBOARD,
+                ki: win::KEYBDINPUT {
+                    wVk: win::VK_RETURN,
+                    wScan: 0,
+                    dwFlags: win::KEYEVENTF_KEYUP,
+                    time: 0,
+                    dwExtraInfo: 0,
+                },
+                padding: [0; 8],
+            },
         ];
         win::SendInput(2, inputs.as_ptr(), size_of::<win::INPUT>() as i32);
     }

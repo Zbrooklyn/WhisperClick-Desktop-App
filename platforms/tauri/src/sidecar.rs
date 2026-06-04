@@ -108,7 +108,9 @@ impl Sidecar {
             for line in reader.lines() {
                 let Ok(line) = line else { break };
                 let line = line.trim().to_string();
-                if line.is_empty() { continue; }
+                if line.is_empty() {
+                    continue;
+                }
 
                 match serde_json::from_str::<SidecarResponse>(&line) {
                     Ok(resp) => {
@@ -191,7 +193,9 @@ impl Sidecar {
         let mut stdin = self.stdin.lock().unwrap();
         if let Some(ref mut stdin) = *stdin {
             writeln!(stdin, "{}", json).map_err(|e| format!("Failed to write: {}", e))?;
-            stdin.flush().map_err(|e| format!("Failed to flush: {}", e))?;
+            stdin
+                .flush()
+                .map_err(|e| format!("Failed to flush: {}", e))?;
         } else {
             return Err("Stdin not available".to_string());
         }
@@ -394,8 +398,12 @@ mod tests {
     #[test]
     fn message_ids_increment() {
         let sc = Sidecar::new("fake.py".to_string(), "python".to_string());
-        let id1 = sc.next_id.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let id2 = sc.next_id.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let id1 = sc
+            .next_id
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let id2 = sc
+            .next_id
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         assert_eq!(id2, id1 + 1);
     }
 
@@ -419,7 +427,10 @@ mod tests {
     #[test]
     fn sidecar_message_with_numeric_param() {
         let mut params = HashMap::new();
-        params.insert("device_id".to_string(), Value::Number(serde_json::Number::from(5)));
+        params.insert(
+            "device_id".to_string(),
+            Value::Number(serde_json::Number::from(5)),
+        );
         let msg = SidecarMessage {
             id: 1,
             command: "set_mic".to_string(),
@@ -435,9 +446,15 @@ mod tests {
         let mut params = HashMap::new();
         params.insert("model".into(), Value::String("base".into()));
         params.insert("language".into(), Value::String("en".into()));
-        params.insert("device_id".into(), Value::Number(serde_json::Number::from(3)));
+        params.insert(
+            "device_id".into(),
+            Value::Number(serde_json::Number::from(3)),
+        );
         params.insert("vad_enabled".into(), Value::Bool(true));
-        params.insert("threshold".into(), Value::Number(serde_json::Number::from_f64(0.5).unwrap()));
+        params.insert(
+            "threshold".into(),
+            Value::Number(serde_json::Number::from_f64(0.5).unwrap()),
+        );
         let msg = SidecarMessage {
             id: 10,
             command: "configure".to_string(),
@@ -453,7 +470,10 @@ mod tests {
     #[test]
     fn sidecar_message_with_nested_params() {
         let mut params = HashMap::new();
-        params.insert("config".into(), serde_json::json!({"nested": {"deep": true}, "list": [1,2]}));
+        params.insert(
+            "config".into(),
+            serde_json::json!({"nested": {"deep": true}, "list": [1,2]}),
+        );
         let msg = SidecarMessage {
             id: 7,
             command: "advanced_config".to_string(),
@@ -597,7 +617,8 @@ mod tests {
 
     #[test]
     fn parse_model_download_progress_event() {
-        let json = r#"{"event":"model_download_progress","data":{"model":"base","current":3,"total":10}}"#;
+        let json =
+            r#"{"event":"model_download_progress","data":{"model":"base","current":3,"total":10}}"#;
         let resp: SidecarResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.event.unwrap(), "model_download_progress");
         let data = resp.data.unwrap();
@@ -608,7 +629,8 @@ mod tests {
 
     #[test]
     fn parse_error_event() {
-        let json = r#"{"event":"error","data":{"message":"Microphone disconnected","code":"MIC_LOST"}}"#;
+        let json =
+            r#"{"event":"error","data":{"message":"Microphone disconnected","code":"MIC_LOST"}}"#;
         let resp: SidecarResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.event.unwrap(), "error");
         let data = resp.data.unwrap();
@@ -625,7 +647,8 @@ mod tests {
 
     #[test]
     fn parse_ready_event_with_version() {
-        let json = r#"{"event":"ready","data":{"version":"3.0.0","python":"3.12.0","whisper":"1.1.10"}}"#;
+        let json =
+            r#"{"event":"ready","data":{"version":"3.0.0","python":"3.12.0","whisper":"1.1.10"}}"#;
         let resp: SidecarResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.event.unwrap(), "ready");
         let data = resp.data.unwrap();
@@ -643,7 +666,8 @@ mod tests {
 
     #[test]
     fn parse_event_with_array_data() {
-        let json = r#"{"event":"devices","data":[{"id":0,"name":"Mic 1"},{"id":1,"name":"Mic 2"}]}"#;
+        let json =
+            r#"{"event":"devices","data":[{"id":0,"name":"Mic 1"},{"id":1,"name":"Mic 2"}]}"#;
         let resp: SidecarResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.event.unwrap(), "devices");
         let data = resp.data.unwrap();
@@ -718,7 +742,10 @@ mod tests {
 
     #[test]
     fn new_sidecar_stores_paths() {
-        let sc = Sidecar::new("/path/to/engine.py".to_string(), "/usr/bin/python3".to_string());
+        let sc = Sidecar::new(
+            "/path/to/engine.py".to_string(),
+            "/usr/bin/python3".to_string(),
+        );
         assert_eq!(sc.engine_path, "/path/to/engine.py");
         assert_eq!(sc.python_path, "/usr/bin/python3");
     }
@@ -728,7 +755,10 @@ mod tests {
         let sc = Sidecar::new("fake.py".to_string(), "python".to_string());
         let mut ids = vec![];
         for _ in 0..100 {
-            ids.push(sc.next_id.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
+            ids.push(
+                sc.next_id
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+            );
         }
         // Verify all unique and sequential
         for i in 0..100 {
@@ -893,7 +923,11 @@ mod tests {
     fn sidecar_message_with_string_param() {
         let mut params = HashMap::new();
         params.insert("provider".into(), Value::String("openai".into()));
-        let msg = SidecarMessage { id: 1, command: "configure".into(), params };
+        let msg = SidecarMessage {
+            id: 1,
+            command: "configure".into(),
+            params,
+        };
         let json = serde_json::to_string(&msg).unwrap();
         assert!(json.contains("\"provider\":\"openai\""));
     }
@@ -901,8 +935,15 @@ mod tests {
     #[test]
     fn sidecar_message_with_number_param() {
         let mut params = HashMap::new();
-        params.insert("timeout".into(), Value::Number(serde_json::Number::from(30)));
-        let msg = SidecarMessage { id: 2, command: "configure".into(), params };
+        params.insert(
+            "timeout".into(),
+            Value::Number(serde_json::Number::from(30)),
+        );
+        let msg = SidecarMessage {
+            id: 2,
+            command: "configure".into(),
+            params,
+        };
         let json = serde_json::to_string(&msg).unwrap();
         assert!(json.contains("\"timeout\":30"));
     }
@@ -911,7 +952,11 @@ mod tests {
     fn sidecar_message_with_bool_param_true() {
         let mut params = HashMap::new();
         params.insert("vad".into(), Value::Bool(true));
-        let msg = SidecarMessage { id: 3, command: "configure".into(), params };
+        let msg = SidecarMessage {
+            id: 3,
+            command: "configure".into(),
+            params,
+        };
         let json = serde_json::to_string(&msg).unwrap();
         assert!(json.contains("\"vad\":true"));
     }
@@ -920,7 +965,11 @@ mod tests {
     fn sidecar_message_with_bool_param_false() {
         let mut params = HashMap::new();
         params.insert("vad".into(), Value::Bool(false));
-        let msg = SidecarMessage { id: 4, command: "configure".into(), params };
+        let msg = SidecarMessage {
+            id: 4,
+            command: "configure".into(),
+            params,
+        };
         let json = serde_json::to_string(&msg).unwrap();
         assert!(json.contains("\"vad\":false"));
     }
@@ -929,7 +978,11 @@ mod tests {
     fn sidecar_message_with_null_param_value() {
         let mut params = HashMap::new();
         params.insert("language".into(), Value::Null);
-        let msg = SidecarMessage { id: 5, command: "configure".into(), params };
+        let msg = SidecarMessage {
+            id: 5,
+            command: "configure".into(),
+            params,
+        };
         let json = serde_json::to_string(&msg).unwrap();
         assert!(json.contains("\"language\":null"));
     }
@@ -938,7 +991,11 @@ mod tests {
     fn sidecar_message_with_array_param() {
         let mut params = HashMap::new();
         params.insert("devices".into(), serde_json::json!([0, 1, 2]));
-        let msg = SidecarMessage { id: 6, command: "list_devices".into(), params };
+        let msg = SidecarMessage {
+            id: 6,
+            command: "list_devices".into(),
+            params,
+        };
         let json = serde_json::to_string(&msg).unwrap();
         assert!(json.contains("\"devices\":[0,1,2]"));
     }
@@ -946,8 +1003,15 @@ mod tests {
     #[test]
     fn sidecar_message_with_object_param() {
         let mut params = HashMap::new();
-        params.insert("config".into(), serde_json::json!({"model": "base", "lang": "en"}));
-        let msg = SidecarMessage { id: 7, command: "configure".into(), params };
+        params.insert(
+            "config".into(),
+            serde_json::json!({"model": "base", "lang": "en"}),
+        );
+        let msg = SidecarMessage {
+            id: 7,
+            command: "configure".into(),
+            params,
+        };
         let json = serde_json::to_string(&msg).unwrap();
         assert!(json.contains("\"model\":\"base\""));
     }
@@ -998,7 +1062,10 @@ mod tests {
     #[test]
     fn parse_response_large_text_payload() {
         let long_text = "w".repeat(100_000);
-        let json = format!(r#"{{"event":"transcription","data":{{"text":"{}"}}}}"#, long_text);
+        let json = format!(
+            r#"{{"event":"transcription","data":{{"text":"{}"}}}}"#,
+            long_text
+        );
         let resp: SidecarResponse = serde_json::from_str(&json).unwrap();
         assert_eq!(resp.event.unwrap(), "transcription");
         assert_eq!(resp.data.unwrap()["text"].as_str().unwrap().len(), 100_000);
@@ -1006,8 +1073,12 @@ mod tests {
 
     #[test]
     fn parse_response_large_array_payload() {
-        let items: Vec<serde_json::Value> = (0..1000).map(|i| serde_json::json!({"id": i})).collect();
-        let json = format!(r#"{{"id":1,"result":"ok","items":{}}}"#, serde_json::to_string(&items).unwrap());
+        let items: Vec<serde_json::Value> =
+            (0..1000).map(|i| serde_json::json!({"id": i})).collect();
+        let json = format!(
+            r#"{{"id":1,"result":"ok","items":{}}}"#,
+            serde_json::to_string(&items).unwrap()
+        );
         let resp: SidecarResponse = serde_json::from_str(&json).unwrap();
         assert_eq!(resp.extra["items"].as_array().unwrap().len(), 1000);
     }

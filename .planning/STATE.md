@@ -1,17 +1,24 @@
-# State: WhisperClick State Machine Refactor
+# State: WhisperClick State Machine Refactor — ✅ COMPLETE (archived)
+
+> **This effort is DONE.** All 5 phases of the state-machine refactor shipped in
+> **v2.2.0-beta** and merged to `main`. The `feature/state-machine` branch no longer
+> exists. This file is a frozen GSD artifact kept for history — **do not plan current
+> work from it.** For current state see `../HANDOFF.md`; for history see `../SESSION-LOG.md`.
+> (De-staled 2026-05-27 — previously claimed "Phase 3 of 5, in progress".)
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-03-20)
 
 **Core value:** Single source of truth for all app state
-**Current focus:** Phase 3 — Pill as Dumb Terminal
+**Outcome:** Delivered — `electron/state-machine.js`, 5 states (dormant, recording,
+processing, success, error). Post-mortem: `docs/dev/post-mortem-state-machine-refactor.md`.
 
-## Current Position
+## Final Position (effort complete)
 
-- **Branch:** feature/state-machine
-- **Phase:** 3 of 5 (Phases 1-2 validated and committed)
-- **Tests:** 460 passing
+- **Branch:** merged to `main` (feature/state-machine deleted)
+- **Phase:** 5 of 5 — all phases validated, committed, and released (v2.2.0-beta)
+- **Tests:** 412 Electron Jest + 518 Tauri Rust (current repo total)
 
 ## Decisions
 
@@ -31,4 +38,5 @@ See: .planning/PROJECT.md (updated 2026-03-20)
 - Design doc at docs/dev/state-machine-refactor.md has full architecture
 
 ---
-*Last updated: 2026-03-20 after GSD initialization*
+*Effort completed and shipped in v2.2.0-beta. File frozen/de-staled 2026-05-27.*
+*Original "Phase 3 of 5 in progress" snapshot preserved in git history.*

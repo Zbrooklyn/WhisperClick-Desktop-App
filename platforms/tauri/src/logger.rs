@@ -47,7 +47,11 @@ impl Logger {
         let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f");
         let line = format!("[{}] {} [{}] {}\n", timestamp, level, tag, message);
 
-        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&self.path) {
+        if let Ok(mut file) = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.path)
+        {
             let _ = file.write_all(line.as_bytes());
         }
     }

@@ -127,108 +127,134 @@
       "description": "294 tests (281 Jest + 13 E2E) with coverage thresholds enforced"
     },
     "linux_ci_test_fixes": {
-      "status": "not-started",
-      "description": "Fix 3 cross-platform test failures on Linux CI (currently continue-on-error)"
+      "status": "not_started",
+      "description": "Fix 3 cross-platform test failures on Linux CI (currently continue-on-error)\n\n_(raw status: `not-started`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-375"
     },
     "flaky_hotkey_test_fix": {
-      "status": "not-started",
-      "description": "Fix timing-dependent mainWindow destroyed fallback test"
+      "status": "not_started",
+      "description": "Fix timing-dependent mainWindow destroyed fallback test\n\n_(raw status: `not-started`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-376"
     },
     "code_signing_windows": {
-      "status": "not-started",
-      "description": "EV code signing certificate for Windows to remove SmartScreen warnings"
+      "status": "not_started",
+      "description": "EV code signing certificate for Windows to remove SmartScreen warnings\n\n_(raw status: `not-started`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-377"
     },
     "code_signing_macos": {
-      "status": "not-started",
-      "description": "Apple Developer certificate + notarization to remove Gatekeeper warnings"
+      "status": "not_started",
+      "description": "Apple Developer certificate + notarization to remove Gatekeeper warnings\n\n_(raw status: `not-started`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-378"
     },
     "landing_page": {
-      "status": "not-started",
-      "description": "Website/landing page for free download (alternative to raw GitHub releases)"
+      "status": "not_started",
+      "description": "Website/landing page for free download (alternative to raw GitHub releases)\n\n_(raw status: `not-started`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-379"
     },
     "quick_actions_toast": {
-      "status": "planned",
-      "description": "Post-transcription toast with Copy/Paste/Edit/Discard buttons"
+      "status": "not_started",
+      "description": "Post-transcription toast with Copy/Paste/Edit/Discard buttons\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-380"
     },
     "keyboard_only_mode": {
-      "status": "planned",
-      "description": "Full keyboard navigation for power users"
+      "status": "not_started",
+      "description": "Full keyboard navigation for power users\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-381"
     },
     "premium_licensing": {
-      "status": "not-started",
-      "description": "License key validation, premium module loader, activation UI (provider TBD)"
+      "status": "not_started",
+      "description": "License key validation, premium module loader, activation UI (provider TBD)\n\n_(raw status: `not-started`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-382"
     },
     "custom_vocabulary": {
-      "status": "planned",
-      "description": "User-defined proper nouns and jargon appended as prompt hints"
+      "status": "not_started",
+      "description": "User-defined proper nouns and jargon appended as prompt hints\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-383"
     },
     "language_auto_detect_badge": {
-      "status": "planned",
-      "description": "Show detected language badge on history items (backend done, frontend only)"
+      "status": "not_started",
+      "description": "Show detected language badge on history items (backend done, frontend only)\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-384"
     },
     "speaker_diarization_display": {
-      "status": "planned",
-      "description": "Speaker labels with color coding using gpt-4o-transcribe-diarize"
+      "status": "not_started",
+      "description": "Speaker labels with color coding using gpt-4o-transcribe-diarize\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-385"
     },
     "recording_sound_customization": {
-      "status": "planned",
-      "description": "Pick start/stop sounds from built-in options or disable"
+      "status": "not_started",
+      "description": "Pick start/stop sounds from built-in options or disable\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-386"
     },
     "snippet_templates": {
-      "status": "planned",
-      "description": "Saved text snippets that wrap transcriptions (email headers, meeting notes, etc.)"
+      "status": "not_started",
+      "description": "Saved text snippets that wrap transcriptions (email headers, meeting notes, etc.)\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-387"
     },
     "custom_post_processing_prompts": {
-      "status": "planned",
-      "description": "User-defined prompts to transform output (fix grammar, summarize, bullet points)"
+      "status": "not_started",
+      "description": "User-defined prompts to transform output (fix grammar, summarize, bullet points)\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-388"
     },
     "voice_commands": {
-      "status": "planned",
-      "description": "Dictation control: new line, period, comma, delete that interpreted as actions"
+      "status": "not_started",
+      "description": "Dictation control: new line, period, comma, delete that interpreted as actions\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-389"
     },
     "drag_drop_audio_transcription": {
-      "status": "planned",
-      "description": "Drop audio files (.mp3/.wav/.m4a/.ogg) to transcribe without recording"
+      "status": "not_started",
+      "description": "Drop audio files (.mp3/.wav/.m4a/.ogg) to transcribe without recording\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-390"
     },
     "smart_punctuation": {
-      "status": "planned",
-      "description": "Auto punctuation and paragraph breaks based on speech pause length"
+      "status": "not_started",
+      "description": "Auto punctuation and paragraph breaks based on speech pause length\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-391"
     },
     "clipboard_history_ring": {
-      "status": "planned",
-      "description": "Hotkey opens picker showing last 5-10 transcriptions for quick paste"
+      "status": "not_started",
+      "description": "Hotkey opens picker showing last 5-10 transcriptions for quick paste\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-392"
     },
     "live_streaming_runtime": {
-      "status": "planned",
-      "description": "Real-time partial transcription during recording"
+      "status": "not_started",
+      "description": "Real-time partial transcription during recording\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-393"
     },
     "word_level_timestamps": {
-      "status": "planned",
-      "description": "Click any word to jump to that moment in audio, karaoke-style highlighting"
+      "status": "not_started",
+      "description": "Click any word to jump to that moment in audio, karaoke-style highlighting\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-394"
     },
     "confidence_highlighting": {
-      "status": "planned",
-      "description": "Low-confidence words highlighted for spot-checking"
+      "status": "not_started",
+      "description": "Low-confidence words highlighted for spot-checking\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-395"
     },
     "voice_corrections": {
-      "status": "planned",
-      "description": "Edit transcript by voice: replace X with Y, capitalize, undo"
+      "status": "not_started",
+      "description": "Edit transcript by voice: replace X with Y, capitalize, undo\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-396"
     },
     "continuous_listening_vad": {
-      "status": "planned",
-      "description": "Always-on mode: auto-starts on speech, auto-stops on silence via Silero VAD"
+      "status": "not_started",
+      "description": "Always-on mode: auto-starts on speech, auto-stops on silence via Silero VAD\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-397"
     },
     "meeting_mode": {
-      "status": "planned",
-      "description": "Long-form recording with speaker ID, timestamps, auto-summary and action items"
+      "status": "not_started",
+      "description": "Long-form recording with speaker ID, timestamps, auto-summary and action items\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-398"
     },
     "app_integrations": {
-      "status": "planned",
-      "description": "Direct send to Notion, Obsidian, Google Docs, Slack via API/OAuth"
+      "status": "not_started",
+      "description": "Direct send to Notion, Obsidian, Google Docs, Slack via API/OAuth\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-399"
     },
     "context_aware_transcription": {
-      "status": "planned",
-      "description": "Active window detection, browser URL detection, UI automation for adaptive output"
+      "status": "not_started",
+      "description": "Active window detection, browser URL detection, UI automation for adaptive output\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-400"
     }
   },
   "known_issues": {
@@ -271,5 +297,6 @@
     "ci": "GitHub Actions on push to main",
     "test_runner": "Jest with custom Electron mock",
     "latest_release": "v2.0.0"
-  }
+  },
+  "last_sync": "2026-04-20"
 }

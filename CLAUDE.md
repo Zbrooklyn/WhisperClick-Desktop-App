@@ -4,6 +4,7 @@ Golden principles for AI-assisted development. Every agent session must follow t
 
 ## Quick Start
 
+0. **Read** `SESSION-LOG.md` for session/thread history and the project's continuity record (start here).
 1. **Read** `HANDOFF.md` for current state, known issues, and next actions.
 2. **Read** `FEATURES.md` for complete feature inventory and API method list.
 3. **Run** `npm test` after every code change (412 Electron Jest tests).
@@ -235,7 +236,7 @@ Legacy plaintext keys auto-migrate on next save.
 - **ALL branches must track `origin`** (private), NEVER `public`. Verify: `git branch -vv`
 - **Push = `git push origin <branch>`** — always explicit remote, always `origin`
 - After pushing to origin main: `bash tools/sync_public.sh`
-- Sync script strips: CLAUDE.md, HANDOFF.md, ROADMAP.md, FEATURES.md, TESTING.md, VERIFICATION.md, tools/
+- Sync script strips: CLAUDE.md, HANDOFF.md, ROADMAP.md, FEATURES.md, TESTING.md, VERIFICATION.md, SESSION-LOG.md, tools/
 
 ## Version Bumps — MANDATORY
 - Always bump version in `package.json` + add CHANGELOG entry with every code change

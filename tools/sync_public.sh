@@ -16,6 +16,7 @@
 #   FEATURES.md      — Internal feature inventory
 #   TESTING.md       — Test architecture notes
 #   VERIFICATION.md  — Manual test checklist
+#   SESSION-LOG.md   — Internal session/thread continuity record
 #   tools/           — Internal dev scripts
 #   docs/dev/        — Internal dev documentation
 #   electron/premium/ — Premium feature modules (private)
@@ -30,6 +31,7 @@ PRIVATE_FILES=(
   "FEATURES.md"
   "TESTING.md"
   "VERIFICATION.md"
+  "SESSION-LOG.md"
   "tools/"
   "docs/dev/"
   "electron/premium/"

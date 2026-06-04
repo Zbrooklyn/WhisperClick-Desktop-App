@@ -1,6 +1,6 @@
 # HANDOFF — WhisperClick
 
-> Last updated: 2026-04-12
+> Last updated: 2026-05-27 (test facts re-verified; continuity docs refreshed — see SESSION-LOG.md)
 
 ## Current State
 
@@ -147,7 +147,7 @@ Only 2 changes to the V3 frontend:
 
 ## Known Issues
 
-- 3 cross-platform test failures on Linux CI (`continue-on-error: true` as workaround)
+- **Electron Jest suite (re-verified 2026-05-27): 586 tests, 584 passing on Windows.** The old "412 tests / 3 Linux-only failures" note was stale on every count. The 2 remaining failures are **test-isolation flakiness, not app bugs**: `main-ipc › save-settings encrypts API keys on disk` (async-teardown leak — "Cannot log after tests are done") and `stress › settings.json deleted while running — cache still works` (shared on-disk test dir between tests). App encryption/store logic verified sound. Note: running the suite *during* a heavy concurrent build adds ~3 more false timing failures (e.g. hotkey-debounce stress test) — run tests without a concurrent `cargo`/compile for clean results. CI still masks these via `continue-on-error: true`; remove that mask only after the 2 flaky tests are isolated.
 - No code signing for Windows/macOS (SmartScreen/Gatekeeper warnings on install)
 - Recording flow, audio playback, auto-paste, and visualizer need live testing with mic + API key
 - ~~Win+V clipboard history blocked while Tauri app is running~~ — **Could not reproduce 2026-04-10.** Win+V works fine with Tauri app running. Earlier symptom was likely unrelated (possibly caused by lingering Electron instances or the Windows clipboard history service being disrupted by something else).
@@ -174,7 +174,7 @@ Only 2 changes to the V3 frontend:
 - Crash-safe atomic writes for settings and history
 - Auto-updater with beta/stable channel support
 - CI/CD: GitHub Actions builds Windows/macOS/Linux
-- 412 Electron Jest tests + 518 Tauri Rust tests with coverage thresholds
+- 586 Electron Jest tests (584 passing; 2 known-flaky, see Known Issues) + Tauri Rust tests with coverage thresholds
 - v2.0.0 stable release published
 - Pill click-through fix — transparent areas pass clicks to apps behind (v2.0.6-beta)
 - Recording state machine race conditions fixed — listener ordering, cancel idempotency (v2.0.7-beta)

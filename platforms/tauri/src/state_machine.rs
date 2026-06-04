@@ -108,8 +108,12 @@ impl StateMachine {
             msg.clear();
         }
 
-        println!("[state-machine] {} → {}{}", from, to,
-            message.map(|m| format!(" ({})", m)).unwrap_or_default());
+        println!(
+            "[state-machine] {} → {}{}",
+            from,
+            to,
+            message.map(|m| format!(" ({})", m)).unwrap_or_default()
+        );
 
         true
     }
@@ -124,8 +128,11 @@ impl StateMachine {
         let mut msg = self.message.lock().unwrap();
         *msg = message.unwrap_or("").to_string();
 
-        println!("[state-machine] RESET: {} → dormant{}", from,
-            message.map(|m| format!(" ({})", m)).unwrap_or_default());
+        println!(
+            "[state-machine] RESET: {} → dormant{}",
+            from,
+            message.map(|m| format!(" ({})", m)).unwrap_or_default()
+        );
     }
 
     /// Check if current state is one of the given states
@@ -463,13 +470,17 @@ mod tests {
     #[test]
     fn concurrent_transitions() {
         let sm = Arc::new(StateMachine::new());
-        let handles: Vec<_> = (0..10).map(|_| {
-            let sm = sm.clone();
-            thread::spawn(move || {
-                sm.transition(AppState::Recording, None);
+        let handles: Vec<_> = (0..10)
+            .map(|_| {
+                let sm = sm.clone();
+                thread::spawn(move || {
+                    sm.transition(AppState::Recording, None);
+                })
             })
-        }).collect();
-        for h in handles { h.join().unwrap(); }
+            .collect();
+        for h in handles {
+            h.join().unwrap();
+        }
         // State machine should be in a valid state (only one transition succeeds)
         let state = sm.state();
         assert!(state == AppState::Dormant || state == AppState::Recording);
@@ -481,9 +492,21 @@ mod tests {
     fn rapid_full_cycles() {
         let sm = StateMachine::new();
         for i in 0..100 {
-            assert!(sm.transition(AppState::Recording, None), "cycle {} start", i);
-            assert!(sm.transition(AppState::Processing, None), "cycle {} process", i);
-            assert!(sm.transition(AppState::Success, None), "cycle {} success", i);
+            assert!(
+                sm.transition(AppState::Recording, None),
+                "cycle {} start",
+                i
+            );
+            assert!(
+                sm.transition(AppState::Processing, None),
+                "cycle {} process",
+                i
+            );
+            assert!(
+                sm.transition(AppState::Success, None),
+                "cycle {} success",
+                i
+            );
             assert!(sm.transition(AppState::Dormant, None), "cycle {} ack", i);
         }
     }
@@ -1907,7 +1930,9 @@ mod tests {
         let sm = StateMachine::new();
         for i in 0..200 {
             match i % 5 {
-                0 => { sm.transition(AppState::Recording, None); }
+                0 => {
+                    sm.transition(AppState::Recording, None);
+                }
                 1 => {
                     sm.transition(AppState::Recording, None);
                     sm.transition(AppState::Processing, None);
@@ -1916,7 +1941,9 @@ mod tests {
                     sm.transition(AppState::Recording, None);
                     sm.transition(AppState::Success, None);
                 }
-                3 => { sm.transition(AppState::Error, Some("e")); }
+                3 => {
+                    sm.transition(AppState::Error, Some("e"));
+                }
                 _ => {} // dormant
             }
             sm.reset(None);

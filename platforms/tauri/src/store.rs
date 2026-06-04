@@ -10,7 +10,8 @@ use std::sync::Mutex;
 
 /// Default settings — matches Electron's DEFAULT_SETTINGS
 fn default_settings() -> serde_json::Map<String, Value> {
-    serde_json::from_str::<Value>(r#"{
+    serde_json::from_str::<Value>(
+        r#"{
         "mode": "api",
         "hotkey": "ctrl+alt+r",
         "theme": "dark",
@@ -35,9 +36,14 @@ fn default_settings() -> serde_json::Map<String, Value> {
         "updateChannel": "stable",
         "autoDownloadUpdates": true,
         "visualizerStyle": "classic"
-    }"#).ok()
-        .and_then(|v| match v { Value::Object(m) => Some(m), _ => None })
-        .unwrap_or_default()
+    }"#,
+    )
+    .ok()
+    .and_then(|v| match v {
+        Value::Object(m) => Some(m),
+        _ => None,
+    })
+    .unwrap_or_default()
 }
 
 pub struct Store {
@@ -79,14 +85,16 @@ impl Store {
         for (key, value) in patch {
             settings.insert(key, value);
         }
-        let json = serde_json::to_string_pretty(&Value::Object(settings.clone())).unwrap_or_default();
+        let json =
+            serde_json::to_string_pretty(&Value::Object(settings.clone())).unwrap_or_default();
         Self::atomic_write(&self.settings_path, &json);
     }
 
     pub fn reset_settings(&self) {
         let mut settings = self.settings.lock().unwrap();
         *settings = default_settings();
-        let json = serde_json::to_string_pretty(&Value::Object(settings.clone())).unwrap_or_default();
+        let json =
+            serde_json::to_string_pretty(&Value::Object(settings.clone())).unwrap_or_default();
         Self::atomic_write(&self.settings_path, &json);
     }
 
@@ -173,15 +181,23 @@ impl Store {
     }
 
     fn try_read_json_map(path: &PathBuf) -> Option<serde_json::Map<String, Value>> {
-        fs::read_to_string(path).ok()
+        fs::read_to_string(path)
+            .ok()
             .and_then(|s| serde_json::from_str::<Value>(&s).ok())
-            .and_then(|v| match v { Value::Object(m) => Some(m), _ => None })
+            .and_then(|v| match v {
+                Value::Object(m) => Some(m),
+                _ => None,
+            })
     }
 
     fn try_read_json_array(path: &PathBuf) -> Option<Vec<Value>> {
-        fs::read_to_string(path).ok()
+        fs::read_to_string(path)
+            .ok()
             .and_then(|s| serde_json::from_str::<Value>(&s).ok())
-            .and_then(|v| match v { Value::Array(a) => Some(a), _ => None })
+            .and_then(|v| match v {
+                Value::Array(a) => Some(a),
+                _ => None,
+            })
     }
 }
 
@@ -219,7 +235,11 @@ mod tests {
         let dir = std::env::temp_dir().join("whisperclick_test_override");
         let _ = fs::remove_dir_all(&dir);
         let _ = fs::create_dir_all(&dir);
-        fs::write(dir.join("settings.json"), r#"{"mode":"local","customField":"yes"}"#).unwrap();
+        fs::write(
+            dir.join("settings.json"),
+            r#"{"mode":"local","customField":"yes"}"#,
+        )
+        .unwrap();
         let store = Store::new(dir.clone(), false);
         let s = store.get_settings();
         assert_eq!(s.get("mode").unwrap(), "local"); // overridden
@@ -381,7 +401,11 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
         let _ = fs::create_dir_all(&dir);
         fs::write(dir.join("history.json"), "NOT JSON").unwrap();
-        fs::write(dir.join("history.json.bak"), r#"[{"id":"1","text":"recovered"}]"#).unwrap();
+        fs::write(
+            dir.join("history.json.bak"),
+            r#"[{"id":"1","text":"recovered"}]"#,
+        )
+        .unwrap();
         let store = Store::new(dir.clone(), false);
         assert_eq!(store.get_history().len(), 1);
         assert_eq!(store.get_history()[0]["text"], "recovered");
@@ -430,7 +454,9 @@ mod tests {
     fn clear_history_empties_all() {
         let (store, dir) = temp_store("hist_clear_all", false);
         for i in 0..5 {
-            store.add_history(serde_json::json!({"id": format!("e{}", i), "text": format!("entry {}", i)}));
+            store.add_history(
+                serde_json::json!({"id": format!("e{}", i), "text": format!("entry {}", i)}),
+            );
         }
         assert_eq!(store.get_history().len(), 5);
         store.clear_history();
@@ -628,7 +654,10 @@ mod tests {
             handles.push(thread::spawn(move || {
                 for j in 0..10 {
                     let mut p = serde_json::Map::new();
-                    p.insert(format!("t{}_{}", i, j), Value::Number(serde_json::Number::from(j)));
+                    p.insert(
+                        format!("t{}_{}", i, j),
+                        Value::Number(serde_json::Number::from(j)),
+                    );
                     s.save_settings(p);
                 }
             }));
@@ -640,7 +669,12 @@ mod tests {
         // Each thread wrote 10 keys — all 100 should be present
         for i in 0..10 {
             for j in 0..10 {
-                assert!(s.get(&format!("t{}_{}", i, j)).is_some(), "Missing t{}_{}", i, j);
+                assert!(
+                    s.get(&format!("t{}_{}", i, j)).is_some(),
+                    "Missing t{}_{}",
+                    i,
+                    j
+                );
             }
         }
         cleanup(&dir);
@@ -659,7 +693,9 @@ mod tests {
             let s = store.clone();
             handles.push(thread::spawn(move || {
                 for j in 0..5 {
-                    s.add_history(serde_json::json!({"id": format!("h{}_{}", i, j), "text": "entry"}));
+                    s.add_history(
+                        serde_json::json!({"id": format!("h{}_{}", i, j), "text": "entry"}),
+                    );
                 }
             }));
         }
@@ -774,7 +810,10 @@ mod tests {
         let (store, dir) = temp_store("num_types", false);
         let mut p = serde_json::Map::new();
         p.insert("intVal".into(), Value::Number(serde_json::Number::from(42)));
-        p.insert("floatVal".into(), Value::Number(serde_json::Number::from_f64(3.14).unwrap()));
+        p.insert(
+            "floatVal".into(),
+            Value::Number(serde_json::Number::from_f64(3.14).unwrap()),
+        );
         store.save_settings(p);
         let s = store.get_settings();
         assert_eq!(s.get("intVal").unwrap(), 42);
@@ -1078,7 +1117,10 @@ mod tests {
         p.insert("mode".into(), Value::String("local".into()));
         p.insert("theme".into(), Value::String("light".into()));
         p.insert("custom1".into(), Value::String("val1".into()));
-        p.insert("custom2".into(), Value::Number(serde_json::Number::from(99)));
+        p.insert(
+            "custom2".into(),
+            Value::Number(serde_json::Number::from(99)),
+        );
         store.save_settings(p);
         store.reset_settings();
         let s = store.get_settings();
@@ -1183,7 +1225,10 @@ mod tests {
         let (store, dir) = temp_store("multi_patch", false);
         for i in 0..20 {
             let mut p = serde_json::Map::new();
-            p.insert(format!("key{}", i), Value::Number(serde_json::Number::from(i)));
+            p.insert(
+                format!("key{}", i),
+                Value::Number(serde_json::Number::from(i)),
+            );
             store.save_settings(p);
         }
         let s = store.get_settings();
@@ -1323,21 +1368,33 @@ mod tests {
     #[test]
     fn default_close_behavior_is_string() {
         let (store, dir) = temp_store("dk_closebehavior", false);
-        assert!(store.get_settings().get("closeBehavior").unwrap().is_string());
+        assert!(store
+            .get_settings()
+            .get("closeBehavior")
+            .unwrap()
+            .is_string());
         cleanup(&dir);
     }
 
     #[test]
     fn default_sound_enabled_is_bool() {
         let (store, dir) = temp_store("dk_sound", false);
-        assert!(store.get_settings().get("soundEnabled").unwrap().is_boolean());
+        assert!(store
+            .get_settings()
+            .get("soundEnabled")
+            .unwrap()
+            .is_boolean());
         cleanup(&dir);
     }
 
     #[test]
     fn default_always_on_top_is_bool() {
         let (store, dir) = temp_store("dk_ontop", false);
-        assert!(store.get_settings().get("alwaysOnTop").unwrap().is_boolean());
+        assert!(store
+            .get_settings()
+            .get("alwaysOnTop")
+            .unwrap()
+            .is_boolean());
         cleanup(&dir);
     }
 
@@ -1383,14 +1440,22 @@ mod tests {
     #[test]
     fn default_target_language_is_string() {
         let (store, dir) = temp_store("dk_targetlang", false);
-        assert!(store.get_settings().get("targetLanguage").unwrap().is_string());
+        assert!(store
+            .get_settings()
+            .get("targetLanguage")
+            .unwrap()
+            .is_string());
         cleanup(&dir);
     }
 
     #[test]
     fn default_source_language_is_string() {
         let (store, dir) = temp_store("dk_sourcelang", false);
-        assert!(store.get_settings().get("sourceLanguage").unwrap().is_string());
+        assert!(store
+            .get_settings()
+            .get("sourceLanguage")
+            .unwrap()
+            .is_string());
         cleanup(&dir);
     }
 
@@ -1415,14 +1480,22 @@ mod tests {
     #[test]
     fn default_audio_retention_days_is_number() {
         let (store, dir) = temp_store("dk_retention", false);
-        assert!(store.get_settings().get("audioRetentionDays").unwrap().is_number());
+        assert!(store
+            .get_settings()
+            .get("audioRetentionDays")
+            .unwrap()
+            .is_number());
         cleanup(&dir);
     }
 
     #[test]
     fn default_auto_enter_mode_is_string() {
         let (store, dir) = temp_store("dk_autoenter", false);
-        assert!(store.get_settings().get("autoEnterMode").unwrap().is_string());
+        assert!(store
+            .get_settings()
+            .get("autoEnterMode")
+            .unwrap()
+            .is_string());
         cleanup(&dir);
     }
 
@@ -1438,28 +1511,44 @@ mod tests {
     #[test]
     fn default_debug_logging_is_bool() {
         let (store, dir) = temp_store("dk_debuglog", false);
-        assert!(store.get_settings().get("debugLogging").unwrap().is_boolean());
+        assert!(store
+            .get_settings()
+            .get("debugLogging")
+            .unwrap()
+            .is_boolean());
         cleanup(&dir);
     }
 
     #[test]
     fn default_update_channel_is_string() {
         let (store, dir) = temp_store("dk_updatech", false);
-        assert!(store.get_settings().get("updateChannel").unwrap().is_string());
+        assert!(store
+            .get_settings()
+            .get("updateChannel")
+            .unwrap()
+            .is_string());
         cleanup(&dir);
     }
 
     #[test]
     fn default_auto_download_updates_is_bool() {
         let (store, dir) = temp_store("dk_autoupd", false);
-        assert!(store.get_settings().get("autoDownloadUpdates").unwrap().is_boolean());
+        assert!(store
+            .get_settings()
+            .get("autoDownloadUpdates")
+            .unwrap()
+            .is_boolean());
         cleanup(&dir);
     }
 
     #[test]
     fn default_visualizer_style_is_string() {
         let (store, dir) = temp_store("dk_vizstyle", false);
-        assert!(store.get_settings().get("visualizerStyle").unwrap().is_string());
+        assert!(store
+            .get_settings()
+            .get("visualizerStyle")
+            .unwrap()
+            .is_string());
         cleanup(&dir);
     }
 
@@ -1467,7 +1556,12 @@ mod tests {
     fn default_settings_has_exactly_23_keys() {
         let (store, dir) = temp_store("dk_count", false);
         let s = store.get_settings();
-        assert_eq!(s.len(), 24, "Expected 24 default settings keys, got {}", s.len());
+        assert_eq!(
+            s.len(),
+            24,
+            "Expected 24 default settings keys, got {}",
+            s.len()
+        );
         cleanup(&dir);
     }
 
@@ -1490,7 +1584,10 @@ mod tests {
         let (store, dir) = temp_store("multi_unknown", false);
         let mut p = serde_json::Map::new();
         p.insert("pluginA".into(), Value::String("config_a".into()));
-        p.insert("pluginB".into(), Value::Number(serde_json::Number::from(42)));
+        p.insert(
+            "pluginB".into(),
+            Value::Number(serde_json::Number::from(42)),
+        );
         p.insert("pluginC".into(), Value::Bool(false));
         store.save_settings(p);
         let s = store.get_settings();
@@ -1610,7 +1707,10 @@ mod tests {
             handles.push(thread::spawn(move || {
                 for j in 0..10 {
                     let mut p = serde_json::Map::new();
-                    p.insert(format!("sw{}_{}", i, j), Value::Number(serde_json::Number::from(j)));
+                    p.insert(
+                        format!("sw{}_{}", i, j),
+                        Value::Number(serde_json::Number::from(j)),
+                    );
                     s.save_settings(p);
                 }
             }));
@@ -1651,7 +1751,10 @@ mod tests {
         let (store, dir) = temp_store("alt_settings_hist", false);
         for i in 0..50 {
             let mut p = serde_json::Map::new();
-            p.insert(format!("alt_{}", i), Value::Number(serde_json::Number::from(i)));
+            p.insert(
+                format!("alt_{}", i),
+                Value::Number(serde_json::Number::from(i)),
+            );
             store.save_settings(p);
             store.add_history(serde_json::json!({"id": format!("ah_{}", i)}));
         }
@@ -1695,7 +1798,10 @@ mod tests {
         let mut p = serde_json::Map::new();
         p.insert("str".into(), Value::String("hello".into()));
         p.insert("int".into(), Value::Number(serde_json::Number::from(42)));
-        p.insert("float".into(), Value::Number(serde_json::Number::from_f64(3.14).unwrap()));
+        p.insert(
+            "float".into(),
+            Value::Number(serde_json::Number::from_f64(3.14).unwrap()),
+        );
         p.insert("bool_true".into(), Value::Bool(true));
         p.insert("bool_false".into(), Value::Bool(false));
         p.insert("null_val".into(), Value::Null);
@@ -1718,7 +1824,10 @@ mod tests {
     fn settings_negative_number() {
         let (store, dir) = temp_store("neg_num", false);
         let mut p = serde_json::Map::new();
-        p.insert("offset".into(), Value::Number(serde_json::Number::from(-100)));
+        p.insert(
+            "offset".into(),
+            Value::Number(serde_json::Number::from(-100)),
+        );
         store.save_settings(p);
         assert_eq!(store.get_settings().get("offset").unwrap(), -100);
         cleanup(&dir);
@@ -1729,7 +1838,10 @@ mod tests {
         let (store, dir) = temp_store("zeros", false);
         let mut p = serde_json::Map::new();
         p.insert("zeroInt".into(), Value::Number(serde_json::Number::from(0)));
-        p.insert("zeroFloat".into(), Value::Number(serde_json::Number::from_f64(0.0).unwrap()));
+        p.insert(
+            "zeroFloat".into(),
+            Value::Number(serde_json::Number::from_f64(0.0).unwrap()),
+        );
         p.insert("emptyStr".into(), Value::String("".into()));
         store.save_settings(p);
         let s = store.get_settings();

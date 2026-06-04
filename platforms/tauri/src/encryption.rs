@@ -22,8 +22,7 @@ pub fn store_key(name: &str, value: &str) -> Result<(), String> {
 /// Retrieve a secret value from the OS credential store.
 /// Returns Ok(None) if the key does not exist.
 pub fn get_key(name: &str) -> Result<Option<String>, String> {
-    let entry = Entry::new(SERVICE, name)
-        .map_err(|e| format!("keyring init error: {}", e))?;
+    let entry = Entry::new(SERVICE, name).map_err(|e| format!("keyring init error: {}", e))?;
     match entry.get_password() {
         Ok(pw) => Ok(Some(pw)),
         Err(keyring::Error::NoEntry) => Ok(None),
@@ -34,8 +33,7 @@ pub fn get_key(name: &str) -> Result<Option<String>, String> {
 /// Delete a secret value from the OS credential store.
 /// Silently succeeds if the key does not exist.
 pub fn delete_key(name: &str) -> Result<(), String> {
-    let entry = Entry::new(SERVICE, name)
-        .map_err(|e| format!("keyring init error: {}", e))?;
+    let entry = Entry::new(SERVICE, name).map_err(|e| format!("keyring init error: {}", e))?;
     match entry.delete_credential() {
         Ok(_) => Ok(()),
         Err(keyring::Error::NoEntry) => Ok(()),
@@ -178,7 +176,7 @@ mod tests {
     fn delete_nonexistent_is_idempotent() {
         let key_name = test_key("del_idem");
         let _ = delete_key(&key_name); // ensure gone
-        // Delete twice — both should succeed
+                                       // Delete twice — both should succeed
         assert!(delete_key(&key_name).is_ok());
         assert!(delete_key(&key_name).is_ok());
     }

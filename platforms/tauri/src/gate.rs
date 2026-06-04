@@ -895,10 +895,10 @@ mod tests {
         // Every denied result should have a non-empty error message
         let sm = StateMachine::new();
         let denied_cases: Vec<GateResult> = vec![
-            can_accept_action(&sm, "stop", true, "api"),        // Not recording
-            can_accept_action(&sm, "cancel", true, "api"),      // Nothing to cancel
-            can_accept_action(&sm, "start", false, "api"),      // No API key
-            can_accept_action(&sm, "unknown", true, "api"),     // Unknown action
+            can_accept_action(&sm, "stop", true, "api"), // Not recording
+            can_accept_action(&sm, "cancel", true, "api"), // Nothing to cancel
+            can_accept_action(&sm, "start", false, "api"), // No API key
+            can_accept_action(&sm, "unknown", true, "api"), // Unknown action
         ];
         for r in denied_cases {
             assert!(!r.allowed);
