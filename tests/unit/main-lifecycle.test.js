@@ -44,6 +44,10 @@ const { app, BrowserWindow } = require('electron');
 const { spawn, execFile } = require('child_process');
 
 app.getPath = (name) => (name === 'userData' ? TEST_CONFIG_BASE : os.tmpdir());
+// R10 sweep is production-only (dev engine is `python`, not engine.exe). Mark
+// packaged so the production sweep path is exercised here. Must be set BEFORE
+// requiring main.js (isDev is computed at module load).
+app.isPackaged = true;
 
 require('../../platforms/electron/main');
 app._triggerReady();

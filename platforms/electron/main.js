@@ -1380,16 +1380,22 @@ app.whenReady().then(() => {
   }
 
   // R10: sweep orphaned engine.exe left by a prior crashed/hard-killed run,
-  // sparing the engine we just started (keepPid). Best-effort and async — it
-  // never blocks startup, and the live engine can't be caught because its pid
-  // is excluded.
-  sweepStaleEngines({ keepPid: sidecar.pid })
-    .then((r) => {
-      if (r.swept && r.swept.length) {
-        log.sidecar('orphan-sweep', `killed ${r.swept.length} stale engine(s): ${r.swept.join(',')}`);
-      }
-    })
-    .catch(() => { /* sweep is best-effort */ });
+  // sparing the engine we just started (keepPid). Best-effort and async.
+  //
+  // ONLY in production. In production our engine IS the bundled engine.exe, so
+  // any other engine.exe is genuinely our own orphan. In dev the engine runs
+  // as `python`, so keepPid is a python pid and every engine.exe on the box
+  // belongs to a *different* (packaged) install — sweeping there would kill a
+  // bystander's live engine. (Surfaced by live testing 2026-06-03.)
+  if (!isDev) {
+    sweepStaleEngines({ keepPid: sidecar.pid })
+      .then((r) => {
+        if (r.swept && r.swept.length) {
+          log.sidecar('orphan-sweep', `killed ${r.swept.length} stale engine(s): ${r.swept.join(',')}`);
+        }
+      })
+      .catch(() => { /* sweep is best-effort */ });
+  }
 });
 
 app.on('before-quit', () => {
