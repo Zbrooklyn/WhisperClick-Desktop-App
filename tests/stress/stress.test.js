@@ -1766,7 +1766,7 @@ describe('Store file resilience', () => {
 
     const realFsAccess = jest.requireActual('fs');
     const settingsPath = path.join(TEST_CONFIG_BASE,
-      'whisperclick-dev', 'settings.json');
+      'com.whisperclick.dev', 'settings.json');
     try { realFsAccess.unlinkSync(settingsPath); } catch {}
 
     // Cache should still serve reads
@@ -1790,7 +1790,7 @@ describe('Store file resilience', () => {
 
     const realFsAccess = jest.requireActual('fs');
     const historyPath = path.join(TEST_CONFIG_BASE,
-      'whisperclick-dev', 'history.json');
+      'com.whisperclick.dev', 'history.json');
     try { realFsAccess.unlinkSync(historyPath); } catch {}
 
     // Cache still has data
