@@ -125,6 +125,25 @@ function createMainWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+
+  // Self-heal: if the main window's renderer crashes (GPU reset, OOM, "Aw,
+  // Snap"), the window goes blank and stays dead until manual restart. Reload
+  // it to respawn a fresh renderer. A 10s guard prevents a tight crash-loop.
+  let lastMainReload = 0;
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    const reason = details && details.reason;
+    log.error(`Main window renderer gone: ${reason}`);
+    if (isQuitting || reason === 'clean-exit') return;
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    const now = Date.now();
+    if (now - lastMainReload < 10000) {
+      log.error('Main window renderer crashed again within 10s — not auto-reloading');
+      return;
+    }
+    lastMainReload = now;
+    try { mainWindow.reload(); log.info('Main window reloaded after renderer crash'); }
+    catch { /* ignore */ }
+  });
 }
 
 const PILL_WIDTH = 220, PILL_HEIGHT = 140;

@@ -89,6 +89,7 @@ class BrowserWindow {
     };
     // jest.fn() wrappers for assertability
     this.loadFile = jest.fn().mockResolvedValue(undefined);
+    this.reload = jest.fn(); // main-window crash recovery
     this.show = jest.fn(() => { this._visible = true; });
     this.hide = jest.fn(() => { this._visible = false; });
     this.close = jest.fn(() => { this._destroyed = true; });
