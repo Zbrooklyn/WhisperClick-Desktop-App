@@ -319,6 +319,23 @@ describe('history', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  test('ids are unique even within the SAME millisecond — no data loss on delete', () => {
+    // Force a Date.now() collision: a bare timestamp id would make both entries
+    // share an id, so deleting one would wipe BOTH (silent history data loss).
+    const spy = jest.spyOn(Date, 'now').mockReturnValue(1700000000000);
+    store.addHistory({ text: 'first' });
+    store.addHistory({ text: 'second' });
+    spy.mockRestore();
+
+    const history = store.getHistory();
+    expect(history).toHaveLength(2);
+    expect(history[0].id).not.toBe(history[1].id); // distinct despite same ms
+
+    const after = store.deleteHistory(history[0].id);
+    expect(after).toHaveLength(1);          // exactly one removed, not both
+    expect(after[0].text).toBe('first');
+  });
+
   test('history persists to disk', () => {
     store.addHistory({ text: 'persistent' });
     // Create a new store pointing to the same dir

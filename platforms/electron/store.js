@@ -1,8 +1,18 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { safeStorage } = require('electron');
 
 const MAX_HISTORY = 500;
+
+// Collision-proof history id: timestamp prefix (keeps rough chronological
+// readability) + a random suffix. A bare Date.now() collides when two
+// transcriptions land in the same millisecond, producing duplicate ids — which
+// makes deleteHistory remove BOTH entries (silent data loss) and updateHistory
+// target the wrong one. The random suffix guarantees uniqueness within history.
+function makeHistoryId() {
+  return `${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+}
 
 const DEFAULT_SETTINGS = {
   mode: 'api',
@@ -148,7 +158,7 @@ class Store {
 
   addHistory(entry) {
     const history = this.getHistory();
-    history.unshift({ ...entry, id: Date.now().toString() });
+    history.unshift({ ...entry, id: makeHistoryId() });
     if (history.length > MAX_HISTORY) history.length = MAX_HISTORY;
     this._saveHistory(history);
     return history;
