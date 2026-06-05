@@ -159,7 +159,17 @@ class Store {
   addHistory(entry) {
     const history = this.getHistory();
     history.unshift({ ...entry, id: makeHistoryId() });
-    if (history.length > MAX_HISTORY) history.length = MAX_HISTORY;
+    if (history.length > MAX_HISTORY) {
+      // Drop the oldest entries beyond the cap AND delete their audio files, so
+      // .ogg recordings don't orphan and grow disk usage unbounded (R6). Only
+      // store knows about rollover drops, so the cleanup belongs here.
+      const dropped = history.splice(MAX_HISTORY);
+      for (const d of dropped) {
+        if (d && d.audio_file) {
+          try { fs.unlinkSync(d.audio_file); } catch { /* already gone */ }
+        }
+      }
+    }
     this._saveHistory(history);
     return history;
   }

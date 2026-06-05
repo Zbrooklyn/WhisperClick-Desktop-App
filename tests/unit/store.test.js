@@ -267,6 +267,19 @@ describe('history', () => {
     expect(result[0].text).toBe('overflow');
   });
 
+  test('rollover deletes the dropped entry audio file (no orphaned .ogg)', () => {
+    const orphanAudio = path.join(tmpDir, 'old-recording.ogg');
+    fs.writeFileSync(orphanAudio, 'fake-audio');
+
+    const entries = Array.from({ length: 500 }, (_, i) => ({ id: String(i), text: `e${i}` }));
+    entries[entries.length - 1].audio_file = orphanAudio; // this entry will be dropped
+    fs.writeFileSync(store.historyPath, JSON.stringify(entries));
+    expect(fs.existsSync(orphanAudio)).toBe(true);
+
+    store.addHistory({ text: 'overflow' }); // 501 -> drops the oldest
+    expect(fs.existsSync(orphanAudio)).toBe(false); // audio cleaned up, not orphaned
+  });
+
   test('updateHistory modifies matching entry', () => {
     store.addHistory({ text: 'original' });
     const history = store.getHistory();
