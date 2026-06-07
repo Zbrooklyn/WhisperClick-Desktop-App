@@ -23,10 +23,29 @@ import urllib.error as urllib_error
 import urllib.parse as urllib_parse
 import urllib.request as urllib_request
 
-# Redirect stderr to log file BEFORE any imports that might print
-_log_dir = os.path.join(os.path.expanduser("~"), ".config", "whisperclick")
+# Redirect stderr to a log file BEFORE any imports that might print to it.
+# WHISPERCLICK_CONFIG_DIR overrides the location (used by tests; lets the host
+# point the engine at its own config dir).
+_log_dir = os.environ.get("WHISPERCLICK_CONFIG_DIR") or os.path.join(
+    os.path.expanduser("~"), ".config", "whisperclick"
+)
 os.makedirs(_log_dir, exist_ok=True)
-sys.stderr = open(os.path.join(_log_dir, "engine.log"), "a")
+_engine_log = os.path.join(_log_dir, "engine.log")
+# Cap the raw-stderr log so it can't grow unbounded (R9): rotate at 5 MB, keeping
+# one previous file. Mirrors the Electron debug-log policy. Best-effort — if the
+# file is held open by another process (e.g. an installed instance), the rename
+# fails harmlessly and we just append.
+try:
+    if os.path.getsize(_engine_log) >= 5 * 1024 * 1024:
+        _rotated = _engine_log + ".1"
+        try:
+            os.remove(_rotated)
+        except OSError:
+            pass
+        os.replace(_engine_log, _rotated)
+except OSError:
+    pass
+sys.stderr = open(_engine_log, "a")
 
 # Now import backend modules (they log to file, not stdout)
 from backend.audio_recorder import AudioRecorder
