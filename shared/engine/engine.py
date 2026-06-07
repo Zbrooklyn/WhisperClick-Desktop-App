@@ -296,344 +296,419 @@ def _do_download_model(msg_id, model_name):
 # ---------------------------------------------------------------------------
 
 
-def handle_command(msg):
-    global _recording, _level_thread, _sound_enabled
-    global _output_mode, _target_language, _source_language, _audio_retention_days
+# ---------------------------------------------------------------------------
+# Command handlers
+#
+# Each handler is `fn(msg, msg_id)` and is registered in _HANDLERS via @command.
+# handle_command() is a thin lookup+dispatch over this table, so each command is
+# a small, individually testable unit instead of one ~320-line if/elif chain.
+# ---------------------------------------------------------------------------
 
-    cmd = msg.get("command")
-    msg_id = msg.get("id", 0)
+_HANDLERS = {}
 
-    # --- Lifecycle ---
 
-    if cmd == "ping":
-        send_ok(msg_id, pong=True, version="2.0.0")
+def command(name):
+    """Register the decorated function as the handler for `name`."""
+    def register(fn):
+        _HANDLERS[name] = fn
+        return fn
+    return register
 
-    elif cmd == "quit":
-        if _recording:
-            _recording = False
-            try:
-                recorder.stop()
-            except Exception:
-                pass
-        send_ok(msg_id)
-        sys.exit(0)
 
-    # --- Configuration (bulk) ---
+# --- Lifecycle ---
 
-    elif cmd == "configure":
-        # Apply all settings at once (sent by Electron after sidecar ready)
-        if "mode" in msg:
-            transcriber.set_mode(msg["mode"])
-        if "language" in msg:
-            transcriber.set_language(msg["language"])
-        if "model" in msg:
-            transcriber.set_model(msg["model"])
-        if "provider" in msg or "api_key" in msg:
-            transcriber.set_api_credentials(
-                msg.get("provider", "openai"),
-                msg.get("api_key", ""),
-                msg.get("base_url", ""),
-            )
-        if "api_model" in msg:
-            transcriber.set_api_model(msg["api_model"])
-        if "sound_enabled" in msg:
-            _sound_enabled = msg["sound_enabled"]
-            tones.set_enabled(_sound_enabled)
-        if "output_mode" in msg:
-            _output_mode = msg["output_mode"]
-        if "target_language" in msg:
-            _target_language = msg["target_language"]
-        if "source_language" in msg:
-            _source_language = msg["source_language"]
-        if "audio_retention_days" in msg:
-            _audio_retention_days = msg["audio_retention_days"]
-        _cleanup_expired_audio()
-        send_ok(msg_id)
+@command("ping")
+def _h_ping(msg, msg_id):
+    send_ok(msg_id, pong=True, version="2.0.0")
 
-    # --- Individual config commands ---
 
-    elif cmd == "set_mode":
-        transcriber.set_mode(msg.get("mode", "api"))
-        send_ok(msg_id)
+@command("quit")
+def _h_quit(msg, msg_id):
+    global _recording
+    if _recording:
+        _recording = False
+        try:
+            recorder.stop()
+        except Exception:
+            pass
+    send_ok(msg_id)
+    sys.exit(0)
 
-    elif cmd == "set_language":
-        transcriber.set_language(msg.get("language", "auto"))
-        send_ok(msg_id)
 
-    elif cmd == "set_model":
-        transcriber.set_model(msg.get("model", "base"))
-        send_ok(msg_id)
+# --- Configuration ---
 
-    elif cmd == "set_api_credentials":
+@command("configure")
+def _h_configure(msg, msg_id):
+    """Apply all settings at once (sent by Electron after sidecar ready)."""
+    global _sound_enabled, _output_mode, _target_language, _source_language
+    global _audio_retention_days
+    if "mode" in msg:
+        transcriber.set_mode(msg["mode"])
+    if "language" in msg:
+        transcriber.set_language(msg["language"])
+    if "model" in msg:
+        transcriber.set_model(msg["model"])
+    if "provider" in msg or "api_key" in msg:
         transcriber.set_api_credentials(
             msg.get("provider", "openai"),
             msg.get("api_key", ""),
             msg.get("base_url", ""),
         )
-        if msg.get("api_model"):
-            transcriber.set_api_model(msg["api_model"])
-        send_ok(msg_id)
-
-    elif cmd == "set_sound_enabled":
-        _sound_enabled = msg.get("enabled", True)
+    if "api_model" in msg:
+        transcriber.set_api_model(msg["api_model"])
+    if "sound_enabled" in msg:
+        _sound_enabled = msg["sound_enabled"]
         tones.set_enabled(_sound_enabled)
+    if "output_mode" in msg:
+        _output_mode = msg["output_mode"]
+    if "target_language" in msg:
+        _target_language = msg["target_language"]
+    if "source_language" in msg:
+        _source_language = msg["source_language"]
+    if "audio_retention_days" in msg:
+        _audio_retention_days = msg["audio_retention_days"]
+    _cleanup_expired_audio()
+    send_ok(msg_id)
+
+
+@command("set_mode")
+def _h_set_mode(msg, msg_id):
+    transcriber.set_mode(msg.get("mode", "api"))
+    send_ok(msg_id)
+
+
+@command("set_language")
+def _h_set_language(msg, msg_id):
+    transcriber.set_language(msg.get("language", "auto"))
+    send_ok(msg_id)
+
+
+@command("set_model")
+def _h_set_model(msg, msg_id):
+    transcriber.set_model(msg.get("model", "base"))
+    send_ok(msg_id)
+
+
+@command("set_api_credentials")
+def _h_set_api_credentials(msg, msg_id):
+    transcriber.set_api_credentials(
+        msg.get("provider", "openai"),
+        msg.get("api_key", ""),
+        msg.get("base_url", ""),
+    )
+    if msg.get("api_model"):
+        transcriber.set_api_model(msg["api_model"])
+    send_ok(msg_id)
+
+
+@command("set_sound_enabled")
+def _h_set_sound_enabled(msg, msg_id):
+    global _sound_enabled
+    _sound_enabled = msg.get("enabled", True)
+    tones.set_enabled(_sound_enabled)
+    send_ok(msg_id)
+
+
+@command("set_output_mode")
+def _h_set_output_mode(msg, msg_id):
+    global _output_mode
+    _output_mode = msg.get("output_mode", "transcribe")
+    send_ok(msg_id)
+
+
+@command("set_target_language")
+def _h_set_target_language(msg, msg_id):
+    global _target_language
+    _target_language = msg.get("target_language", "en")
+    send_ok(msg_id)
+
+
+@command("set_source_language")
+def _h_set_source_language(msg, msg_id):
+    global _source_language
+    _source_language = msg.get("source_language", "auto")
+    send_ok(msg_id)
+
+
+# --- Microphone ---
+
+@command("list_mics")
+def _h_list_mics(msg, msg_id):
+    try:
+        mics = AudioRecorder.list_devices()
+        send_ok(msg_id, mics=mics)
+    except Exception as e:
+        send_error(msg_id, e)
+
+
+@command("set_mic")
+def _h_set_mic(msg, msg_id):
+    device_id = msg.get("device_id")
+    try:
+        recorder.set_device(device_id)
         send_ok(msg_id)
+    except Exception as e:
+        send_error(msg_id, e)
 
-    elif cmd == "set_output_mode":
-        _output_mode = msg.get("output_mode", "transcribe")
-        send_ok(msg_id)
 
-    elif cmd == "set_target_language":
-        _target_language = msg.get("target_language", "en")
-        send_ok(msg_id)
+# --- Recording ---
 
-    elif cmd == "set_source_language":
-        _source_language = msg.get("source_language", "auto")
-        send_ok(msg_id)
-
-    # --- Microphone ---
-
-    elif cmd == "list_mics":
+@command("start_rec")
+def _h_start_rec(msg, msg_id):
+    global _recording, _level_thread
+    if _recording:
+        # Main process gate should prevent this. If we get here, cancel
+        # the stale recording and start fresh instead of erroring out.
+        _log.warning("start_rec while already recording — cancelling stale recording")
         try:
-            mics = AudioRecorder.list_devices()
-            send_ok(msg_id, mics=mics)
-        except Exception as e:
-            send_error(msg_id, e)
-
-    elif cmd == "set_mic":
-        device_id = msg.get("device_id")
-        try:
-            recorder.set_device(device_id)
-            send_ok(msg_id)
-        except Exception as e:
-            send_error(msg_id, e)
-
-    # --- Recording ---
-
-    elif cmd == "start_rec":
-        if _recording:
-            # Main process gate should prevent this. If we get here, cancel
-            # the stale recording and start fresh instead of erroring out.
-            _log.warning("start_rec while already recording — cancelling stale recording")
-            try:
-                recorder.stop()
-            except Exception:
-                pass
-            _recording = False
-        try:
-            transcriber.clear_cancel_request()
-            run_with_timeout(recorder.start, DEVICE_OPEN_TIMEOUT)
-            _recording = True
-            _level_thread = threading.Thread(target=_level_poll_loop, daemon=True)
-            _level_thread.start()
-            if _sound_enabled:
-                try:
-                    tones.play_start_tone()
-                except Exception:
-                    pass
-            send_ok(msg_id)
-        except OperationTimeout:
-            _recording = False
-            _log.error("Microphone did not respond within %ss", DEVICE_OPEN_TIMEOUT)
-            send_error(msg_id, "Microphone did not respond. "
-                               "Check that your input device is connected.")
-        except Exception as e:
-            _recording = False
-            _log.error("Failed to start recording: %s", e, exc_info=True)
-            send_error(msg_id, e)
-
-    elif cmd == "stop_rec":
-        if not _recording:
-            _log.warning("stop_rec while not recording — ignoring")
-            send_ok(msg_id, duration=0)
-            return
+            recorder.stop()
+        except Exception:
+            pass
         _recording = False
-        if _level_thread:
-            _level_thread.join(timeout=2)
-        recorder.stop()
-        duration = recorder.get_duration()
+    try:
+        transcriber.clear_cancel_request()
+        run_with_timeout(recorder.start, DEVICE_OPEN_TIMEOUT)
+        _recording = True
+        _level_thread = threading.Thread(target=_level_poll_loop, daemon=True)
+        _level_thread.start()
         if _sound_enabled:
             try:
-                tones.play_stop_tone()
+                tones.play_start_tone()
             except Exception:
                 pass
-        send_ok(msg_id, duration=round(duration, 1))
-        # Transcribe in background
-        threading.Thread(target=_do_transcribe, args=(duration,), daemon=True).start()
-
-    elif cmd == "cancel":
-        was_recording = _recording
+        send_ok(msg_id)
+    except OperationTimeout:
         _recording = False
-        transcriber.request_cancel()
-        if was_recording:
+        _log.error("Microphone did not respond within %ss", DEVICE_OPEN_TIMEOUT)
+        send_error(msg_id, "Microphone did not respond. "
+                           "Check that your input device is connected.")
+    except Exception as e:
+        _recording = False
+        _log.error("Failed to start recording: %s", e, exc_info=True)
+        send_error(msg_id, e)
+
+
+@command("stop_rec")
+def _h_stop_rec(msg, msg_id):
+    global _recording
+    if not _recording:
+        _log.warning("stop_rec while not recording — ignoring")
+        send_ok(msg_id, duration=0)
+        return
+    _recording = False
+    if _level_thread:
+        _level_thread.join(timeout=2)
+    recorder.stop()
+    duration = recorder.get_duration()
+    if _sound_enabled:
+        try:
+            tones.play_stop_tone()
+        except Exception:
+            pass
+    send_ok(msg_id, duration=round(duration, 1))
+    # Transcribe in background
+    threading.Thread(target=_do_transcribe, args=(duration,), daemon=True).start()
+
+
+@command("cancel")
+def _h_cancel(msg, msg_id):
+    global _recording
+    was_recording = _recording
+    _recording = False
+    transcriber.request_cancel()
+    if was_recording:
+        try:
+            recorder.stop()
+        except Exception:
+            pass
+        if _sound_enabled:
             try:
-                recorder.stop()
+                tones.play_cancel_tone()
             except Exception:
                 pass
-            if _sound_enabled:
-                try:
-                    tones.play_cancel_tone()
-                except Exception:
-                    pass
+    send_ok(msg_id)
+
+
+# --- Translation (standalone) ---
+
+@command("translate")
+def _h_translate(msg, msg_id):
+    text = msg.get("text", "")
+    target = msg.get("target_language", _target_language)
+    source = msg.get("source_language", _source_language)
+    try:
+        with _transcriber_lock:
+            translated = transcriber.translate(text, target, source)
+        send_ok(msg_id, text=translated)
+    except Exception as e:
+        send_error(msg_id, e)
+
+
+# --- Models ---
+
+@command("list_models")
+def _h_list_models(msg, msg_id):
+    model_list = []
+    for name, info in models.MODEL_INFO.items():
+        model_list.append({
+            "name": name,
+            "size_mb": info["size_mb"],
+            "description": info["description"],
+            "downloaded": models.is_model_downloaded(name),
+        })
+    send_ok(msg_id, models=model_list)
+
+
+@command("download_model")
+def _h_download_model(msg, msg_id):
+    model_name = msg.get("model_name", "")
+    # Long-running — respond immediately, send progress events
+    threading.Thread(target=_do_download_model, args=(msg_id, model_name), daemon=True).start()
+
+
+@command("delete_model")
+def _h_delete_model(msg, msg_id):
+    model_name = msg.get("model_name", "")
+    try:
+        models.delete_model(model_name)
         send_ok(msg_id)
+    except Exception as e:
+        send_error(msg_id, e)
 
-    # --- Translation (standalone) ---
 
-    elif cmd == "translate":
-        text = msg.get("text", "")
-        target = msg.get("target_language", _target_language)
-        source = msg.get("source_language", _source_language)
+# --- Info ---
+
+@command("get_languages")
+def _h_get_languages(msg, msg_id):
+    send_ok(msg_id, languages=LANGUAGES)
+
+
+# --- Auto-paste focus management (mirrors V3 api._auto_paste) ---
+
+@command("capture_fg")
+def _h_capture_fg(msg, msg_id):
+    global _paste_target_hwnd
+    try:
+        import ctypes
+        hwnd = ctypes.windll.user32.GetForegroundWindow()
+        _paste_target_hwnd = hwnd if hwnd else None
+    except Exception:
+        _log.debug("capture_fg failed", exc_info=True)
+    send_ok(msg_id)
+
+
+@command("paste")
+def _h_paste(msg, msg_id):
+    _do_paste(msg_id, msg.get("wc_focused", False))
+
+
+@command("press_enter")
+def _h_press_enter(msg, msg_id):
+    try:
+        import ctypes
+        VK_RETURN, KEYEVENTF_KEYUP = 0x0D, 0x02
+        ctypes.windll.user32.keybd_event(VK_RETURN, 0, 0, 0)
+        ctypes.windll.user32.keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, 0)
+    except Exception:
+        _log.debug("press_enter failed", exc_info=True)
+    send_ok(msg_id)
+
+
+# --- API key verification (HTTP) ---
+
+@command("verify_key")
+def _h_verify_key(msg, msg_id):
+    provider = msg.get("provider", "openai").lower()
+    key = str(msg.get("api_key", "")).strip()
+    base_url = str(msg.get("base_url", "")).strip().rstrip("/")
+
+    if provider not in ("openai", "gemini"):
+        send_response(msg_id, status="ok", success=False, valid=False,
+                      error=f"Invalid provider: {provider}")
+        return
+    if not key:
+        send_response(msg_id, status="ok", success=False, valid=False,
+                      error="API key is required.")
+        return
+
+    if not base_url:
+        if provider == "openai":
+            base_url = "https://api.openai.com/v1"
+        else:
+            base_url = "https://generativelanguage.googleapis.com/v1beta"
+
+    if not base_url.startswith("https://") and not base_url.startswith("http://"):
+        send_response(msg_id, status="ok", success=False, valid=False,
+                      error="Base URL must start with https:// or http://")
+        return
+
+    try:
+        if provider == "openai":
+            url = f"{base_url}/models"
+            req = urllib_request.Request(
+                url, headers={"Authorization": f"Bearer {key}"}, method="GET")
+        else:
+            encoded_key = urllib_parse.quote(key, safe="")
+            url = f"{base_url}/models?key={encoded_key}"
+            req = urllib_request.Request(url, method="GET")
+
+        with urllib_request.urlopen(req, timeout=10) as response:
+            http_status = int(getattr(response, "status", 200))
+            send_response(msg_id, status="ok",
+                          success=True, valid=True, http_status=http_status)
+    except urllib_error.HTTPError as exc:
+        http_status = int(getattr(exc, "code", 0) or 0)
         try:
-            with _transcriber_lock:
-                translated = transcriber.translate(text, target, source)
-            send_ok(msg_id, text=translated)
-        except Exception as e:
-            send_error(msg_id, e)
-
-    # --- Models ---
-
-    elif cmd == "list_models":
-        model_list = []
-        for name, info in models.MODEL_INFO.items():
-            model_list.append({
-                "name": name,
-                "size_mb": info["size_mb"],
-                "description": info["description"],
-                "downloaded": models.is_model_downloaded(name),
-            })
-        send_ok(msg_id, models=model_list)
-
-    elif cmd == "download_model":
-        model_name = msg.get("model_name", "")
-        # Long-running — respond immediately, send progress events
-        threading.Thread(target=_do_download_model, args=(msg_id, model_name), daemon=True).start()
-
-    elif cmd == "delete_model":
-        model_name = msg.get("model_name", "")
-        try:
-            models.delete_model(model_name)
-            send_ok(msg_id)
-        except Exception as e:
-            send_error(msg_id, e)
-
-    # --- Info ---
-
-    elif cmd == "get_languages":
-        send_ok(msg_id, languages=LANGUAGES)
-
-    # --- Auto-paste focus management (mirrors V3 api._auto_paste) ---
-
-    elif cmd == "capture_fg":
-        global _paste_target_hwnd
-        try:
-            import ctypes
-            hwnd = ctypes.windll.user32.GetForegroundWindow()
-            _paste_target_hwnd = hwnd if hwnd else None
+            detail = exc.read(1024).decode("utf-8", errors="ignore").strip()
         except Exception:
-            _log.debug("capture_fg failed", exc_info=True)
-        send_ok(msg_id)
+            detail = ""
+        lowered = detail.lower()
 
-    elif cmd == "paste":
-        _do_paste(msg_id, msg.get("wc_focused", False))
+        if http_status in (401, 403):
+            send_response(msg_id, status="ok",
+                          success=True, valid=False, http_status=http_status,
+                          error="Invalid API key.")
+        elif (http_status == 400 and "api key" in lowered
+              and ("not valid" in lowered or "invalid" in lowered)):
+            send_response(msg_id, status="ok",
+                          success=True, valid=False, http_status=http_status,
+                          error="Invalid API key.")
+        else:
+            safe_detail = detail[:160].replace(key, "***") if key else detail[:160]
+            error_msg = f"Verification failed ({http_status})."
+            if safe_detail:
+                error_msg = f"{error_msg} {safe_detail}"
+            send_response(msg_id, status="ok",
+                          success=False, valid=False, http_status=http_status,
+                          error=error_msg)
+    except urllib_error.URLError:
+        send_response(msg_id, status="ok", success=False, valid=False,
+                      error="Network error while verifying key. Check connection or base URL.")
+    except Exception as exc:
+        send_response(msg_id, status="ok", success=False, valid=False,
+                      error=str(exc))
 
-    elif cmd == "press_enter":
-        try:
-            import ctypes
-            VK_RETURN, KEYEVENTF_KEYUP = 0x0D, 0x02
-            ctypes.windll.user32.keybd_event(VK_RETURN, 0, 0, 0)
-            ctypes.windll.user32.keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, 0)
-        except Exception:
-            _log.debug("press_enter failed", exc_info=True)
-        send_ok(msg_id)
 
-    # --- API key verification (HTTP) ---
-
-    elif cmd == "verify_key":
-        provider = msg.get("provider", "openai").lower()
-        key = str(msg.get("api_key", "")).strip()
-        base_url = str(msg.get("base_url", "")).strip().rstrip("/")
-
-        if provider not in ("openai", "gemini"):
-            send_response(msg_id, status="ok", success=False, valid=False,
-                          error=f"Invalid provider: {provider}")
-            return
-        if not key:
-            send_response(msg_id, status="ok", success=False, valid=False,
-                          error="API key is required.")
-            return
-
-        if not base_url:
-            if provider == "openai":
-                base_url = "https://api.openai.com/v1"
-            else:
-                base_url = "https://generativelanguage.googleapis.com/v1beta"
-
-        if not base_url.startswith("https://") and not base_url.startswith("http://"):
-            send_response(msg_id, status="ok", success=False, valid=False,
-                          error="Base URL must start with https:// or http://")
-            return
-
-        try:
-            if provider == "openai":
-                url = f"{base_url}/models"
-                req = urllib_request.Request(
-                    url, headers={"Authorization": f"Bearer {key}"}, method="GET")
-            else:
-                encoded_key = urllib_parse.quote(key, safe="")
-                url = f"{base_url}/models?key={encoded_key}"
-                req = urllib_request.Request(url, method="GET")
-
-            with urllib_request.urlopen(req, timeout=10) as response:
-                http_status = int(getattr(response, "status", 200))
-                send_response(msg_id, status="ok",
-                              success=True, valid=True, http_status=http_status)
-        except urllib_error.HTTPError as exc:
-            http_status = int(getattr(exc, "code", 0) or 0)
-            try:
-                detail = exc.read(1024).decode("utf-8", errors="ignore").strip()
-            except Exception:
-                detail = ""
-            lowered = detail.lower()
-
-            if http_status in (401, 403):
-                send_response(msg_id, status="ok",
-                              success=True, valid=False, http_status=http_status,
-                              error="Invalid API key.")
-            elif (http_status == 400 and "api key" in lowered
-                  and ("not valid" in lowered or "invalid" in lowered)):
-                send_response(msg_id, status="ok",
-                              success=True, valid=False, http_status=http_status,
-                              error="Invalid API key.")
-            else:
-                safe_detail = detail[:160].replace(key, "***") if key else detail[:160]
-                error_msg = f"Verification failed ({http_status})."
-                if safe_detail:
-                    error_msg = f"{error_msg} {safe_detail}"
-                send_response(msg_id, status="ok",
-                              success=False, valid=False, http_status=http_status,
-                              error=error_msg)
-        except urllib_error.URLError:
-            send_response(msg_id, status="ok", success=False, valid=False,
-                          error="Network error while verifying key. Check connection or base URL.")
-        except Exception as exc:
-            send_response(msg_id, status="ok", success=False, valid=False,
-                          error=str(exc))
-
-    else:
+def handle_command(msg):
+    """Thin dispatcher: look the command up in _HANDLERS and run it."""
+    cmd = msg.get("command")
+    msg_id = msg.get("id", 0)
+    handler = _HANDLERS.get(cmd)
+    if handler is None:
         send_error(msg_id, f"Unknown command: {cmd}")
+        return
+    handler(msg, msg_id)
 
 
 # ---------------------------------------------------------------------------
 # Dispatch (routing vs. execution)
 # ---------------------------------------------------------------------------
 
-# Commands that may block on network I/O or device enumeration are run on their
-# own daemon thread so they never stall the single stdin reader. This is what
-# keeps lightweight commands (ping, cancel, level events) responsive while a slow
-# command is in flight — the freeze the audit measured. These three touch no
-# reader-owned mutable state except the transcriber, which is guarded by
-# _transcriber_lock. Recording/config commands stay inline for now (they mutate
-# recorder/_recording state the reader owns) and are addressed in a later slice.
+# Commands that may block on network I/O or device enumeration run on their own
+# daemon thread so they never stall the single stdin reader — this keeps
+# lightweight commands (ping, level events) responsive while a slow command is in
+# flight (the freeze the audit measured). These touch no reader-owned mutable
+# state except the transcriber, which is guarded by _transcriber_lock.
 ASYNC_COMMANDS = frozenset({"verify_key", "translate", "list_mics"})
 
 # Recording lifecycle commands also run off the reader thread (so a stalled
