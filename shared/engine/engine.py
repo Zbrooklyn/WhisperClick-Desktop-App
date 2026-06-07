@@ -54,6 +54,7 @@ from backend.logger import get as get_logger
 from backend.transcription import TranscriptionCancelled, TranscriptionService
 from backend import models
 from backend import tones
+from backend.concurrency import OperationTimeout, run_with_timeout
 
 _log = get_logger("engine")
 
@@ -114,6 +115,16 @@ _paste_target_hwnd = None  # Foreground window captured before recording
 # must not race an in-flight transcription/translation. RLock so the same thread
 # can re-enter if a future code path nests transcriber calls.
 _transcriber_lock = threading.RLock()
+
+# Serializes the recording lifecycle (start/stop/cancel/set_mic), which now run
+# off the reader thread, so they can't corrupt recorder/_recording state by
+# interleaving. Separate from the transcriber lock.
+_recording_lock = threading.RLock()
+
+# Bound how long opening the audio device may take. A stale/disconnected device
+# can make PortAudio hang; without this the engine waits on the host's outer 60s
+# cap. (R3)
+DEVICE_OPEN_TIMEOUT = 8
 
 
 def _level_poll_loop():
@@ -411,7 +422,7 @@ def handle_command(msg):
             _recording = False
         try:
             transcriber.clear_cancel_request()
-            recorder.start()
+            run_with_timeout(recorder.start, DEVICE_OPEN_TIMEOUT)
             _recording = True
             _level_thread = threading.Thread(target=_level_poll_loop, daemon=True)
             _level_thread.start()
@@ -421,6 +432,11 @@ def handle_command(msg):
                 except Exception:
                     pass
             send_ok(msg_id)
+        except OperationTimeout:
+            _recording = False
+            _log.error("Microphone did not respond within %ss", DEVICE_OPEN_TIMEOUT)
+            send_error(msg_id, "Microphone did not respond. "
+                               "Check that your input device is connected.")
         except Exception as e:
             _recording = False
             _log.error("Failed to start recording: %s", e, exc_info=True)
@@ -620,11 +636,23 @@ def handle_command(msg):
 # recorder/_recording state the reader owns) and are addressed in a later slice.
 ASYNC_COMMANDS = frozenset({"verify_key", "translate", "list_mics"})
 
+# Recording lifecycle commands also run off the reader thread (so a stalled
+# device open can't freeze it), but serialized under _recording_lock so they
+# can't interleave and corrupt recorder/_recording state.
+RECORDING_COMMANDS = frozenset({"start_rec", "stop_rec", "cancel", "set_mic"})
 
-def _run_async(msg):
-    """Run a handler off the reader thread, reporting any escaped error."""
+
+def _run_async(msg, lock=None):
+    """Run a handler off the reader thread, reporting any escaped error.
+
+    If a lock is given it is held for the duration so same-lane commands serialize.
+    """
     try:
-        handle_command(msg)
+        if lock is not None:
+            with lock:
+                handle_command(msg)
+        else:
+            handle_command(msg)
     except Exception as e:  # pragma: no cover - defensive
         _log.error("Async handler error: %s", e, exc_info=True)
         try:
@@ -634,8 +662,14 @@ def _run_async(msg):
 
 
 def dispatch(msg):
-    """Route a command: async-eligible ones run off-thread, the rest inline."""
-    if msg.get("command") in ASYNC_COMMANDS:
+    """Route a command: recording lane (locked) and slow lane run off-thread; the
+    rest run inline on the reader thread."""
+    cmd = msg.get("command")
+    if cmd in RECORDING_COMMANDS:
+        threading.Thread(
+            target=_run_async, args=(msg, _recording_lock), daemon=True
+        ).start()
+    elif cmd in ASYNC_COMMANDS:
         threading.Thread(target=_run_async, args=(msg,), daemon=True).start()
     else:
         handle_command(msg)

@@ -11,6 +11,8 @@ import sys
 import threading
 import time
 
+import pytest
+
 ENGINE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "engine.py")
 BLACKHOLE = "https://10.255.255.1"  # non-routable -> connect hangs to timeout
 
@@ -96,5 +98,32 @@ def test_slow_command_still_completes():
         assert m is not None, "verify_key never resolved"
         # unreachable host -> reported as not valid / failed, but it MUST answer
         assert m.get("id") == 20
+    finally:
+        _quit(p)
+
+
+def test_reader_stays_responsive_during_recording():
+    """A lightweight ping must answer fast while a recording is active — the
+    recording lane now runs off the reader thread."""
+    p, recv = _spawn()
+    try:
+        _send(p, id=29, command="list_mics")
+        _t, mics_resp = _wait_for(recv, 29, timeout=5)
+        mics = (mics_resp or {}).get("mics") or []
+        if not mics:
+            pytest.skip("no input devices in this environment")
+        _send(p, id=28, command="set_mic", device_id=mics[0]["id"])
+        _wait_for(recv, 28, timeout=3)
+        _send(p, id=30, command="start_rec")
+        _t, m_start = _wait_for(recv, 30, timeout=12)
+        if m_start is None or m_start.get("status") != "ok":
+            pytest.skip(f"could not open an input device: {m_start}")
+        ping_sent = time.time()
+        _send(p, id=31, command="ping")
+        t, m = _wait_for(recv, 31, timeout=2)
+        assert m is not None, "ping not answered while recording"
+        assert t - ping_sent < 1.0, "reader blocked during recording"
+        _send(p, id=32, command="stop_rec")
+        _wait_for(recv, 32, timeout=6)
     finally:
         _quit(p)
