@@ -9,10 +9,14 @@ for the Python side (models directory, audio directory, etc.).
 import os
 import sys
 
-# Installed EXE (frozen) uses "whisperclick"; running from source uses "whisperclick-dev"
+# Installed EXE (frozen) uses "whisperclick"; running from source uses
+# "whisperclick-dev", so a dev run never shares data with the installed app.
+# WHISPERCLICK_CONFIG_DIR overrides the whole location (tests, custom hosts).
 IS_FROZEN = getattr(sys, "frozen", False)
 _CONFIG_FOLDER = "whisperclick" if IS_FROZEN else "whisperclick-dev"
-CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".config", _CONFIG_FOLDER)
+CONFIG_DIR = os.environ.get("WHISPERCLICK_CONFIG_DIR") or os.path.join(
+    os.path.expanduser("~"), ".config", _CONFIG_FOLDER
+)
 MODELS_DIR = os.path.join(CONFIG_DIR, "models")
 AUDIO_DIR = os.path.join(CONFIG_DIR, "audio")
 

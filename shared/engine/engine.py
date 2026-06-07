@@ -25,9 +25,11 @@ import urllib.request as urllib_request
 
 # Redirect stderr to a log file BEFORE any imports that might print to it.
 # WHISPERCLICK_CONFIG_DIR overrides the location (used by tests; lets the host
-# point the engine at its own config dir).
+# point the engine at its own config dir). Mirror config.py's dev/prod split so a
+# from-source run logs to "whisperclick-dev", never the installed app's folder.
+_frozen = getattr(sys, "frozen", False)
 _log_dir = os.environ.get("WHISPERCLICK_CONFIG_DIR") or os.path.join(
-    os.path.expanduser("~"), ".config", "whisperclick"
+    os.path.expanduser("~"), ".config", "whisperclick" if _frozen else "whisperclick-dev"
 )
 os.makedirs(_log_dir, exist_ok=True)
 _engine_log = os.path.join(_log_dir, "engine.log")
@@ -367,7 +369,9 @@ def _h_configure(msg, msg_id):
         _source_language = msg["source_language"]
     if "audio_retention_days" in msg:
         _audio_retention_days = msg["audio_retention_days"]
-    _cleanup_expired_audio()
+    # Audio cleanup scans/deletes files on disk; run it off the reader thread so
+    # `configure` returns immediately and a large audio dir can't add latency (R7).
+    threading.Thread(target=_cleanup_expired_audio, daemon=True).start()
     send_ok(msg_id)
 
 
