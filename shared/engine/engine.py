@@ -90,6 +90,12 @@ _source_language = "auto"
 _audio_retention_days = 30
 _paste_target_hwnd = None  # Foreground window captured before recording
 
+# Serializes access to the shared transcriber. The local faster-whisper model is
+# not thread-safe, and a standalone `translate` now runs on its own thread, so it
+# must not race an in-flight transcription/translation. RLock so the same thread
+# can re-enter if a future code path nests transcriber calls.
+_transcriber_lock = threading.RLock()
+
 
 def _level_poll_loop():
     """Send real audio levels during recording at ~20 Hz."""
@@ -137,7 +143,8 @@ def _do_transcribe(duration):
             return
 
         start_time = time.time()
-        text = transcriber.transcribe(audio)
+        with _transcriber_lock:
+            text = transcriber.transcribe(audio)
         elapsed = time.time() - start_time
 
         if _sound_enabled:
@@ -178,7 +185,8 @@ def _do_transcribe(duration):
         # Translation if output_mode includes it
         if _output_mode in ("translate", "both") and text.strip():
             try:
-                translated = transcriber.translate(text, _target_language, _source_language)
+                with _transcriber_lock:
+                    translated = transcriber.translate(text, _target_language, _source_language)
                 send_event("translation", {
                     "text": translated,
                     "source": text,
@@ -441,7 +449,8 @@ def handle_command(msg):
         target = msg.get("target_language", _target_language)
         source = msg.get("source_language", _source_language)
         try:
-            translated = transcriber.translate(text, target, source)
+            with _transcriber_lock:
+                translated = transcriber.translate(text, target, source)
             send_ok(msg_id, text=translated)
         except Exception as e:
             send_error(msg_id, e)
@@ -580,6 +589,40 @@ def handle_command(msg):
 
 
 # ---------------------------------------------------------------------------
+# Dispatch (routing vs. execution)
+# ---------------------------------------------------------------------------
+
+# Commands that may block on network I/O or device enumeration are run on their
+# own daemon thread so they never stall the single stdin reader. This is what
+# keeps lightweight commands (ping, cancel, level events) responsive while a slow
+# command is in flight — the freeze the audit measured. These three touch no
+# reader-owned mutable state except the transcriber, which is guarded by
+# _transcriber_lock. Recording/config commands stay inline for now (they mutate
+# recorder/_recording state the reader owns) and are addressed in a later slice.
+ASYNC_COMMANDS = frozenset({"verify_key", "translate", "list_mics"})
+
+
+def _run_async(msg):
+    """Run a handler off the reader thread, reporting any escaped error."""
+    try:
+        handle_command(msg)
+    except Exception as e:  # pragma: no cover - defensive
+        _log.error("Async handler error: %s", e, exc_info=True)
+        try:
+            send({"id": msg.get("id", 0), "status": "error", "error": str(e)})
+        except Exception:
+            pass
+
+
+def dispatch(msg):
+    """Route a command: async-eligible ones run off-thread, the rest inline."""
+    if msg.get("command") in ASYNC_COMMANDS:
+        threading.Thread(target=_run_async, args=(msg,), daemon=True).start()
+    else:
+        handle_command(msg)
+
+
+# ---------------------------------------------------------------------------
 # Main loop
 # ---------------------------------------------------------------------------
 
@@ -594,7 +637,7 @@ def main():
             continue
         try:
             msg = json.loads(line)
-            handle_command(msg)
+            dispatch(msg)
         except json.JSONDecodeError:
             send({"error": "Invalid JSON"})
         except SystemExit:
