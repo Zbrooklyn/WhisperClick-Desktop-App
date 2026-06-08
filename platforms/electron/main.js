@@ -1297,10 +1297,13 @@ app.whenReady().then(() => {
   }, 500);
 
   let sidecarRestartCount = 0;
+  let sidecarRecoveryCycles = 0;
 
   sidecar.on('ready', () => {
     log.sidecar('ready', 'pushing initial config');
+    // Engine is healthy again — restore both the fast-restart and cooldown budgets.
     sidecarRestartCount = 0;
+    sidecarRecoveryCycles = 0;
     configureSidecar();
   });
 
@@ -1391,6 +1394,19 @@ app.whenReady().then(() => {
   });
 
   const MAX_SIDECAR_RESTARTS = 3;
+  // After the fast restarts are exhausted, try a few slow "cooldown" recoveries
+  // before giving up — so a transient cause (mic locked by an AV scan, a brief
+  // device glitch) can recover instead of bricking voice for the whole session.
+  const RECOVERY_DELAY_MS = 30000;
+  const MAX_RECOVERY_CYCLES = 2;
+
+  function scheduleSidecarStart(delay) {
+    const timer = setTimeout(() => {
+      if (isQuitting) return;
+      try { sidecar.start(); } catch (err) { log.error(`Sidecar restart failed: ${err.message}`); }
+    }, delay);
+    if (typeof timer.unref === 'function') timer.unref();
+  }
 
   sidecar.on('exit', (code) => {
     log.sidecar('exit', `code=${code}`);
@@ -1401,15 +1417,22 @@ app.whenReady().then(() => {
       broadcastError('Backend crashed — recording lost');
     }
 
-    if (code !== 0 && code !== null && sidecarRestartCount < MAX_SIDECAR_RESTARTS) {
+    if (code === 0 || code === null) return; // clean exit — no restart
+
+    if (sidecarRestartCount < MAX_SIDECAR_RESTARTS) {
       sidecarRestartCount++;
       const delay = 1000 * sidecarRestartCount;
       log.sidecar('restart', `in ${delay}ms (attempt ${sidecarRestartCount}/${MAX_SIDECAR_RESTARTS})`);
-      setTimeout(() => {
-        if (isQuitting) return;
-        try { sidecar.start(); } catch (err) { log.error(`Sidecar restart failed: ${err.message}`); }
-      }, delay);
-    } else if (sidecarRestartCount >= MAX_SIDECAR_RESTARTS) {
+      scheduleSidecarStart(delay);
+    } else if (sidecarRecoveryCycles < MAX_RECOVERY_CYCLES) {
+      // Fast restarts exhausted — slow cooldown retry with a fresh fast-restart budget.
+      sidecarRecoveryCycles++;
+      sidecarRestartCount = 0;
+      log.sidecar('restart',
+        `cooldown recovery ${sidecarRecoveryCycles}/${MAX_RECOVERY_CYCLES} in ${RECOVERY_DELAY_MS}ms`);
+      broadcastError('Backend is restarting…');
+      scheduleSidecarStart(RECOVERY_DELAY_MS);
+    } else {
       log.error('Sidecar crashed too many times — giving up');
       broadcastError('Backend failed to start — restart the app');
     }

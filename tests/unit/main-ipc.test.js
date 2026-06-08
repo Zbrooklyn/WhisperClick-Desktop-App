@@ -1791,7 +1791,7 @@ describe('sidecar restart backoff', () => {
     await tick(50);
   });
 
-  test('non-zero exit triggers restart with increasing delay, stops after 3', () => {
+  test('non-zero exit: 3 fast restarts, then a slow cooldown recovery', () => {
     jest.useFakeTimers();
     const spawnBefore = spawn.mock.calls.length;
 
@@ -1819,12 +1819,16 @@ describe('sidecar restart backoff', () => {
     jest.advanceTimersByTime(3000);
     expect(spawn.mock.calls.length).toBe(spawnBefore + 3);
 
-    // Crash 4 → NO restart (max 3 exhausted)
+    // Crash 4 → fast budget exhausted: NO restart within the fast window...
     proc = spawn.mock.results[spawn.mock.results.length - 1].value;
     const afterThree = spawn.mock.calls.length;
     proc.emit('exit', 1);
     jest.advanceTimersByTime(10000);
     expect(spawn.mock.calls.length).toBe(afterThree);
+    // ...but a slow cooldown recovery restarts the engine at 30s, so a transient
+    // cause doesn't brick voice for the whole session.
+    jest.advanceTimersByTime(20001);
+    expect(spawn.mock.calls.length).toBe(afterThree + 1);
 
     jest.useRealTimers();
   });
