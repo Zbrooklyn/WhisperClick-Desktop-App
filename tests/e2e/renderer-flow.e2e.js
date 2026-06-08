@@ -205,6 +205,40 @@ async function phaseSpontaneous(userData) {
   }
 }
 
+// Cancel path: start recording then cancel mid-stream. The app must return to
+// idle (no stuck recording) and write no history entry.
+async function phaseCancel(userData) {
+  const { app, win } = await launch(userData);
+  try {
+    await win.evaluate(() => window.triggerTrustedHotkeyToggle()); // start
+    const started = await win.waitForFunction(() => {
+      const t = (document.getElementById('status-text') || {}).textContent || '';
+      return /listening/i.test(t);
+    }, null, { timeout: 8000 }).then(() => true).catch(() => false);
+    check('cancel path: recording started', started);
+
+    await win.waitForTimeout(400);
+    // Cancel through the real bridge -> main -> engine cancel.
+    await win.evaluate(() => window.pywebview.api.cancel_processing());
+
+    const idle = await win.waitForFunction(() => {
+      const t = ((document.getElementById('status-text') || {}).textContent || '').trim();
+      return t === 'Record';
+    }, null, { timeout: 8000 }).then(() => true).catch(() => false);
+    check('cancel path: returned to idle (no stuck recording)', idle,
+      idle ? '' : 'status-text did not return to "Record" after cancel');
+
+    await win.waitForTimeout(400);
+    const noHistory = await win.evaluate((expected) => {
+      const list = document.getElementById('history-list');
+      return !list || !list.textContent.includes(expected);
+    }, EXPECTED);
+    check('cancel path: no history entry from cancel', noHistory);
+  } finally {
+    if (app) { try { await app.close(); } catch { /* ignore */ } }
+  }
+}
+
 async function main() {
   const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'wc-e2e-'));
   seedSettings(userData);
@@ -212,15 +246,19 @@ async function main() {
   seedSettings(errUserData);
   const spontUserData = fs.mkdtempSync(path.join(os.tmpdir(), 'wc-e2e-spont-'));
   seedSettings(spontUserData);
+  const cancelUserData = fs.mkdtempSync(path.join(os.tmpdir(), 'wc-e2e-cancel-'));
+  seedSettings(cancelUserData);
   try {
     await phase1(userData);
     await phase2(userData);
     await phaseError(errUserData);
     await phaseSpontaneous(spontUserData);
+    await phaseCancel(cancelUserData);
   } finally {
     try { fs.rmSync(userData, { recursive: true, force: true }); } catch { /* ignore */ }
     try { fs.rmSync(errUserData, { recursive: true, force: true }); } catch { /* ignore */ }
     try { fs.rmSync(spontUserData, { recursive: true, force: true }); } catch { /* ignore */ }
+    try { fs.rmSync(cancelUserData, { recursive: true, force: true }); } catch { /* ignore */ }
   }
 
   const failed = results.filter(r => !r.ok);
