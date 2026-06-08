@@ -31,10 +31,24 @@ class Sidecar extends EventEmitter {
       }
     }
 
-    // Development: use Python
+    // Development: use Python. Resolution order:
+    //  1. WHISPERCLICK_PYTHON env (explicit override — e2e harness, power users)
+    //  2. a sibling virtualenv next to the engine (.venv or venv, either layout)
+    //  3. bare 'python' on PATH (last resort; can fail on Windows if absent)
     if (!cmd) {
-      const venvPython = path.join(engineDir, '..', 'venv', 'Scripts', 'python.exe');
-      cmd = fs.existsSync(venvPython) ? venvPython : 'python';
+      const isWin = process.platform === 'win32';
+      const venvPy = (root) => isWin
+        ? path.join(root, 'Scripts', 'python.exe')
+        : path.join(root, 'bin', 'python');
+      const candidates = [
+        process.env.WHISPERCLICK_PYTHON,
+        venvPy(path.join(engineDir, '..', '.venv')),
+        venvPy(path.join(engineDir, '..', 'venv')),
+        venvPy(path.join(engineDir, '.venv')),
+        venvPy(path.join(engineDir, 'venv')),
+      ].filter(Boolean);
+      cmd = candidates.find((p) => { try { return fs.existsSync(p); } catch { return false; } })
+        || 'python';
       args = ['-u', this.enginePath];
       cwd = engineDir;
     }
