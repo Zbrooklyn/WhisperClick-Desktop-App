@@ -13,6 +13,10 @@
  *   the transcription is still in the rebuilt history list (history store
  *   survived restart + re-rendered), and the two mutated settings persisted
  *   (settings store survived restart).
+ * Phase 3 (error path) — with the mock in error mode (WHISPERCLICK_MOCK_MODE=
+ *   error), stop emits an engine 'error' event instead of a transcription. Prove
+ *   the renderer surfaces the failure to the user (banner) and does NOT fabricate
+ *   a history entry or get stuck.
  *
  * What is REAL here: the Electron main process, the preload bridge, the 5,111-line
  * renderer (index.html) logic, IPC, the state machine, the settings + history
@@ -59,11 +63,11 @@ function seedSettings(userData, overrides = {}) {
   return cfgDir;
 }
 
-async function launch(userData) {
+async function launch(userData, extraEnv = {}) {
   const app = await electron.launch({
     cwd: REPO,
     args: ['.', `--user-data-dir=${userData}`],
-    env: { ...process.env, WHISPERCLICK_ENGINE_PATH: MOCK, ...pyEnv },
+    env: { ...process.env, WHISPERCLICK_ENGINE_PATH: MOCK, ...pyEnv, ...extraEnv },
     timeout: 30000,
   });
   const win = await app.firstWindow({ timeout: 20000 });
@@ -139,14 +143,54 @@ async function phase2(userData) {
   }
 }
 
+// Error path: with the mock in error mode, stop emits an engine 'error' event.
+// Prove the renderer surfaces it to the user (toast) and does NOT fabricate a
+// history entry or get stuck.
+async function phaseError(userData) {
+  const { app, win } = await launch(userData, { WHISPERCLICK_MOCK_MODE: 'error' });
+  try {
+    await win.evaluate(() => window.triggerTrustedHotkeyToggle());
+    const entered = await win.waitForFunction(() => {
+      const t = (document.getElementById('status-text') || {}).textContent || '';
+      return /record|listen/i.test(t);
+    }, null, { timeout: 8000 }).then(() => true).catch(() => false);
+    check('error path: record gate passed', entered);
+
+    await win.waitForTimeout(700);
+    await win.evaluate(() => window.triggerTrustedHotkeyToggle()); // stop -> error
+
+    // The failure must surface to the user as a banner/toast containing the msg.
+    const surfaced = await win.waitForFunction(() => {
+      const c = document.getElementById('banner-container');
+      return !!c && /mock transcription failure/i.test(c.textContent || '');
+    }, null, { timeout: 8000 }).then(() => true).catch(() => false);
+    check('error path: failure surfaced to user (banner)', surfaced,
+      surfaced ? '' : '#banner-container never showed the error message');
+
+    // And no transcription should have been fabricated into history.
+    await win.waitForTimeout(800);
+    const noFabrication = await win.evaluate((expected) => {
+      const list = document.getElementById('history-list');
+      return !list || !list.textContent.includes(expected);
+    }, EXPECTED);
+    check('error path: no fabricated history entry', noFabrication);
+  } finally {
+    if (app) { try { await app.close(); } catch { /* ignore */ } }
+  }
+}
+
 async function main() {
   const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'wc-e2e-'));
   seedSettings(userData);
+  const errUserData = fs.mkdtempSync(path.join(os.tmpdir(), 'wc-e2e-err-'));
+  seedSettings(errUserData);
   try {
     await phase1(userData);
     await phase2(userData);
+    await phaseError(errUserData);
   } finally {
     try { fs.rmSync(userData, { recursive: true, force: true }); } catch { /* ignore */ }
+    try { fs.rmSync(errUserData, { recursive: true, force: true }); } catch { /* ignore */ }
   }
 
   const failed = results.filter(r => !r.ok);

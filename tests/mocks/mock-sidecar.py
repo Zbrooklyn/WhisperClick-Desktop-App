@@ -9,9 +9,16 @@ Implements the full JSON line protocol:
 """
 
 import json
+import os
 import sys
 import time
 import threading
+
+# Optional fault-injection for e2e error-path coverage. When set to "error",
+# stop_rec emits an 'error' event instead of a 'transcription' event so the
+# renderer's failure handling (toast + no fabricated history) can be proven.
+MOCK_MODE = os.environ.get("WHISPERCLICK_MOCK_MODE", "")
+MOCK_ERROR_MESSAGE = "Mock transcription failure (e2e)"
 
 
 def send(msg):
@@ -67,9 +74,13 @@ def handle_command(msg):
         return {"id": msg_id, "result": "ok"}
 
     elif cmd == "stop_rec":
-        # Send a transcription event after a short delay
-        def emit_transcription():
+        # Send a transcription event after a short delay — or, in error mode,
+        # an 'error' event to exercise the renderer's failure path.
+        def emit_result():
             time.sleep(0.3)
+            if MOCK_MODE == "error":
+                send_event("error", {"message": MOCK_ERROR_MESSAGE})
+                return
             send_event(
                 "transcription",
                 {
@@ -82,7 +93,7 @@ def handle_command(msg):
                 },
             )
 
-        threading.Thread(target=emit_transcription, daemon=True).start()
+        threading.Thread(target=emit_result, daemon=True).start()
         return {"id": msg_id, "result": "ok"}
 
     elif cmd == "cancel":
