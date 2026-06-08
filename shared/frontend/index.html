@@ -833,6 +833,11 @@
         // Single state variable — set ONLY by state-update events from main process.
         // The main process state machine is the sole authority.
         let currentAppState = 'dormant'; // dormant | recording | processing | success | error
+        // While a stop-recording flow is in progress it surfaces its own error
+        // toast; the state:error broadcast must not add a second one. Spontaneous
+        // engine errors (outside this window) have no other surface, so the
+        // state:error handler toasts those. Timestamp = order-independent dedup.
+        let stopFlowErrorWindowUntil = 0;
         let timerInterval;
         let seconds = 0;
         let historyData = [];
@@ -3112,7 +3117,7 @@
         // State-update handler — SOLE AUTHORITY for frontend state.
         // The main process state machine sends these events on every transition.
         window.addEventListener('state-update', (e) => {
-            const { state } = e.detail || {};
+            const { state, message } = e.detail || {};
             const prev = currentAppState;
             currentAppState = state || 'dormant';
 
@@ -3136,6 +3141,14 @@
                     callNativeApi('ack_state').catch(() => {});
                 }, 1500);
             } else if (state === 'error') {
+                // Surface engine errors the user wouldn't otherwise see. The
+                // stop-recording flow already toasts errors it handles itself, so
+                // skip those (avoid a double toast); show *spontaneous* engine
+                // errors (mid-recording / idle backend failures) that have no
+                // other surface. Works on every platform that sends state-update.
+                if (message && Date.now() > stopFlowErrorWindowUntil) {
+                    showToast(message, 'info');
+                }
                 // Error display — ack after showing message so main transitions to dormant
                 setTimeout(() => {
                     callNativeApi('ack_state').catch(() => {});
@@ -3662,6 +3675,10 @@
         }
 
         async function stopRecordingSession() {
+            // This flow owns error surfacing while a stop is in progress, so the
+            // state:error broadcast won't double-toast. Window covers a slow
+            // (API) transcription; spontaneous errors fall outside it.
+            stopFlowErrorWindowUntil = Date.now() + 5000;
             recordingDurationSecs = seconds;
             clearInterval(timerInterval);
             beginProcessingState();

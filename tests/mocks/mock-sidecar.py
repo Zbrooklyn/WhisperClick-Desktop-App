@@ -19,6 +19,9 @@ import threading
 # renderer's failure handling (toast + no fabricated history) can be proven.
 MOCK_MODE = os.environ.get("WHISPERCLICK_MOCK_MODE", "")
 MOCK_ERROR_MESSAGE = "Mock transcription failure (e2e)"
+# A backend error that is NOT tied to a stop_rec request (mid-recording / idle
+# engine failure) — used to prove the renderer surfaces spontaneous errors.
+MOCK_SPONTANEOUS_MESSAGE = "Mock spontaneous engine failure (e2e)"
 
 
 def send(msg):
@@ -172,6 +175,16 @@ def handle_command(msg):
 def main():
     # Signal ready
     send_event("ready", {"version": "mock-1.0"})
+
+    # Fault injection: emit a spontaneous engine 'error' event with no preceding
+    # command, so the renderer's surfacing of unsolicited backend errors can be
+    # proven end to end.
+    if MOCK_MODE == "spontaneous-error":
+        def emit_spontaneous():
+            time.sleep(1.5)
+            send_event("error", {"message": MOCK_SPONTANEOUS_MESSAGE})
+
+        threading.Thread(target=emit_spontaneous, daemon=True).start()
 
     for line in sys.stdin:
         line = line.strip()

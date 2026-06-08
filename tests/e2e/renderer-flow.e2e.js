@@ -174,6 +174,32 @@ async function phaseError(userData) {
       return !list || !list.textContent.includes(expected);
     }, EXPECTED);
     check('error path: no fabricated history entry', noFabrication);
+
+    // Exactly ONE banner — the stop flow owns this error's toast; the state:error
+    // broadcast must NOT add a second (double-toast) banner.
+    const bannerCount = await win.evaluate(() => {
+      const c = document.getElementById('banner-container');
+      return c ? c.children.length : -1;
+    });
+    check('error path: single toast (no double-toast)', bannerCount === 1,
+      `banner-container children = ${bannerCount}`);
+  } finally {
+    if (app) { try { await app.close(); } catch { /* ignore */ } }
+  }
+}
+
+// Spontaneous engine error: the mock emits an 'error' event with no preceding
+// command (no stop in flight). The renderer must surface it to the user even
+// though no stop-recording flow handled it.
+async function phaseSpontaneous(userData) {
+  const { app, win } = await launch(userData, { WHISPERCLICK_MOCK_MODE: 'spontaneous-error' });
+  try {
+    const surfaced = await win.waitForFunction(() => {
+      const c = document.getElementById('banner-container');
+      return !!c && /spontaneous engine failure/i.test(c.textContent || '');
+    }, null, { timeout: 12000 }).then(() => true).catch(() => false);
+    check('spontaneous error surfaced to user (no record action)', surfaced,
+      surfaced ? '' : '#banner-container never showed the spontaneous error');
   } finally {
     if (app) { try { await app.close(); } catch { /* ignore */ } }
   }
@@ -184,13 +210,17 @@ async function main() {
   seedSettings(userData);
   const errUserData = fs.mkdtempSync(path.join(os.tmpdir(), 'wc-e2e-err-'));
   seedSettings(errUserData);
+  const spontUserData = fs.mkdtempSync(path.join(os.tmpdir(), 'wc-e2e-spont-'));
+  seedSettings(spontUserData);
   try {
     await phase1(userData);
     await phase2(userData);
     await phaseError(errUserData);
+    await phaseSpontaneous(spontUserData);
   } finally {
     try { fs.rmSync(userData, { recursive: true, force: true }); } catch { /* ignore */ }
     try { fs.rmSync(errUserData, { recursive: true, force: true }); } catch { /* ignore */ }
+    try { fs.rmSync(spontUserData, { recursive: true, force: true }); } catch { /* ignore */ }
   }
 
   const failed = results.filter(r => !r.ok);
