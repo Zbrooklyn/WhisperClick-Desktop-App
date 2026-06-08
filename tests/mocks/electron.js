@@ -239,10 +239,16 @@ const dialog = {
 };
 
 class MockNotification {
-  constructor() { this._handlers = {}; }
+  static _instances = [];
+  constructor(opts) {
+    this.opts = opts || {};
+    this._handlers = {};
+    MockNotification._instances.push(this);
+  }
   on(event, handler) { this._handlers[event] = handler; return this; }
-  show() {}
+  show() { this._shown = true; }
   static isSupported() { return true; }
+  static _clear() { MockNotification._instances.length = 0; }
 }
 
 module.exports = {

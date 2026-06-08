@@ -409,11 +409,27 @@ function registerHotkey(accelerator) {
     });
     if (success) {
       currentHotkey = normalized;
+    } else {
+      log.error(`Hotkey registration failed for "${normalized}" — likely in use by another app`);
     }
     return success;
-  } catch {
+  } catch (err) {
+    log.error(`Hotkey registration threw for "${normalized}": ${err.message}`);
     return false;
   }
+}
+
+// Surface a failed hotkey registration to the user — the app's headline feature
+// is dead-on-arrival if its shortcut couldn't be claimed, so don't fail silently.
+function notifyHotkeyFailed(accel) {
+  try {
+    if (Notification.isSupported()) {
+      new Notification({
+        title: 'WhisperClick — shortcut unavailable',
+        body: `Couldn't register ${accel}. It may be in use by another app. Pick a different shortcut in Settings.`,
+      }).show();
+    }
+  } catch { /* notification is best-effort */ }
 }
 
 async function trayToggleRecording() {
@@ -509,7 +525,7 @@ ipcMain.handle('save-settings', (_, patch) => {
   }
   // Re-register hotkey if changed
   if (settings.hotkey && settings.hotkey !== currentHotkey) {
-    registerHotkey(settings.hotkey);
+    if (!registerHotkey(settings.hotkey)) notifyHotkeyFailed(settings.hotkey);
   }
   // Toggle pill visibility
   if (settings.showPill && (!pillWindow || pillWindow.isDestroyed())) {
@@ -691,18 +707,25 @@ ipcMain.handle('verify-api-key', async (_, provider, key, baseUrl) => {
         message: result.error || (result.valid ? 'Key verified' : 'Invalid key'),
       };
     } catch (err) {
-      // Sidecar call failed — fall through to format check
+      // Surface the failure instead of silently downgrading to a format check
+      // that falsely reports success.
+      log.error(`verify-api-key: backend verification failed (${err.message}); format-only fallback`);
     }
   }
 
-  // Fallback: format-only check if sidecar is down
+  // Fallback: format-only check if sidecar is down. This is NOT verification —
+  // never report valid:true here (that's the false-success bug); only say whether
+  // the format is plausible and that we couldn't actually verify.
   if (provider === 'openai' && !key.startsWith('sk-')) {
-    return { valid: false, message: 'OpenAI keys start with sk-' };
+    return { valid: false, verified: false, message: 'OpenAI keys start with sk-' };
   }
   if (provider === 'gemini' && !key.startsWith('AIza')) {
-    return { valid: false, message: 'Gemini keys start with AIza' };
+    return { valid: false, verified: false, message: 'Gemini keys start with AIza' };
   }
-  return { valid: true, message: 'Key format looks valid (offline check)' };
+  return {
+    valid: false, verified: false, formatValid: true,
+    message: 'Could not verify key — backend unavailable. Format looks correct; try again.',
+  };
 });
 
 // Start recording — separate from toggle, used by V3 frontend
@@ -1192,7 +1215,9 @@ app.whenReady().then(() => {
   log.init(configDir, settings.debugLogging, isDev);
 
   createMainWindow();
-  registerHotkey(settings.hotkey || 'Ctrl+Alt+R');
+  if (!registerHotkey(settings.hotkey || 'Ctrl+Alt+R')) {
+    notifyHotkeyFailed(settings.hotkey || 'Ctrl+Alt+R');
+  }
 
   // Start sidecar early — Python spawn takes time, run in parallel with UI setup
   const enginePath = process.env.WHISPERCLICK_ENGINE_PATH || path.join(__dirname, '../../shared/engine/engine.py');

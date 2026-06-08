@@ -57,6 +57,7 @@ from backend import models
 from backend import tones
 from backend.api_requests import build_verify_request
 from backend.concurrency import OperationTimeout, run_with_timeout
+from backend.ids import make_audio_id
 
 _log = get_logger("engine")
 
@@ -196,7 +197,7 @@ def _do_transcribe(duration):
                 import soundfile as sf
 
                 os.makedirs(AUDIO_DIR, exist_ok=True)
-                audio_id = f"{int(time.time() * 1000)}"
+                audio_id = make_audio_id()
                 out_path = os.path.join(AUDIO_DIR, f"{audio_id}.ogg")
                 data, sr = sf.read(wav_bytes, dtype="float32")
                 sf.write(out_path, data, sr, format="OGG", subtype="OPUS")

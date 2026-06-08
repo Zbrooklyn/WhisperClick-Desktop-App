@@ -536,14 +536,31 @@ describe('verify-api-key format checks', () => {
     expect(result.message).toMatch(/AIza/);
   });
 
-  test('accepts valid Gemini format in fallback', async () => {
+  test('format-only fallback does NOT claim a valid-format key is verified', async () => {
     const cleanup = autoRespondSidecar(initialFakeProc, {
       verify_key: { error: 'offline' },
     });
     const result = await ipcMain._invoke('verify-api-key', 'gemini', 'AIza-test-key');
     cleanup();
-    expect(result.valid).toBe(true);
-    expect(result.message).toMatch(/format looks valid/i);
+    // Honest: format looks fine but we could not actually verify it.
+    expect(result.valid).toBe(false);
+    expect(result.verified).toBe(false);
+    expect(result.formatValid).toBe(true);
+    expect(result.message).toMatch(/could not verify/i);
+  });
+});
+
+// ── hotkey registration failure surfacing ───────────────────────────────
+describe('hotkey registration failure', () => {
+  const { Notification } = require('electron');
+
+  test('surfaces a notification when a hotkey cannot be registered', async () => {
+    Notification._clear();
+    // Force the next globalShortcut.register to report failure (e.g. taken).
+    globalShortcut.register.mockReturnValueOnce(false);
+    await ipcMain._invoke('save-settings', { hotkey: 'Ctrl+Alt+F9' });
+    const titles = Notification._instances.map(n => n.opts.title || '');
+    expect(titles.some(t => /shortcut unavailable/i.test(t))).toBe(true);
   });
 });
 
@@ -1848,10 +1865,13 @@ describe('sidecar not running guards', () => {
     expect(result.error).toMatch(/nothing to cancel/i);
   });
 
-  test('verify-api-key falls back to format check when sidecar is down', async () => {
+  test('verify-api-key does not report false success when sidecar is down', async () => {
     const result = await ipcMain._invoke('verify-api-key', 'openai', 'sk-valid-key');
-    expect(result.valid).toBe(true);
-    expect(result.message).toMatch(/format looks valid/i);
+    // Sidecar down -> cannot verify -> must NOT claim valid.
+    expect(result.valid).toBe(false);
+    expect(result.verified).toBe(false);
+    expect(result.formatValid).toBe(true);
+    expect(result.message).toMatch(/could not verify/i);
   });
 });
 
