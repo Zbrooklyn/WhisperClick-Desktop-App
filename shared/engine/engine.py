@@ -20,7 +20,6 @@ import sys
 import threading
 import time
 import urllib.error as urllib_error
-import urllib.parse as urllib_parse
 import urllib.request as urllib_request
 
 # Redirect stderr to a log file BEFORE any imports that might print to it.
@@ -56,6 +55,7 @@ from backend.logger import get as get_logger
 from backend.transcription import TranscriptionCancelled, TranscriptionService
 from backend import models
 from backend import tones
+from backend.api_requests import build_verify_request
 from backend.concurrency import OperationTimeout, run_with_timeout
 
 _log = get_logger("engine")
@@ -647,15 +647,7 @@ def _h_verify_key(msg, msg_id):
         return
 
     try:
-        if provider == "openai":
-            url = f"{base_url}/models"
-            req = urllib_request.Request(
-                url, headers={"Authorization": f"Bearer {key}"}, method="GET")
-        else:
-            encoded_key = urllib_parse.quote(key, safe="")
-            url = f"{base_url}/models?key={encoded_key}"
-            req = urllib_request.Request(url, method="GET")
-
+        req = build_verify_request(provider, base_url, key)
         with urllib_request.urlopen(req, timeout=10) as response:
             http_status = int(getattr(response, "status", 200))
             send_response(msg_id, status="ok",

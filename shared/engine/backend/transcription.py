@@ -10,6 +10,7 @@ from urllib import request as urllib_request
 import soundfile as sf
 from openai import APIConnectionError, APITimeoutError, OpenAI
 
+from .api_requests import build_gemini_request
 from .logger import get as get_logger
 
 _log = get_logger("transcription")
@@ -300,10 +301,9 @@ class TranscriptionService:
 
         model = self._api_model if self._api_model else "gemini-2.0-flash"
         base_url = self._api_base_url or "https://generativelanguage.googleapis.com/v1beta"
-        url = f"{base_url}/models/{model}:generateContent?key={api_key}"
 
         body_bytes = json.dumps(request_body).encode("utf-8")
-        req = urllib_request.Request(url, data=body_bytes, headers={"Content-Type": "application/json"}, method="POST")
+        req = build_gemini_request(base_url, model, api_key, body_bytes)
 
         try:
             with urllib_request.urlopen(req, timeout=30) as response:
@@ -401,10 +401,9 @@ class TranscriptionService:
 
         model = self._api_model if self._api_model else "gemini-2.0-flash"
         base_url = self._api_base_url or "https://generativelanguage.googleapis.com/v1beta"
-        url = f"{base_url}/models/{model}:generateContent?key={api_key}"
 
         body_bytes = json.dumps(request_body).encode("utf-8")
-        req = urllib_request.Request(url, data=body_bytes, headers={"Content-Type": "application/json"}, method="POST")
+        req = build_gemini_request(base_url, model, api_key, body_bytes)
 
         try:
             with urllib_request.urlopen(req, timeout=30) as response:
