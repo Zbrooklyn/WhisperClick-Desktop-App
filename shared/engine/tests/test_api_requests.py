@@ -4,9 +4,38 @@ A key in the URL leaks into proxy/access logs and any traceback that prints the
 request URL. These tests pin the "no key in URL" guarantee for every key-bearing
 request the engine builds.
 """
-from backend.api_requests import build_gemini_request, build_verify_request
+from backend.api_requests import build_gemini_request, build_verify_request, redact_key
 
 SECRET = "sk-SUPERSECRET-DO-NOT-LEAK-123"
+
+
+# --- redact_key: the single scrubbing primitive every HTTP path routes through ---
+
+def test_redact_key_replaces_every_occurrence():
+    out = redact_key(f"bad key {SECRET} and again {SECRET}", SECRET)
+    assert SECRET not in out
+    assert out.count("***") == 2
+
+
+def test_redact_key_truncates_then_scrubs_within_window():
+    out = redact_key(SECRET + "y" * 500, SECRET, limit=160)
+    # Truncation happens first (<=160), then the key in the window is scrubbed
+    # (which shortens the result further as the key -> "***").
+    assert len(out) <= 160
+    assert SECRET not in out
+    assert "***" in out
+
+
+def test_redact_key_truncation_can_drop_key_entirely():
+    out = redact_key("x" * 500 + SECRET, SECRET, limit=160)
+    assert len(out) == 160
+    assert SECRET not in out
+
+
+def test_redact_key_empty_key_is_a_noop():
+    # A falsy key must never turn into a literal "***" in otherwise-clean text.
+    assert redact_key("nothing secret here", "") == "nothing secret here"
+    assert "***" not in redact_key("nothing secret here", "")
 
 
 def test_gemini_request_key_in_header_not_url():

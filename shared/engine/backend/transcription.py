@@ -10,7 +10,7 @@ from urllib import request as urllib_request
 import soundfile as sf
 from openai import APIConnectionError, APITimeoutError, OpenAI
 
-from .api_requests import build_gemini_request
+from .api_requests import build_gemini_request, redact_key
 from .logger import get as get_logger
 
 _log = get_logger("transcription")
@@ -311,7 +311,7 @@ class TranscriptionService:
         except urllib_error.HTTPError as exc:
             code = exc.code
             error_body = exc.read().decode("utf-8", errors="replace")
-            safe_body = error_body[:300].replace(api_key, "***") if api_key else error_body[:300]
+            safe_body = redact_key(error_body, api_key, limit=300)
             if code in (401, 403):
                 raise ValueError("Gemini API key is invalid or expired. Re-verify in Settings > API Keys.") from None
             if code == 429:
@@ -414,8 +414,8 @@ class TranscriptionService:
                 raise ValueError("Gemini API key is invalid or expired. Re-verify in Settings > API Keys.") from None
             if code == 429:
                 raise ValueError("Gemini rate limit reached. Wait a moment and try again.") from None
-            error_body = exc.read().decode("utf-8", errors="replace")[:300]
-            safe_body = error_body.replace(api_key, "***") if api_key else error_body
+            error_body = exc.read().decode("utf-8", errors="replace")
+            safe_body = redact_key(error_body, api_key, limit=300)
             raise ValueError(f"Gemini API error ({code}): {safe_body}") from None
         except urllib_error.URLError:
             raise ValueError("Network error contacting Gemini. Check your internet connection.") from None

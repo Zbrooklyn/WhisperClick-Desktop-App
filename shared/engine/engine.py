@@ -55,7 +55,7 @@ from backend.logger import get as get_logger
 from backend.transcription import TranscriptionCancelled, TranscriptionService
 from backend import models
 from backend import tones
-from backend.api_requests import build_verify_request
+from backend.api_requests import build_verify_request, redact_key
 from backend.concurrency import OperationTimeout, run_with_timeout
 from backend.ids import make_audio_id
 
@@ -671,7 +671,7 @@ def _h_verify_key(msg, msg_id):
                           success=True, valid=False, http_status=http_status,
                           error="Invalid API key.")
         else:
-            safe_detail = detail[:160].replace(key, "***") if key else detail[:160]
+            safe_detail = redact_key(detail, key, limit=160)
             error_msg = f"Verification failed ({http_status})."
             if safe_detail:
                 error_msg = f"{error_msg} {safe_detail}"
