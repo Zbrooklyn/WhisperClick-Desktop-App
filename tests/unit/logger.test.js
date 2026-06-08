@@ -126,4 +126,21 @@ describe('logger', () => {
     // ISO 8601 pattern: [2026-03-12T...]
     expect(content).toMatch(/\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
   });
+
+  test('dev-mode console output is suppressed under jest (no leaked logs)', () => {
+    // In dev mode the logger mirrors to console.log. Under jest an app timer
+    // can log after a test ends ("Cannot log after tests are done") and spam
+    // output. JEST_WORKER_ID is always set in a jest worker, so the console
+    // mirror must stay silent here while still writing to the file.
+    expect(process.env.JEST_WORKER_ID).toBeDefined();
+    const spy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      log.init(tmpDir, true, true); // enabled + isDev
+      log.info('dev line');
+      expect(spy).not.toHaveBeenCalled();
+      expect(readLog()).toContain('[INFO] dev line');
+    } finally {
+      spy.mockRestore();
+    }
+  });
 });

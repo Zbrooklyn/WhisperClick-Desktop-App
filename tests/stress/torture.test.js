@@ -107,6 +107,16 @@ beforeEach(async () => {
   await ipcMain._invoke('save-settings', { openaiApiKey: 'sk-torture-test' });
 });
 
+afterEach(async () => {
+  // Drain any in-flight transition so an app timer (success auto-revert, error
+  // window, etc.) can't fire AFTER the test completes and bleed into the next
+  // one — the source of "Cannot log after tests are done" and load-dependent
+  // cross-test failures. Runs after assertions, so it can't mask a result.
+  await ipcMain._invoke('cancel-processing').catch(() => {});
+  await ipcMain._invoke('ack-state').catch(() => {});
+  await tick(10);
+});
+
 afterAll(() => {
   if (cleanupSidecar) cleanupSidecar();
   try { realFs.rmSync(TEST_CONFIG_BASE, { recursive: true, force: true }); } catch {}
@@ -114,6 +124,23 @@ afterAll(() => {
 
 async function getState() {
   return (await ipcMain._invoke('get-state')).state;
+}
+
+// Condition-based wait — poll until the state machine reaches `expected` (or a
+// cap elapses) instead of a fixed sleep. Fixed real-timer waits are the root
+// cause of this suite's load-dependent flakes: when CPU is busy under the full
+// jest run, an app transition timer hasn't fired yet when a fixed tick() ends,
+// so the assertion sees a stale state. Polling waits exactly as long as needed
+// and never longer; if the state genuinely never arrives the cap lets the real
+// assertion fail (no masking).
+async function waitForState(expected, timeoutMs = 2000) {
+  const deadline = Date.now() + timeoutMs;
+  let s = await getState();
+  while (s !== expected && Date.now() < deadline) {
+    await tick(5);
+    s = await getState();
+  }
+  return s;
 }
 
 async function ensureDormant() {
@@ -536,13 +563,15 @@ describe('State × action matrix — every action in every state', () => {
 
   async function setupState(target) {
     await ensureDormant();
-    if (target === 'dormant') return;
+    if (target === 'dormant') { await waitForState('dormant'); return; }
     if (target === 'recording') {
       await ipcMain._invoke('start-recording');
-      await tick(10);
+      await waitForState('recording');
       return;
     }
     if (target === 'processing') {
+      // Not exercised by the matrix loop below (stop-recording blocks on a
+      // transcription event); kept for completeness with the original waits.
       await ipcMain._invoke('start-recording');
       await tick(10);
       await ipcMain._invoke('stop-recording');
@@ -551,14 +580,14 @@ describe('State × action matrix — every action in every state', () => {
     }
     if (target === 'success') {
       await ipcMain._invoke('start-recording');
-      await tick(10);
+      await waitForState('recording');
       pushSidecarEvent(fakeProc, 'transcription', { text: 'matrix' });
-      await tick(20);
+      await waitForState('success');
       return;
     }
     if (target === 'error') {
       pushSidecarEvent(fakeProc, 'error', { message: 'matrix error' });
-      await tick(20);
+      await waitForState('error');
       return;
     }
   }

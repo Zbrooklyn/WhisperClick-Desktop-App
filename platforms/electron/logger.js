@@ -62,8 +62,10 @@ function _close() {
 function _write(level, msg) {
   const ts = new Date().toISOString();
   const line = `[${ts}] [${level}] ${msg}`;
-  // Always print to console in dev mode
-  if (_isDev) console.log(line);
+  // Mirror to console in dev mode — but never under jest, where an app timer
+  // can log after a test completes ("Cannot log after tests are done") and spam
+  // the run. File output (below) is unaffected.
+  if (_isDev && !process.env.JEST_WORKER_ID) console.log(line);
   if (!_fd) return;
   try {
     fs.writeSync(_fd, line + '\n');
