@@ -346,15 +346,17 @@ describe('API key verification', () => {
     expect(result.valid).toBe(true);
   });
 
-  test('sidecar error falls through to format check', async () => {
+  test('sidecar error does not produce a false success', async () => {
     // Respond with an error so the handler catches and falls through
     const cleanup = autoRespondSidecar(initialFakeProc, {
       verify_key: { error: 'Network error' },
     });
-    // sk- prefix should pass format check even when sidecar errors
+    // sk- prefix is format-OK, but a backend error must NOT report valid:true.
     const result = await ipcMain._invoke('verify-api-key', 'openai', 'sk-valid');
     cleanup();
-    expect(result.valid).toBe(true);
+    expect(result.valid).toBe(false);
+    expect(result.verified).toBe(false);
+    expect(result.formatValid).toBe(true);
   });
 });
 
@@ -561,6 +563,14 @@ describe('hotkey registration failure', () => {
     await ipcMain._invoke('save-settings', { hotkey: 'Ctrl+Alt+F9' });
     const titles = Notification._instances.map(n => n.opts.title || '');
     expect(titles.some(t => /shortcut unavailable/i.test(t))).toBe(true);
+
+    // The forced failure unregistered the current (Ctrl+Alt+R) shortcut without
+    // re-registering it. Restore shared state so later hotkey/pill/tray tests in
+    // this ordered suite still find the Ctrl+Alt+R callback. (currentHotkey is
+    // still Ctrl+Alt+R after the failure, so bounce through a different accel to
+    // force a real re-registration of Ctrl+Alt+R with its real callback.)
+    await ipcMain._invoke('save-settings', { hotkey: 'Ctrl+Alt+Z' });
+    await ipcMain._invoke('save-settings', { hotkey: 'Ctrl+Alt+R' });
   });
 });
 
