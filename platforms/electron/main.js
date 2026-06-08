@@ -28,6 +28,7 @@ let tray = null;
 let store = null;
 let sidecar = null;
 let pillReconciler = null; // R4: interval that self-heals a vanished pill
+let updateCheckInterval = null; // periodic background update check
 // State machine — single source of truth for app state
 const sm = new StateMachine('dormant', { logger: (...args) => log.info(...args) });
 
@@ -1271,8 +1272,12 @@ app.whenReady().then(() => {
     store.getHistory();
 
     initUpdater(mainWindow, store, sidecar);
-    setTimeout(() => checkForUpdatesQuietly(), 8_000);
-    setInterval(() => checkForUpdatesQuietly(), 4 * 60 * 60 * 1000);
+    // Background update checks must not keep the event loop alive (clean quit) or
+    // leak across test runs — unref them, and clear the interval on will-quit.
+    const firstUpdateCheck = setTimeout(() => checkForUpdatesQuietly(), 8_000);
+    if (firstUpdateCheck.unref) firstUpdateCheck.unref();
+    updateCheckInterval = setInterval(() => checkForUpdatesQuietly(), 4 * 60 * 60 * 1000);
+    if (updateCheckInterval.unref) updateCheckInterval.unref();
 
     const updateResult = checkUpdateMarker();
     if (updateResult.updated) {
@@ -1477,6 +1482,7 @@ app.on('will-quit', () => {
   isQuitting = true;
   globalShortcut.unregisterAll();
   if (pillReconciler) { clearInterval(pillReconciler); pillReconciler = null; }
+  if (updateCheckInterval) { clearInterval(updateCheckInterval); updateCheckInterval = null; }
   // R5: force-reap synchronously so the engine child can't be orphaned if the
   // app process exits before a deferred kill timer would have fired.
   if (sidecar) sidecar.stop({ force: true });
