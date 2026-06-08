@@ -292,6 +292,26 @@ describe('timeouts', () => {
     expect(sc._pendingRequests.size).toBe(0);
     jest.useRealTimers();
   });
+
+  test('a resolved request clears its timer (no stale rejection, no leaked timer)', async () => {
+    jest.useFakeTimers();
+    const sc = new Sidecar('/path/to/engine.py');
+    sc.start();
+
+    const promise = sc.send('ping');
+    fakeProc.stdout.push(JSON.stringify({ id: 1, result: 'pong' }) + '\n');
+    await Promise.resolve();
+    await Promise.resolve();
+    const result = await promise;
+    expect(result.result).toBe('pong');
+    expect(sc._pendingRequests.size).toBe(0);
+
+    // No timers should remain pending (the response cleared the timeout).
+    expect(jest.getTimerCount()).toBe(0);
+    // And advancing past the window must not throw a stale rejection.
+    expect(() => jest.advanceTimersByTime(60001)).not.toThrow();
+    jest.useRealTimers();
+  });
 });
 
 // ── Exit cleanup ────────────────────────────────────────────────────────

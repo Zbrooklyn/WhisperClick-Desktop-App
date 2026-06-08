@@ -70,7 +70,8 @@ class Sidecar extends EventEmitter {
         }
         // Response to a request
         if (msg.id && this._pendingRequests.has(msg.id)) {
-          const { resolve, reject } = this._pendingRequests.get(msg.id);
+          const { resolve, reject, timer } = this._pendingRequests.get(msg.id);
+          clearTimeout(timer);
           this._pendingRequests.delete(msg.id);
           if (msg.error) reject(new Error(msg.error));
           else resolve(msg);
@@ -87,8 +88,9 @@ class Sidecar extends EventEmitter {
     this.proc.on('exit', (code) => {
       this.proc = null;
       this.rl = null;
-      // Reject all pending requests
-      for (const [id, { reject }] of this._pendingRequests) {
+      // Reject all pending requests and clear their timers
+      for (const [, { reject, timer }] of this._pendingRequests) {
+        clearTimeout(timer);
         reject(new Error(`Sidecar exited with code ${code}`));
       }
       this._pendingRequests.clear();
@@ -106,15 +108,17 @@ class Sidecar extends EventEmitter {
     const timeout = Sidecar.LONG_TIMEOUT_COMMANDS.has(command) ? 600000 : 60000;
 
     return new Promise((resolve, reject) => {
-      this._pendingRequests.set(id, { resolve, reject });
-      this.proc.stdin.write(msg + '\n');
-
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         if (this._pendingRequests.has(id)) {
           this._pendingRequests.delete(id);
           reject(new Error(`Sidecar command "${command}" timed out`));
         }
       }, timeout);
+      // Don't let a pending request's timer keep the event loop alive (a 600s
+      // download_model timer would otherwise stall app quit).
+      if (typeof timer.unref === 'function') timer.unref();
+      this._pendingRequests.set(id, { resolve, reject, timer });
+      this.proc.stdin.write(msg + '\n');
     });
   }
 
