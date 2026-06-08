@@ -48,10 +48,13 @@ const DEFAULT_SETTINGS = {
 const KEY_FIELDS = ['openaiApiKey', 'geminiApiKey'];
 
 class Store {
-  constructor(configDir) {
+  constructor(configDir, logger) {
     this.configDir = configDir;
     this.settingsPath = path.join(configDir, 'settings.json');
     this.historyPath = path.join(configDir, 'history.json');
+    // Optional logger so corruption/data-loss recovery isn't silent. Defaults to
+    // a no-op when none is injected (keeps the store usable standalone/in tests).
+    this._log = logger || { warn() {}, error() {} };
     this._ensureDir();
     // In-memory caches — lazy-loaded on first access, updated on every mutation.
     // Eliminates synchronous disk reads from the hot path (getSettings is called
@@ -77,12 +80,24 @@ class Store {
   }
 
   _safeReadJSON(filePath, fallback) {
-    try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch {}
+    let primaryErr = null;
+    try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); }
+    catch (err) { primaryErr = err; }
+    // A missing primary is normal (first run). A primary that exists but won't
+    // parse is corruption worth surfacing — don't let it pass silently.
+    const primaryCorrupt = primaryErr.code !== 'ENOENT';
+    const name = path.basename(filePath);
     try {
       const parsed = JSON.parse(fs.readFileSync(filePath + '.bak', 'utf8'));
+      if (primaryCorrupt) {
+        this._log.warn(`[store] ${name} was unreadable; recovered from backup`);
+      }
       try { this._atomicWrite(filePath, JSON.stringify(parsed, null, 2)); } catch {}
       return parsed;
     } catch {}
+    if (primaryCorrupt) {
+      this._log.error(`[store] ${name} and its backup are both unreadable; resetting to defaults (data loss)`);
+    }
     return fallback;
   }
 

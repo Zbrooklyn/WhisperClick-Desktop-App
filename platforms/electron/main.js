@@ -971,7 +971,11 @@ async function buildRichMenuTemplate({ includePillItems = false, includeQuit = f
         }));
       }
     }
-  } catch {}
+  } catch (err) {
+    // Mic submenu is best-effort; fall back to no submenu. Still log it — a
+    // persistent failure here means the engine isn't answering list_mics.
+    log.warn(`[tray] could not build mic submenu: ${err && err.message}`);
+  }
 
   // Build recent transcriptions submenu (up to 3)
   const recentItems = history.slice(0, 3).map(h => {
@@ -1211,7 +1215,7 @@ app.on('second-instance', () => {
 
 app.whenReady().then(() => {
   // ── PHASE 1: Critical path — get window visible + hotkey active ASAP ──
-  store = new Store(configDir);
+  store = new Store(configDir, log);
   const settings = store.getSettings();
   log.init(configDir, settings.debugLogging, isDev);
 

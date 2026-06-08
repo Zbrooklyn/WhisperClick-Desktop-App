@@ -98,6 +98,44 @@ describe('safe read fallback', () => {
     const result = store.getSettings();
     expect(result).toEqual(expect.objectContaining(DEFAULT_SETTINGS));
   });
+
+  test('recovers silently from .bak when primary is simply missing', () => {
+    // No primary file (ENOENT) but a valid backup exists — normal-ish, recover.
+    fs.writeFileSync(store.settingsPath + '.bak', JSON.stringify({ theme: 'light' }));
+    const result = store.getSettings();
+    expect(result.theme).toBe('light');
+  });
+});
+
+// ── Silent-failure surfacing (corruption / data loss) ─────────────────────
+
+describe('corruption is surfaced to the logger', () => {
+  test('logs a warning when recovering a corrupt file from its backup', () => {
+    const logger = { warn: jest.fn(), error: jest.fn() };
+    const s = new Store(tmpDir, logger);
+    fs.writeFileSync(s.settingsPath + '.bak', JSON.stringify({ theme: 'light' }));
+    fs.writeFileSync(s.settingsPath, 'NOT JSON!!!');
+    s.getSettings();
+    expect(logger.warn).toHaveBeenCalled();
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  test('logs an error (data loss) when primary and backup are both unreadable', () => {
+    const logger = { warn: jest.fn(), error: jest.fn() };
+    const s = new Store(tmpDir, logger);
+    fs.writeFileSync(s.settingsPath, 'BAD');
+    fs.writeFileSync(s.settingsPath + '.bak', 'ALSO BAD');
+    s.getSettings();
+    expect(logger.error).toHaveBeenCalled();
+  });
+
+  test('does not log when the file is simply missing (first run)', () => {
+    const logger = { warn: jest.fn(), error: jest.fn() };
+    const s = new Store(tmpDir, logger);
+    s.getSettings();
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(logger.error).not.toHaveBeenCalled();
+  });
 });
 
 // ── Encryption ──────────────────────────────────────────────────────────
