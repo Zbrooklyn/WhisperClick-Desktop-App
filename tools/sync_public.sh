@@ -19,8 +19,8 @@
 #   SESSION-LOG.md   — Internal session/thread continuity record
 #   tools/           — Internal dev scripts
 #   docs/dev/        — Internal dev documentation
-#   electron/premium/ — Premium feature modules (private)
-#   src/frontend/premium/ — Premium frontend assets (private)
+#   platforms/electron/premium/ — Premium feature modules (private)
+#   shared/frontend/premium/     — Premium frontend assets (private)
 
 set -euo pipefail
 
@@ -34,8 +34,16 @@ PRIVATE_FILES=(
   "SESSION-LOG.md"
   "tools/"
   "docs/dev/"
-  "electron/premium/"
-  "src/frontend/premium/"
+  "platforms/electron/premium/"
+  "shared/frontend/premium/"
+)
+
+# Premium dirs MUST exist and MUST be stripped. If a future restructure moves
+# them, these paths go stale and the sync would silently publish paid code.
+# Guard against that: abort if any expected premium dir is missing.
+REQUIRED_EXCLUDE=(
+  "platforms/electron/premium/"
+  "shared/frontend/premium/"
 )
 
 PUBLIC_REMOTE="public"
@@ -56,6 +64,17 @@ if ! git diff --quiet HEAD; then
 fi
 
 CURRENT_BRANCH=$(git branch --show-current)
+
+# Fail-safe: never publish if the premium dirs we expect to strip aren't there.
+# A missing dir means the paths went stale (e.g. a restructure) and stripping
+# would silently no-op — leaking paid code to the public repo.
+for d in "${REQUIRED_EXCLUDE[@]}"; do
+  if [ ! -e "$d" ]; then
+    echo "Error: expected premium dir '$d' not found."
+    echo "Sync aborted to avoid leaking premium code. Update PRIVATE_FILES/REQUIRED_EXCLUDE to match the repo layout."
+    exit 1
+  fi
+done
 
 # Create temp branch
 git checkout -b "$TEMP_BRANCH"
