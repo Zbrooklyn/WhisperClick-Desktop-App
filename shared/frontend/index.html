@@ -4124,13 +4124,14 @@
                 setTimeout(() => banner.remove(), 250);
             };
 
-            if (isError) {
-                const closeBtn = document.createElement('button');
-                closeBtn.className = 'shrink-0 p-0.5 rounded hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors';
-                closeBtn.innerHTML = '<i data-lucide="x" class="w-3 h-3 text-stone-400 dark:text-stone-500"></i>';
-                closeBtn.onclick = dismissBanner;
-                banner.appendChild(closeBtn);
-            } else {
+            // Every toast gets a dismiss (X) button. Non-error toasts also keep
+            // auto-dismissing after 6s; the X just lets the user clear it sooner.
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'shrink-0 p-0.5 rounded hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors';
+            closeBtn.innerHTML = '<i data-lucide="x" class="w-3 h-3 text-stone-400 dark:text-stone-500"></i>';
+            closeBtn.onclick = dismissBanner;
+            banner.appendChild(closeBtn);
+            if (!isError) {
                 setTimeout(dismissBanner, 6000);
             }
 
