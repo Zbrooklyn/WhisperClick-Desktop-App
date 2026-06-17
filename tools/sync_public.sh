@@ -88,8 +88,37 @@ done
 
 git commit -m "Sync from private repo" --quiet
 
+# ---------------------------------------------------------------------------
+# GATE 1 — Post-strip verification (fail-closed).
+# After stripping, re-scan the exact tree we are about to publish. If ANYTHING
+# private survived (premium code, or any internal doc), abort before pushing.
+# This is what makes a denylist safe: even if a path moved and the removal
+# silently missed it, this catches it and refuses to publish.
+# ---------------------------------------------------------------------------
+PRIVATE_MARKERS='(^|/)premium/|(^|/)CLAUDE\.md$|^ROADMAP\.md$|^HANDOFF\.md$|^FEATURES\.md$|^TESTING\.md$|^VERIFICATION\.md$|^SESSION-LOG\.md$|^tools/|^docs/dev/'
+LEAKED=$(git ls-files | grep -nE "$PRIVATE_MARKERS" || true)
+if [ -n "$LEAKED" ]; then
+  echo "ABORT: private files survived the strip and would be published:"
+  echo "$LEAKED"
+  git checkout "$CURRENT_BRANCH" --quiet; git branch -D "$TEMP_BRANCH" --quiet
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# GATE 2 — Secret scan (fail-closed). Portable regex baseline; runs on the
+# published tree's contents. Any hit aborts. (CI layers gitleaks on top.)
+# ---------------------------------------------------------------------------
+SECRET_PATTERNS='sk-[A-Za-z0-9]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|AKIA[0-9A-Z]{16}|(api[_-]?key|secret|token|password)["'"'"']?\s*[:=]\s*["'"'"'][A-Za-z0-9_\-]{16,}'
+SECRETS=$(git grep -nIE "$SECRET_PATTERNS" -- . ':!*.test.*' ':!*.spec.*' ':!tests/*' || true)
+if [ -n "$SECRETS" ]; then
+  echo "ABORT: possible secrets detected in the tree about to be published:"
+  echo "$SECRETS"
+  git checkout "$CURRENT_BRANCH" --quiet; git branch -D "$TEMP_BRANCH" --quiet
+  exit 1
+fi
+
 # Push to public
-echo "Pushing to $PUBLIC_REMOTE/$PUBLIC_BRANCH..."
+echo "All safety gates passed. Pushing to $PUBLIC_REMOTE/$PUBLIC_BRANCH..."
 git push "$PUBLIC_REMOTE" "$TEMP_BRANCH:$PUBLIC_BRANCH" --force
 
 # Clean up
