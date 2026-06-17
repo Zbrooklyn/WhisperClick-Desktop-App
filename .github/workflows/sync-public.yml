@@ -1,0 +1,62 @@
+name: Sync public (free) repo
+
+# Publishes the free version of the monorepo to the public repo on every push
+# to main. The public repo = this tree minus premium code and internal docs.
+#
+# Safety: the actual filtering + publishing lives in tools/sync_public.sh, which
+# runs three fail-closed gates before it pushes anything:
+#   1. premium-present guard       — abort if expected premium dirs are missing
+#   2. post-strip verification     — abort if any premium/internal file survives
+#   3. secret scan                 — abort if key/token patterns appear
+# If any gate trips, nothing is published.
+#
+# Setup required once (see docs/dev/public-sync.md):
+#   Add a repo secret PUBLIC_SYNC_TOKEN = a fine-grained PAT with
+#   Contents: Read and write on Zbrooklyn/WhisperClick-Desktop-App.
+# Until that secret exists, this workflow safely skips (no publish).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: sync-public
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check token configured
+        id: gate
+        env:
+          TOKEN: ${{ secrets.PUBLIC_SYNC_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "PUBLIC_SYNC_TOKEN not set — skipping public sync."
+            echo "Add the secret to enable automatic publishing (see docs/dev/public-sync.md)."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout (full history)
+        if: steps.gate.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Configure git identity and public remote
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          TOKEN: ${{ secrets.PUBLIC_SYNC_TOKEN }}
+        run: |
+          git config user.name "whisperclick-sync[bot]"
+          git config user.email "sync@users.noreply.github.com"
+          git remote add public "https://x-access-token:${TOKEN}@github.com/Zbrooklyn/WhisperClick-Desktop-App.git"
+
+      - name: Run guarded sync
+        if: steps.gate.outputs.enabled == 'true'
+        run: bash tools/sync_public.sh

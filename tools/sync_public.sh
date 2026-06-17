@@ -34,6 +34,7 @@ PRIVATE_FILES=(
   "SESSION-LOG.md"
   "tools/"
   "docs/dev/"
+  ".github/workflows/sync-public.yml"
   "platforms/electron/premium/"
   "shared/frontend/premium/"
 )
