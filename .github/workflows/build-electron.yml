@@ -210,7 +210,11 @@ jobs:
         run: node tools/smoke-test-release.js artifacts
 
   release:
-    needs: [smoke-test, build-windows, build-macos-arm64, build-macos-x64, build-linux]
+    # build-macos-x64 (Intel, macos-13) is best-effort (continue-on-error) and
+    # must NOT gate the release: macos-13 runners are scarce/deprecated and a
+    # job stuck *queued* (no runner) blocks `always()` indefinitely. It is kept
+    # as a job but dropped from needs; the `if` below already never required it.
+    needs: [smoke-test, build-windows, build-macos-arm64, build-linux]
     if: always() && !cancelled() && needs.smoke-test.result == 'success' && needs.build-windows.result == 'success' && needs.build-macos-arm64.result == 'success' && needs.build-linux.result == 'success'
     runs-on: ubuntu-latest
     permissions:
