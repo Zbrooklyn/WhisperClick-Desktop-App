@@ -11,7 +11,7 @@ name: Sync public (free) repo
 # If any gate trips, nothing is published.
 #
 # Setup required once (see docs/dev/public-sync.md):
-#   Add a repo secret PUBLIC_SYNC_TOKEN = a fine-grained PAT with
+#   Add a repo secret PUBLIC_REPO_TOKEN = a fine-grained PAT with
 #   Contents: Read and write on Zbrooklyn/WhisperClick-Desktop-App.
 # Until that secret exists, this workflow safely skips (no publish).
 
@@ -31,10 +31,10 @@ jobs:
       - name: Check token configured
         id: gate
         env:
-          TOKEN: ${{ secrets.PUBLIC_SYNC_TOKEN }}
+          TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
         run: |
           if [ -z "$TOKEN" ]; then
-            echo "PUBLIC_SYNC_TOKEN not set — skipping public sync."
+            echo "PUBLIC_REPO_TOKEN not set — skipping public sync."
             echo "Add the secret to enable automatic publishing (see docs/dev/public-sync.md)."
             echo "enabled=false" >> "$GITHUB_OUTPUT"
           else
@@ -51,7 +51,7 @@ jobs:
       - name: Configure git identity and public remote
         if: steps.gate.outputs.enabled == 'true'
         env:
-          TOKEN: ${{ secrets.PUBLIC_SYNC_TOKEN }}
+          TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
         run: |
           git config user.name "whisperclick-sync[bot]"
           git config user.email "sync@users.noreply.github.com"
