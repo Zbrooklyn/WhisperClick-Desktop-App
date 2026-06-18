@@ -207,7 +207,15 @@ jobs:
         with:
           path: artifacts
       - name: Validate update manifests against built installers
-        run: node tools/smoke-test-release.js artifacts
+        # tools/ is stripped from the public repo, so the validator isn't present
+        # there. Skip gracefully in that case — the private build already ran this
+        # exact validation against the same installers before they were mirrored.
+        run: |
+          if [ -f tools/smoke-test-release.js ]; then
+            node tools/smoke-test-release.js artifacts
+          else
+            echo "tools/smoke-test-release.js absent (public repo strips tools/) — skipping; private build already validated these installers."
+          fi
 
   release:
     # build-macos-x64 (Intel, macos-13) is best-effort (continue-on-error) and
