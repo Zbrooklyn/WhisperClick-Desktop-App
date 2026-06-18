@@ -4,10 +4,76 @@
 
 ## Current State
 
-**Status**: v2.2.1-beta (Electron, shipping) | Tauri v3.0.0-alpha.2 (alpha, Windows only)
+**Status**: v2.3.0-beta (Electron, hotfix branch — channel migration) | Tauri preview (GitHub release removed 2026-04-14, alpha still on feat branches)
 
 **Latest stable release**: v2.1.2 (public, 2026-03-18)
-**Latest beta release**: v2.2.3-beta (public, 2026-04-12)
+**Latest beta release**: v2.2.6-beta (public, 2026-04-14) — 2.3.0-beta in flight as of 2026-04-15
+
+## 2026-04-15 — 2.3.0-beta: Permanent Updater Channel Fix
+
+Closes the architectural gap behind the 404 incident. Electron's updater no longer reads GitHub's releases atom feed — which mixes Electron and Tauri tags together and caused the 404 when a Tauri tag outranked Electron betas by semver. Instead:
+
+- `package.json` `publish` changed from `github` provider to `generic` provider pointing at `https://whisperclick.com/updates/beta/`. Installed apps from 2.3.0-beta onward fetch their update manifest from that URL.
+- New CI job `publish-update-feed` in `build-electron.yml`: after every Electron release is published to GitHub, mirrors `latest.yml` / `latest-mac.yml` / `latest-linux.yml` into `docs/updates/<channel>/` on `main` of the public repo. `<channel>` = `beta` or `stable` depending on whether the tag contains `-beta`. Commit message is `publish(updater): <tag> → docs/updates/<channel>/`.
+- whisperclick.com is served from `main/docs/` on the public repo via GitHub Pages, so the commit is effectively the deploy.
+- Installer binaries still live on GitHub releases — only the ~300-byte yml discovery files are mirrored to our site. Download URLs in the yml still point at `github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/download/...`.
+- Migration flow for existing users: 2.2.6-beta users have updaters that still read the GitHub atom feed. They download 2.3.0-beta from GitHub as normal (since 2.2.6 was built with the old publish config pointing at GitHub). Once installed, 2.3.0-beta's updater reads whisperclick.com. From then on, Tauri tags on the same repo can no longer break Electron updates.
+- Dual-publish protection: the existing GitHub release (with its `latest.yml`) still happens on every tag. Pre-2.3.0 users continue to receive updates via the GitHub atom feed. The new site-hosted feed is additive.
+- Future stable releases (tags without `-beta`) will automatically publish to `docs/updates/stable/` thanks to the channel detection step. The `publish` URL in `package.json` will need a one-line change from `beta/` to `stable/` at that point (or a build-time patch like the existing Mac-arch patch does).
+
+---
+
+## 2026-04-14 (Part 3) — Migration Framework + CI Smoke Test
+
+After 2.2.5-beta shipped the minimum-viable migration, 2.2.6-beta upgrades it to a structured system so this class of bug can't recur silently:
+
+- **FOLDER_REGISTRY** (in `migration.js`): every historical configDir name has an entry with channel, deprecation version, and reason. Test invariants (`every entry has required fields`, `registry contains all known historical beta/stable paths`) fail if the registry drifts from what the code actually uses. New rule: any config-path rename requires a registry entry or tests fail.
+- **`_migrated-from.json` provenance file**: written to the current configDir after every successful migration. Makes migration idempotent (won't re-run for the same legacy path) and gives future Settings → Data UI something to read.
+- **`hasRealData` heuristic**: only surfaces legacy folders that contain an actual API key or non-empty history. Factory-default folders are ignored to avoid user noise.
+- **User-facing toast**: `get-migration-notice` IPC + frontend boot-time read. User sees "Restored N files, M transcripts from your previous install" when migration actually runs.
+- **CI smoke-test job** (`tools/smoke-test-release.js` + new job in `build-electron.yml`): before the release job runs, downloads all build artifacts, parses every `latest*.yml`, validates that each referenced installer exists on disk with matching sha512. This is the gate that was missing for the 404 bug. Tested against real 2.2.5-beta release (passes) and a tampered fixture (fails with exit 1).
+- Migration tests: 7 → 22 covering registry invariants, heuristic edge cases, priority order, idempotency, introspection API.
+
+---
+
+## Incident 2026-04-14 — Silent Updater & Key UX Failures
+
+**User impact:** v2.2.0-beta through v2.2.3-beta users saw `Cannot find latest.yml … HttpError 404` every time the app checked for updates (live ~3 weeks). Separately, recordings could return "0 chars" with no feedback — users assumed their API key or mic was broken.
+
+**Root causes:**
+1. **Update feed collision.** Tauri tag `tauri-v3.0.0-alpha.2` (2026-04-12) semver-outranked every `electron-v*` beta. electron-updater parses `releases.atom`, which lists a tag even when its Release is Draft. The GitHub provider has no tag-prefix filter, so every Electron client tried to pull `latest.yml` from the Tauri release and hit 404.
+2. **Silent empty transcription.** `onTranscription` in main.js resolved `{success: true, text: ''}` when the sidecar returned an empty string — frontend UI showed nothing.
+3. **Silent safeStorage decrypt failure.** `store._decryptKey` returned `''` on exception with no log or user-facing indication. Profile moves / Windows user changes silently wiped stored keys.
+
+**Fixes (2026-04-14):**
+- GitHub-side: `gh release delete tauri-v3.0.0-alpha.2 --cleanup-tag` + `git push origin --delete tauri-v3.0.0-alpha.2`. Atom feed now tops with `electron-v2.2.3-beta`. No client update needed to resolve the 404.
+- Electron v2.2.4-beta: empty transcription surfaces "No speech detected. Check your microphone and try again." toast + `success: false`. safeStorage decrypt failure is logged via `console.error` and tracked in `store._decryptFailures`, exposed via new `get-decrypt-failures` IPC. Frontend shows a toast + inline warn status "Saved key could not be decrypted — please re-enter."
+
+**Process gaps to close:**
+- No pre-release smoke test of the upgrade path (install N-1 → check for updates → install N).
+- No tag-prefix channel isolation. Planned follow-up: switch Electron updater to `provider: generic` with feed at `whisperclick.com/updates/beta/latest.yml`, populated by a GitHub Action that only publishes for `electron-v*` tags.
+- Silent catches (`} catch {}` / `return ''`) swallowed failures end-to-end. Audit pass planned.
+
+## Incident 2026-04-14 (Part 2) — Post-2.2.4 Regressions Surfaced
+
+**User impact:** First upgrade from v2.2.0-beta to v2.2.4-beta (the first beta users could actually install after the 404 fix) landed with three regressions that had been shipping silently since **v2.2.1-beta (2026-03-22, commit `23c19a5`)** but were hidden by the updater bug:
+
+1. **Config folder renamed with no migration.** `whisperclick-beta/` → `com.whisperclick.app/`. Users' settings, history, and encrypted API keys appeared wiped on upgrade. (Data was never deleted, only orphaned in the old folder.)
+2. **Beta and stable share the same folder.** The `isBeta` branch was dropped. Both channels wrote to `com.whisperclick.app`, so installing stable over beta (or vice versa) would overwrite the other's data.
+3. **Tray icon shows a colored circle instead of the microphone.** Mono-repo restructure broke the path in `tray.js:59` — `'../icons/icon.png'` resolves to `platforms/icons/icon.png` instead of the actual repo-root `icons/icon.png`. Fallback icon (a colored dot) has been shipping for ~3 weeks.
+
+**Fixes (2026-04-14, v2.2.5-beta):**
+- New `platforms/electron/migration.js` — on startup, if the current configDir has no `settings.json`, walks legacy paths in priority order (`whisperclick-beta` → `com.whisperclick.app` for beta, `whisperclick` for stable) and copies `settings.json` + `history.json` (+ `.bak` variants) over. Non-destructive — old folder stays intact. Covered by 7 unit tests.
+- Restored `isBeta` split in `main.js`: `isDev ? 'com.whisperclick.dev' : isBeta ? 'com.whisperclick.beta' : 'com.whisperclick.app'`.
+- Fixed `tray.js:59` to `'../../icons/icon.png'`. Confirmed by path-resolution test that this maps to `app.asar/icons/icon.png` at runtime. `icons/**` was already in `build.files`, so the PNG already ships in the asar — the only bug was the lookup path.
+
+**Still open:**
+- Intel Mac build (`macos-13` runner deprecated by GitHub, Intel DMG missing since 2.2.1-beta). Decision pending: pay $2.40/release for `macos-13-large` vs sunset announcement.
+- Permanent updater channel fix (`provider: generic` + custom feed).
+- Pre-release smoke test CI job.
+
+---
+
 
 The repo now supports **two platforms**: Electron and Tauri. Both share the same
 frontend (`shared/frontend/`), pill widget (`shared/pill/`), and Python sidecar

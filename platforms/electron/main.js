@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, screen, globalShortcut, clipboard, Menu, No
 const path = require('path');
 const fs = require('fs');
 const Store = require('./store');
+const { migrateLegacyConfig } = require('./migration');
 const Sidecar = require('./sidecar');
 const { sweepStaleEngines } = require('./orphan-sweep');
 const { createTray, updateTrayIcon, updateTrayTooltip, showTrayBalloon, flashTrayError } = require('./tray');
@@ -29,6 +30,7 @@ let store = null;
 let sidecar = null;
 let pillReconciler = null; // R4: interval that self-heals a vanished pill
 let updateCheckInterval = null; // periodic background update check
+let migrationNotice = null; // set during app.whenReady, read by get-migration-notice IPC
 // State machine — single source of truth for app state
 const sm = new StateMachine('dormant', { logger: (...args) => log.info(...args) });
 
@@ -36,9 +38,10 @@ let isQuitting = false;
 
 const isDev = !app.isPackaged;
 const isBeta = app.getVersion().includes('beta');
+const channel = isDev ? 'dev' : isBeta ? 'beta' : 'stable';
 const configDir = path.join(
   app.getPath('userData'),
-  isDev ? 'com.whisperclick.dev' : 'com.whisperclick.app'
+  isDev ? 'com.whisperclick.dev' : isBeta ? 'com.whisperclick.beta' : 'com.whisperclick.app'
 );
 
 // --- Window creation ---
@@ -497,6 +500,15 @@ function configureSidecar() {
 
 // Settings
 ipcMain.handle('get-settings', () => store.getSettings());
+ipcMain.handle('get-decrypt-failures', () => store.getDecryptFailures());
+// One-shot: returns the migration result if legacy data was restored this
+// launch. Null otherwise. Frontend reads once at boot and shows a toast so
+// the user knows their settings + history came from a previous install.
+ipcMain.handle('get-migration-notice', () => {
+  const notice = migrationNotice;
+  migrationNotice = null; // one-shot; don't show the same toast twice
+  return notice;
+});
 ipcMain.handle('save-settings', (_, patch) => {
   log.ipc('save-settings', Object.keys(patch).join(', '));
   const prev = store.getSettings();
@@ -785,8 +797,16 @@ ipcMain.handle('stop-recording', async () => {
       sidecar.removeListener('exit', onExit);
     }
     function onTranscription(data) {
-      log.ipc('stop-recording', `transcription received (${(data.text || '').length} chars)`);
+      const text = String(data.text || '');
+      log.ipc('stop-recording', `transcription received (${text.length} chars)`);
       cleanup();
+      if (text.trim().length === 0) {
+        // Surface empty transcription instead of silently succeeding — prior
+        // versions let users record, see nothing, and assume the app or key
+        // was broken. A clear message lets them retry or check their mic.
+        resolve({ success: false, error: 'No speech detected. Check your microphone and try again.' });
+        return;
+      }
       resolve({ success: true, text: data.text });
     }
     function onError(data) {
@@ -1215,9 +1235,21 @@ app.on('second-instance', () => {
 
 app.whenReady().then(() => {
   // ── PHASE 1: Critical path — get window visible + hotkey active ASAP ──
+  // Migrate legacy config folders before constructing the Store. If the
+  // current configDir has no settings.json but a legacy path does, copy
+  // settings + history over. See platforms/electron/migration.js.
+  migrationNotice = migrateLegacyConfig(
+    app.getPath('userData'),
+    configDir,
+    channel,
+    app.getVersion(),
+  );
   store = new Store(configDir, log);
   const settings = store.getSettings();
   log.init(configDir, settings.debugLogging, isDev);
+  if (migrationNotice) {
+    log.info(`[migration] restored config from ${migrationNotice.from} (${migrationNotice.filesCopied} files, ${migrationNotice.historyCount} history entries)`);
+  }
 
   createMainWindow();
   if (!registerHotkey(settings.hotkey || 'Ctrl+Alt+R')) {

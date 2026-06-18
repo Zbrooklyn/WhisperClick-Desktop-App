@@ -56,7 +56,7 @@ const TRAY_SIZE = 32;
 function loadSourcePixels() {
   if (_sourcePixels) return _sourcePixels;
 
-  const iconPath = path.join(__dirname, '../icons/icon.png');
+  const iconPath = path.join(__dirname, '../../icons/icon.png');
   let pngBuf;
   try { pngBuf = fs.readFileSync(iconPath); } catch { return null; }
 

@@ -215,19 +215,37 @@ describe('API key routing', () => {
   });
 
   test('get_api_keys returns both keys', async () => {
-    ipcRenderer.invoke.mockResolvedValueOnce({
-      openaiApiKey: 'sk-abc',
-      geminiApiKey: 'AIza-xyz',
-    });
+    ipcRenderer.invoke
+      .mockResolvedValueOnce({ openaiApiKey: 'sk-abc', geminiApiKey: 'AIza-xyz' })
+      .mockResolvedValueOnce({});
     const result = await api.get_api_keys();
-    expect(result).toEqual({ success: true, openai: 'sk-abc', gemini: 'AIza-xyz' });
+    expect(result).toEqual({
+      success: true,
+      openai: 'sk-abc',
+      gemini: 'AIza-xyz',
+      openai_decrypt_failed: false,
+      gemini_decrypt_failed: false,
+    });
   });
 
   test('get_api_keys returns empty strings when no keys', async () => {
-    ipcRenderer.invoke.mockResolvedValueOnce({});
+    ipcRenderer.invoke
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({});
     const result = await api.get_api_keys();
     expect(result.openai).toBe('');
     expect(result.gemini).toBe('');
+    expect(result.openai_decrypt_failed).toBe(false);
+    expect(result.gemini_decrypt_failed).toBe(false);
+  });
+
+  test('get_api_keys surfaces decrypt_failed flags', async () => {
+    ipcRenderer.invoke
+      .mockResolvedValueOnce({ openaiApiKey: '', geminiApiKey: '' })
+      .mockResolvedValueOnce({ openaiApiKey: true });
+    const result = await api.get_api_keys();
+    expect(result.openai_decrypt_failed).toBe(true);
+    expect(result.gemini_decrypt_failed).toBe(false);
   });
 
   test('verify_api_key passes provider, key, and baseUrl', async () => {

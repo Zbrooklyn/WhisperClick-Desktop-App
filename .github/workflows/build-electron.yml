@@ -190,9 +190,28 @@ jobs:
             release/latest-linux.yml
           if-no-files-found: error
 
+  smoke-test:
+    # Validates that every installer referenced by latest*.yml exists and has
+    # the right sha512 before we publish. This is the gate we didn't have
+    # when 2.2.1-beta through 2.2.4-beta shipped with broken update paths.
+    # Failure here blocks the release job from running.
+    needs: [build-windows, build-macos-arm64, build-linux]
+    if: always() && needs.build-windows.result == 'success' && needs.build-macos-arm64.result == 'success' && needs.build-linux.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Validate update manifests against built installers
+        run: node tools/smoke-test-release.js artifacts
+
   release:
-    needs: [build-windows, build-macos-arm64, build-macos-x64, build-linux]
-    if: always() && !cancelled() && needs.build-windows.result == 'success' && needs.build-macos-arm64.result == 'success' && needs.build-linux.result == 'success'
+    needs: [smoke-test, build-windows, build-macos-arm64, build-macos-x64, build-linux]
+    if: always() && !cancelled() && needs.smoke-test.result == 'success' && needs.build-windows.result == 'success' && needs.build-macos-arm64.result == 'success' && needs.build-linux.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -223,3 +242,93 @@ jobs:
             artifacts/electron-macos-arm64/*
             artifacts/electron-macos-x64/*
             artifacts/electron-linux/*
+
+  publish-update-feed:
+    # Mirrors the update manifest files to docs/updates/<channel>/ on main,
+    # which is what whisperclick.com serves via GitHub Pages. Installed apps
+    # from 2.3.0-beta onward read latest.yml from whisperclick.com rather than
+    # from this repo's releases.atom — decoupling Electron's updater from
+    # any other tags (Tauri, ad-hoc, legacy) that may live alongside in the
+    # same repo. The installer binaries themselves stay on GitHub releases;
+    # only the tiny yml discovery files are mirrored here.
+    needs: [release]
+    if: always() && needs.release.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Determine channel
+        id: channel
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == *"-beta"* ]]; then
+            echo "channel=beta" >> "$GITHUB_OUTPUT"
+          else
+            echo "channel=stable" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Copy yml files into docs/updates/<channel>/
+        run: |
+          CHANNEL="${{ steps.channel.outputs.channel }}"
+          DEST="docs/updates/$CHANNEL"
+          mkdir -p "$DEST"
+          # Each platform's yml lives in its own artifact directory. Missing
+          # platforms (e.g., Intel Mac when its runner is cancelled) are not
+          # fatal — we publish whatever was built.
+          for SRC in \
+              artifacts/electron-windows/latest.yml \
+              artifacts/electron-macos-arm64/latest-mac.yml \
+              artifacts/electron-macos-x64/latest-mac.yml \
+              artifacts/electron-linux/latest-linux.yml; do
+            if [ -f "$SRC" ]; then
+              cp -v "$SRC" "$DEST/"
+            fi
+          done
+          ls -la "$DEST"
+      - name: Rewrite relative URLs to absolute GitHub release URLs
+        env:
+          RELEASE_BASE: "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}"
+        run: |
+          # electron-builder writes installer filenames as relative entries in
+          # latest*.yml. With a generic provider, electron-updater resolves
+          # those against publish.url (whisperclick.com/updates/beta/), which
+          # is where the yml lives but NOT where the 170 MB installers live.
+          # Rewrite each `url:` / `path:` line so it points at the GitHub
+          # release directly. Downloads stay on GitHub; only discovery moves.
+          CHANNEL="${{ steps.channel.outputs.channel }}"
+          DEST="docs/updates/$CHANNEL"
+          python3 - <<'PY' "$DEST"/*.yml
+          import os, re, sys
+          base = os.environ['RELEASE_BASE']
+          def rewrite_line(m):
+              prefix, value = m.group(1), m.group(2).strip()
+              if '://' in value:  # already absolute, leave it
+                  return m.group(0)
+              return f"{prefix}{base}/{value}"
+          for path in sys.argv[1:]:
+              with open(path) as f:
+                  text = f.read()
+              text = re.sub(r'^(  - url: )(.+)$', rewrite_line, text, flags=re.MULTILINE)
+              text = re.sub(r'^(path: )(.+)$', rewrite_line, text, flags=re.MULTILINE)
+              with open(path, 'w') as f:
+                  f.write(text)
+              print(f"Rewrote URLs in {path}:")
+              with open(path) as f:
+                  print(f.read())
+          PY
+      - name: Commit and push to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/updates/
+          if git diff --cached --quiet; then
+            echo "No changes to update feed — skipping commit."
+          else
+            git commit -m "publish(updater): ${{ github.ref_name }} → docs/updates/${{ steps.channel.outputs.channel }}/"
+            git push
+          fi
