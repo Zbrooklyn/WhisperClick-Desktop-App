@@ -1,5 +1,43 @@
 # Changelog
 
+## [2.4.0-beta] — 2026-06-18
+
+### Truth & Safety Net (APP-005) — production hardening + real test coverage
+
+Substantial reliability, security, and test-coverage work, backed by a real
+renderer-driven end-to-end suite and a now-deterministic test run.
+
+#### Security
+- API keys travel in request **headers**, never the URL query string (no key in
+  proxy/access logs). A single tested `redact_key()` scrubs keys from every
+  key-bearing HTTP error path (transcribe, translate, verify).
+
+#### Correctness
+- Collision-proof `audio_id` (no more same-millisecond overwrite).
+- `verify-api-key` no longer reports a false success on a backend error; hotkey
+  registration failures now surface (log + notification).
+
+#### Reliability
+- Sidecar per-request timeout timers cleared + unref'd; background updater timers
+  unref'd + cleared on quit (clean exit, no leaked handles).
+- Sidecar crash-loop recovery: bounded fast restarts → cooldown recovery → give-up.
+- Silent store corruption / data-loss now logged instead of vanishing.
+- Spontaneous engine errors now surface to the user (cross-platform, no double-toast).
+
+#### Testing
+- Real renderer-driven e2e (mocked engine): record → transcription → history,
+  persistence across restart, and the error / spontaneous-error / cancel outcomes.
+- Engine pytest harness; deterministic JS suite (torture/stress flakes fixed).
+- Baseline at release: jest 648/648, engine pytest 48 passed.
+
+### Rolled up from 2.2.4–2.3.1-beta
+
+This release also includes the hotfix line that shipped between 2.2.1 and now:
+empty-transcription + decrypt-failure surfacing (2.2.4), legacy-config migration
++ beta/stable split + tray-icon fix (2.2.5), the migration framework + CI smoke
+test (2.2.6), and the permanent updater channel via the generic feed on
+whisperclick.com (2.3.0–2.3.1).
+
 ## [2.2.1-beta] — 2026-03-31
 
 ### Fixed
