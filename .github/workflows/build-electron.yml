@@ -344,3 +344,53 @@ jobs:
             git commit -m "publish(updater): ${{ github.ref_name }} → docs/updates/${{ steps.channel.outputs.channel }}/"
             git push
           fi
+
+  propagate-to-public:
+    # After a successful PRIVATE release, propagate the SAME tag to the public
+    # repo so it builds its OWN installers and publishes a feed whose sha512
+    # matches what users actually download. The public repo has its own copy of
+    # this workflow (build-electron.yml is NOT stripped), so the pushed tag
+    # triggers a public build → public release → public update feed. This is
+    # what makes releasing hands-free: no manual public tag step.
+    #
+    # We tag the public repo's CURRENT main HEAD — the stripped equivalent of
+    # this release's code, already mirrored by the "Sync public" workflow that
+    # ran on the preceding main push — because the private commit SHAs do not
+    # exist on the public repo.
+    #
+    # Auth: the SSH deploy key (write deploy key on the public repo, secret
+    # PUBLIC_REPO_DEPLOY_KEY). Guarded to the private repo: this job is mirrored
+    # to the public repo but must NOT run there (it has no secret and would try
+    # to re-tag itself).
+    needs: [release]
+    if: always() && needs.release.result == 'success' && github.repository == 'Zbrooklyn/whisperclick-dev'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up deploy key
+        run: |
+          if [ -z "${{ secrets.PUBLIC_REPO_DEPLOY_KEY }}" ]; then
+            echo "PUBLIC_REPO_DEPLOY_KEY not set — cannot propagate tag to public. Skipping."
+            exit 0
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.PUBLIC_REPO_DEPLOY_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+      - name: Tag public main to trigger its build + release
+        if: ${{ secrets.PUBLIC_REPO_DEPLOY_KEY != '' }}
+        env:
+          GIT_SSH_COMMAND: "ssh -i /home/runner/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+          TAG: ${{ github.ref_name }}
+        run: |
+          git init -q public-mirror && cd public-mirror
+          git config user.name "whisperclick-sync[bot]"
+          git config user.email "sync@users.noreply.github.com"
+          git remote add origin git@github.com:Zbrooklyn/WhisperClick-Desktop-App.git
+          if git ls-remote --tags origin "refs/tags/${TAG}" | grep -q "${TAG}"; then
+            echo "Tag ${TAG} already exists on public repo — nothing to do."
+            exit 0
+          fi
+          git fetch -q origin main
+          git tag "${TAG}" FETCH_HEAD
+          git push origin "${TAG}"
+          echo "Pushed ${TAG} to public repo → its build-electron will release + publish the public feed."

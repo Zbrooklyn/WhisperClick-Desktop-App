@@ -6,8 +6,10 @@
 # How it works:
 #   1. Creates a temporary branch from current HEAD
 #   2. Removes private-only files
-#   3. Force-pushes to public remote's main branch
-#   4. Cleans up the temp branch
+#   3. Preserves the public repo's own docs/updates/ feed (never overwrite it)
+#   4. Force-pushes to public remote's $PUBLIC_BRANCH (default main; override
+#      via env for a safe throwaway-branch test)
+#   5. Cleans up the temp branch
 #
 # Private files (excluded from public):
 #   CLAUDE.md        — AI agent instructions
@@ -48,7 +50,7 @@ REQUIRED_EXCLUDE=(
 )
 
 PUBLIC_REMOTE="public"
-PUBLIC_BRANCH="main"
+PUBLIC_BRANCH="${PUBLIC_BRANCH:-main}"   # overridable for safe throwaway-branch tests
 TEMP_BRANCH="sync-public-temp"
 
 # Verify we're in the right repo
@@ -87,7 +89,27 @@ for f in "${PRIVATE_FILES[@]}"; do
   fi
 done
 
-git commit -m "Sync from private repo" --quiet
+# ---------------------------------------------------------------------------
+# Preserve the public repo's OWN update feed.
+# docs/updates/<channel>/latest*.yml is published by the PUBLIC build from
+# public-built installers (matching sha512). The private tree's copy points at
+# the private repo's releases — private, so a 404 for users. Force-pushing the
+# private tree would clobber the good public feed, so we replace docs/updates/
+# in the tree-to-publish with whatever the public branch currently has.
+# ---------------------------------------------------------------------------
+rm -rf docs/updates
+if git fetch "$PUBLIC_REMOTE" "$PUBLIC_BRANCH" --quiet 2>/dev/null; then
+  if git checkout FETCH_HEAD -- docs/updates 2>/dev/null; then
+    echo "Preserved public update feed from $PUBLIC_REMOTE/$PUBLIC_BRANCH."
+  else
+    echo "Public $PUBLIC_BRANCH has no docs/updates yet — next release will create it."
+  fi
+else
+  echo "Could not fetch $PUBLIC_REMOTE/$PUBLIC_BRANCH (new branch?) — no feed to preserve."
+fi
+
+git add -A
+git commit -m "Sync from private repo (public feed preserved)" --quiet
 
 # ---------------------------------------------------------------------------
 # GATE 1 — Post-strip verification (fail-closed).
