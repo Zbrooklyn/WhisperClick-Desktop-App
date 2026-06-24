@@ -367,17 +367,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up deploy key
+        id: setup
+        env:
+          KEY: ${{ secrets.PUBLIC_REPO_DEPLOY_KEY }}
         run: |
-          if [ -z "${{ secrets.PUBLIC_REPO_DEPLOY_KEY }}" ]; then
+          if [ -z "$KEY" ]; then
             echo "PUBLIC_REPO_DEPLOY_KEY not set — cannot propagate tag to public. Skipping."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.PUBLIC_REPO_DEPLOY_KEY }}" > ~/.ssh/deploy_key
+          printf '%s\n' "$KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          echo "configured=true" >> "$GITHUB_OUTPUT"
       - name: Tag public main to trigger its build + release
-        if: ${{ secrets.PUBLIC_REPO_DEPLOY_KEY != '' }}
+        if: steps.setup.outputs.configured == 'true'
         env:
           GIT_SSH_COMMAND: "ssh -i /home/runner/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
           TAG: ${{ github.ref_name }}
