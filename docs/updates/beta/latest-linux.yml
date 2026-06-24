@@ -1,9 +1,9 @@
 version: 2.4.0-beta
 files:
-  - url: https://github.com/Zbrooklyn/whisperclick-dev/releases/download/electron-v2.4.0-beta/WhisperClick-2.4.0-beta.AppImage
-    sha512: 4JlEP2kBuE0pCm9ux4bqH/AHntO/tA7dNSIs4+bALLxoH8srhNbqidGkw7a/0TqDYNWa9yW7dgY79l01s520ig==
-    size: 267373043
-    blockMapSize: 281095
-path: https://github.com/Zbrooklyn/whisperclick-dev/releases/download/electron-v2.4.0-beta/WhisperClick-2.4.0-beta.AppImage
-sha512: 4JlEP2kBuE0pCm9ux4bqH/AHntO/tA7dNSIs4+bALLxoH8srhNbqidGkw7a/0TqDYNWa9yW7dgY79l01s520ig==
-releaseDate: '2026-06-18T13:46:23.988Z'
+  - url: https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/download/electron-v2.4.0-beta/WhisperClick-2.4.0-beta.AppImage
+    sha512: tToIt5yDrCyPfBJlbVFl9NT8Zs8EhtlkWvwaz3XT/Kd03gVsEEn6TnFIDgnRhwQE4qWuaR26OE9yfTSE4O7pvw==
+    size: 267405806
+    blockMapSize: 281090
+path: https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/download/electron-v2.4.0-beta/WhisperClick-2.4.0-beta.AppImage
+sha512: tToIt5yDrCyPfBJlbVFl9NT8Zs8EhtlkWvwaz3XT/Kd03gVsEEn6TnFIDgnRhwQE4qWuaR26OE9yfTSE4O7pvw==
+releaseDate: '2026-06-18T15:45:05.139Z'
