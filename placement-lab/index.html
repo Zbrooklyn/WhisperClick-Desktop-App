@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WhisperClick · Button Placement Concepts</title>
+<style>
+  :root{
+    --bg:#161311; --bg2:#1c1917; --panel:#211d1b; --panel2:#26221f;
+    --line:#332e2a; --line2:#2a2523;
+    --t1:#f5f5f4; --t2:#a8a29e; --t3:#78716c;
+    --acc:#cf9673; --acc-deep:#c07a4e; --acc-soft:#e0b596;
+    --mono:'SFMono-Regular',ui-monospace,Consolas,'Roboto Mono',monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    --r:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--t1);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+  body{padding:26px 16px 80px}
+  a{color:var(--acc)}
+  .wrap{max-width:1180px;margin:0 auto}
+
+  header.page{margin:0 auto 26px;max-width:760px;text-align:center}
+  header.page .kick{font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+  header.page h1{font-size:26px;font-weight:700;margin:8px 0 10px;letter-spacing:-.01em}
+  header.page p{color:var(--t2);font-size:14.5px;line-height:1.55;margin:0}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:22px;margin-top:26px}
+
+  .concept{background:var(--bg2);border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column}
+  .concept .head{padding:15px 16px 13px;border-bottom:1px solid var(--line2)}
+  .concept .head .row{display:flex;align-items:center;gap:10px}
+  .badge{flex:0 0 auto;width:26px;height:26px;border-radius:8px;background:var(--acc);color:#1a1613;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center}
+  .concept .head h2{font-size:15.5px;font-weight:700;margin:0}
+  .concept .head p{margin:9px 0 0;font-size:12.8px;line-height:1.5;color:var(--t2)}
+  .tag{display:inline-block;margin-top:10px;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--t3);border:1px solid var(--line);border-radius:999px;padding:3px 9px}
+
+  /* ---- phone mockup ---- */
+  .stage{padding:16px;display:flex;justify-content:center;background:
+      radial-gradient(120% 80% at 50% 0%, #201b18 0%, var(--bg2) 70%)}
+  .phone{width:288px;background:var(--bg2);border:1px solid var(--line);border-radius:22px;overflow:hidden;position:relative;box-shadow:0 18px 40px rgba(0,0,0,.35)}
+  .scr{display:flex;flex-direction:column;min-height:430px}
+
+  /* top app bar */
+  .appbar{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;border-bottom:1px solid var(--line2)}
+  .brand{display:flex;align-items:center;gap:6px;font-weight:700;font-size:13.5px}
+  .brand .dot{width:15px;height:15px;color:var(--acc)}
+  .brand b{color:var(--acc)}
+  .gear{width:16px;height:16px;color:var(--t3)}
+
+  /* record bar */
+  .rec{display:flex;align-items:center;gap:11px;padding:14px 13px}
+  .mic{flex:0 0 auto;width:42px;height:42px;border-radius:50%;background:#2a2421;border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
+  .mic svg{width:19px;height:19px;color:var(--t2)}
+  .wave{flex:1;display:flex;align-items:center;gap:2px;height:22px;overflow:hidden}
+  .wave i{flex:0 0 auto;width:2.5px;border-radius:2px;background:var(--acc-deep);opacity:.7}
+  .rectime{font-family:var(--mono);font-size:15px;font-weight:700;letter-spacing:.02em}
+  .rectime small{display:block;font-size:8px;letter-spacing:.18em;color:var(--t3);text-align:right;margin-top:1px;font-family:var(--sans);font-weight:700}
+
+  /* history header */
+  .hist{display:flex;align-items:center;gap:9px;padding:6px 13px 12px}
+  .hist .lbl{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--t3)}
+  .count{font-size:10.5px;font-weight:800;background:#2a2421;color:var(--t2);border-radius:999px;padding:2px 7px}
+  .search{margin-left:auto;display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 11px;color:var(--t3);font-size:11.5px;min-width:0}
+  .search svg{width:12px;height:12px;flex:0 0 auto}
+  .search.full{margin-left:0;flex:1}
+  .search span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* transcript cards */
+  .cards{padding:2px 13px 14px;display:flex;flex-direction:column;gap:9px}
+  .tcard{background:var(--panel);border:1px solid var(--line2);border-radius:12px;padding:11px 12px}
+  .tcard .meta{font-family:var(--mono);font-size:9.5px;color:var(--t3);letter-spacing:.02em}
+  .tcard .txt{font-size:12px;color:#d6d0ca;line-height:1.45;margin-top:6px}
+
+  /* source buttons — shared */
+  .src{display:inline-flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 11px;font-size:11.5px;color:var(--t1);cursor:pointer;white-space:nowrap}
+  .src svg{width:13px;height:13px;color:var(--acc-soft);flex:0 0 auto}
+  .src.icon{padding:7px;border-radius:9px}
+  .src.icon svg{width:14px;height:14px}
+  .src:active{transform:scale(.96)}
+  .primary{background:linear-gradient(180deg,var(--acc-soft),var(--acc-deep));color:#1a1512;border:none;font-weight:700}
+  .primary svg{color:#1a1512}
+
+  /* concept A — capture row under record bar */
+  .caprow{display:flex;gap:7px;flex-wrap:wrap;padding:2px 13px 12px}
+
+  /* concept B — labeled strip under header */
+  .strip{display:flex;gap:6px;padding:2px 13px 12px;overflow-x:auto}
+  .strip::-webkit-scrollbar{display:none}
+
+  /* concept C — record chip */
+  .modechip{display:inline-flex;align-items:center;gap:5px;background:#2a2421;border:1px solid var(--line);border-radius:999px;padding:4px 9px 4px 8px;font-size:11px;color:var(--t1);cursor:pointer;position:relative}
+  .modechip svg.lead{width:13px;height:13px;color:var(--acc-soft)}
+  .modechip svg.caret{width:11px;height:11px;color:var(--t3)}
+  .menu{position:absolute;z-index:5;background:#231e1b;border:1px solid var(--line);border-radius:12px;padding:5px;box-shadow:0 14px 34px rgba(0,0,0,.5);min-width:150px}
+  .menu.hidden{display:none}
+  .menu .mi{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:8px;font-size:12px;color:var(--t1);cursor:pointer}
+  .menu .mi svg{width:14px;height:14px;color:var(--acc-soft)}
+  .menu .mi:active,.menu .mi:hover{background:#2c2622}
+  .menu .mi.on{color:var(--acc-soft);font-weight:600}
+
+  /* concept D — bottom bar */
+  .botbar{display:flex;align-items:center;justify-content:space-around;gap:4px;padding:10px 10px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line2);background:var(--panel);margin-top:auto}
+  .bb{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--t2);font-size:9px;cursor:pointer;flex:1;min-width:0}
+  .bb svg{width:18px;height:18px;color:var(--acc-soft)}
+  .bb.rec{flex:0 0 auto}
+  .bb.rec .knob{width:44px;height:44px;border-radius:50%;background:linear-gradient(180deg,var(--acc-soft),var(--acc-deep));display:flex;align-items:center;justify-content:center;margin-top:-14px;box-shadow:0 4px 12px rgba(0,0,0,.35)}
+  .bb.rec .knob svg{width:20px;height:20px;color:#1a1512}
+  .bb.rec span{color:var(--acc-soft);font-weight:700}
+
+  /* concept E — FAB */
+  .fabwrap{position:absolute;right:14px;bottom:16px;display:flex;flex-direction:column;align-items:flex-end;gap:9px;z-index:6}
+  .fanitem{display:flex;align-items:center;gap:8px;transform:translateY(6px);opacity:0;transition:.18s;pointer-events:none}
+  .fabwrap.open .fanitem{transform:none;opacity:1;pointer-events:auto}
+  .fanitem .name{font-size:11px;background:#231e1b;border:1px solid var(--line);border-radius:8px;padding:4px 8px;color:var(--t1)}
+  .fanitem .fi{width:34px;height:34px;border-radius:50%;background:var(--panel2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
+  .fanitem .fi svg{width:15px;height:15px;color:var(--acc-soft)}
+  .fab{width:50px;height:50px;border-radius:50%;background:linear-gradient(180deg,var(--acc-soft),var(--acc-deep));display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.4)}
+  .fab svg{width:22px;height:22px;color:#1a1512;transition:transform .2s}
+  .fabwrap.open .fab svg{transform:rotate(45deg)}
+
+  /* concept F — new card */
+  .newcard{margin:2px 13px 10px;background:linear-gradient(180deg,#241e1a,#201b18);border:1px solid var(--line);border-radius:12px;padding:11px 12px}
+  .newcard .nt{font-size:11.5px;font-weight:700;color:var(--t1);margin-bottom:9px;display:flex;align-items:center;gap:6px}
+  .newcard .nt svg{width:13px;height:13px;color:var(--acc-soft)}
+  .newcard .nrow{display:flex;gap:7px;flex-wrap:wrap}
+  .chip{display:inline-flex;align-items:center;gap:5px;background:#2a2421;border:1px solid var(--line);border-radius:999px;padding:5px 9px;font-size:11px;cursor:pointer}
+  .chip svg{width:12px;height:12px;color:var(--acc-soft)}
+
+  /* concept G — import split */
+  .split{display:flex;align-items:center;gap:7px;margin-left:auto;position:relative}
+
+  .foot{max-width:760px;margin:34px auto 0;text-align:center;color:var(--t3);font-size:12.5px;line-height:1.6}
+  @media(max-width:520px){ body{padding:20px 12px 70px} .grid{grid-template-columns:1fr;gap:18px} }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="ic-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10a7 7 0 0 1-14 0"/><path d="M12 19v3"/></symbol>
+  <symbol id="ic-live" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M4.9 19.1a10 10 0 0 1 0-14.2"/><path d="M19.1 4.9a10 10 0 0 1 0 14.2"/><path d="M7.8 16.2a6 6 0 0 1 0-8.4"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4"/></symbol>
+  <symbol id="ic-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="ic-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></symbol>
+  <symbol id="ic-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 15a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M15 9a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></symbol>
+  <symbol id="ic-cast" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"/><path d="M2 12a9 9 0 0 1 8 8"/><path d="M2 16a5 5 0 0 1 4 4"/><path d="M2 20h.01"/></symbol>
+  <symbol id="ic-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="ic-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="ic-import" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></symbol>
+  <symbol id="ic-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="ic-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15H4.5a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 6 8.6l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 11 4.6V4.5a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1.82 1.17l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.09a2 2 0 0 1 0 4z"/></symbol>
+</defs></svg>
+
+<div class="wrap">
+  <header class="page">
+    <div class="kick">WhisperClick · Design Lab</div>
+    <h1>Where do the capture buttons go?</h1>
+    <p>Seven live placement concepts for the source buttons (live meeting, recents, files, URL, system audio). Same look you like — the only thing changing is <em>where</em> the buttons sit and how they scale as we add paid capture features. Tap the interactive ones (C, E, G).</p>
+  </header>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="foot">Each mock shows the same screen slice — record bar, history header, transcript cards — with one placement approach. Nothing here is wired to the real app; it's for choosing a direction.</div>
+</div>
+
+<script>
+const ic = n => `<svg><use href="#ic-${n}"/></svg>`;
+const SRC = [
+  {id:'live', ic:'live', label:'Live'},
+  {id:'files', ic:'file', label:'Files'},
+  {id:'url', ic:'link', label:'URL'},
+  {id:'system', ic:'cast', label:'System'},
+];
+const RECENTS = {id:'recents', ic:'clock', label:'Recents'};
+const WAVE = Array.from({length:26},(_,i)=>{const h=4+Math.abs(Math.sin(i*0.7))*15;return `<i style="height:${h.toFixed(1)}px"></i>`}).join('');
+
+const appbar = `<div class="appbar"><div class="brand"><svg class="dot"><use href="#ic-mic"/></svg>WhisperClick<b>Pro</b></div><svg class="gear"><use href="#ic-gear"/></svg></div>`;
+const recbar = `<div class="rec"><div class="mic">${ic('mic')}</div><div class="wave">${WAVE}</div><div class="rectime">00:00<small>RECORD</small></div></div>`;
+const histHeader = (search='right') => `<div class="hist"><span class="lbl">History</span><span class="count">12</span><div class="search ${search==='full'?'full':''}">${ic('search')}<span>Search…</span></div></div>`;
+const cards = `<div class="cards">
+  <div class="tcard"><div class="meta">01:15 AM · 00:08 · 1.5s</div><div class="txt">The quarterly review is scheduled for Thursday at 3. Bring the updated roadmap.</div></div>
+  <div class="tcard"><div class="meta">12:18 AM · 00:04 · 1.3s</div><div class="txt">Quick rundown of where we landed on the build.</div></div>
+</div>`;
+const srcBtn = (s,cls='') => `<button class="src ${cls}">${ic(s.ic)}${s.label?`<span>${s.label}</span>`:''}</button>`;
+
+const CONCEPTS = [
+  { id:'A', name:'Capture row under the record bar', tag:'Recommended',
+    desc:'All the ways to START a transcription sit together, right under the mic. History header relaxes to just count + search. New paid sources join this row.',
+    build:()=> appbar+recbar+
+      `<div class="caprow">${SRC.map(s=>srcBtn(s)).join('')}</div>`+
+      histHeader('right')+cards },
+
+  { id:'B', name:'Labeled strip under the header', tag:'Lightest touch',
+    desc:'Same buttons, but on their own row with tiny labels instead of crushed against search. Minimal change; scales worst once there are many.',
+    build:()=> appbar+recbar+histHeader('right')+
+      `<div class="strip">${[SRC[0],RECENTS,...SRC.slice(1)].map(s=>srcBtn(s)).join('')}</div>`+cards },
+
+  { id:'C', name:'Multi-modal record bar', tag:'Interactive',
+    desc:'The source becomes a MODE on the one primary button — tap the chip to switch what it captures. Ultra-compact; the alt sources are one tap deep.',
+    build:()=> appbar+
+      `<div class="rec"><div class="mic">${ic('mic')}</div>
+        <div style="flex:1;display:flex;align-items:center"><div class="modechip" data-menu>
+          <svg class="lead"><use href="#ic-live"/></svg><span class="mc-label">Mic</span><svg class="caret"><use href="#ic-caret"/></svg>
+          <div class="menu hidden">
+            ${[{id:'mic',ic:'mic',label:'Mic'},{id:'live',ic:'live',label:'Live meeting'},{id:'files',ic:'file',label:'Files'},{id:'url',ic:'link',label:'From a URL'},{id:'system',ic:'cast',label:'System audio'}].map((m,i)=>`<div class="mi ${i===0?'on':''}" data-lead="${m.ic}" data-label="${m.label}">${ic(m.ic)}${m.label}</div>`).join('')}
+          </div>
+        </div></div>
+        <div class="rectime">00:00<small>RECORD</small></div></div>`+
+      histHeader('right')+cards },
+
+  { id:'D', name:'Bottom action bar (thumb zone)', tag:'App-native',
+    desc:'A pinned toolbar at the bottom, record dead-center, sources flanking it. Everything reachable by thumb. ~5 fit; beyond that needs a “More”.',
+    build:()=> appbar+recbar+histHeader('right')+cards+
+      `<div class="botbar">
+        ${srcBtnBB(SRC[0])}${srcBtnBB(SRC[1])}
+        <div class="bb rec"><div class="knob">${ic('mic')}</div><span>Record</span></div>
+        ${srcBtnBB(SRC[2])}${srcBtnBB(SRC[3])}
+      </div>` },
+
+  { id:'E', name:'Floating ＋ (speed-dial)', tag:'Interactive',
+    desc:'A single ＋ floats bottom-right; tapping fans the sources upward. Header and record bar stay untouched; scales endlessly.',
+    build:()=> appbar+recbar+histHeader('right')+cards+
+      `<div class="fabwrap" data-fab>
+        ${SRC.slice().reverse().map(s=>`<div class="fanitem"><span class="name">${s.label}</span><div class="fi">${ic(s.ic)}</div></div>`).join('')}
+        <div class="fab">${ic('plus')}</div>
+      </div>` },
+
+  { id:'F', name:'“New” card at the top of the list', tag:'In the scroll',
+    desc:'The first item in the history list is a compact “start something” card. It scrolls with content, so no chrome ever gets crowded.',
+    build:()=> appbar+recbar+histHeader('right')+
+      `<div class="newcard"><div class="nt">${ic('plus')}Start a transcription</div>
+        <div class="nrow">${SRC.map(s=>`<button class="chip">${ic(s.ic)}${s.label}</button>`).join('')}</div></div>`+
+      cards },
+
+  { id:'G', name:'Record vs Import split (5 → 2)', tag:'Interactive',
+    desc:'Group by nature: LIVE capture vs bringing in audio that already exists. Two affordances forever, no matter how many import sources you add.',
+    build:()=> appbar+recbar+
+      `<div class="hist"><span class="lbl">History</span><span class="count">12</span>
+        <div class="split">
+          <button class="src primary">${ic('live')}<span>Live</span></button>
+          <div style="position:relative"><button class="src" data-import>${ic('import')}<span>Import</span><svg style="width:11px;height:11px;color:var(--t3)"><use href="#ic-caret"/></svg></button>
+            <div class="menu hidden" style="right:0;top:calc(100% + 6px)">
+              ${[SRC[1],SRC[2],SRC[3]].map(s=>`<div class="mi">${ic(s.ic)}${s.label==='Files'?'Audio / video files':s.label==='URL'?'From a URL':'System audio'}</div>`).join('')}
+            </div>
+          </div>
+        </div></div>`+
+      `<div class="hist" style="padding-top:0"><div class="search full">${ic('search')}<span>Search…</span></div></div>`+
+      cards },
+];
+
+function srcBtnBB(s){ return `<div class="bb">${ic(s.ic)}<span>${s.label}</span></div>`; }
+
+const grid = document.getElementById('grid');
+CONCEPTS.forEach(c=>{
+  const el = document.createElement('div');
+  el.className='concept';
+  el.innerHTML = `<div class="head"><div class="row"><div class="badge">${c.id}</div><h2>${c.name}</h2></div><p>${c.desc}</p><span class="tag">${c.tag}</span></div>
+    <div class="stage"><div class="phone"><div class="scr">${c.build()}</div></div></div>`;
+  grid.appendChild(el);
+});
+
+// ---- interactions ----
+document.addEventListener('click', e=>{
+  // C — mode menu
+  const chip = e.target.closest('[data-menu]');
+  const mi = e.target.closest('.menu .mi');
+  document.querySelectorAll('.menu').forEach(m=>{ if(!m.contains(e.target) && !(chip && chip.contains(m))) m.classList.add('hidden'); });
+  if(chip){ const m=chip.querySelector('.menu'); m.classList.toggle('hidden'); }
+  if(mi && mi.dataset.lead){
+    const menu=mi.closest('.menu'); const host=menu.closest('.modechip');
+    host.querySelector('.lead use').setAttribute('href', '#ic-'+mi.dataset.lead);
+    host.querySelector('.mc-label').textContent = mi.dataset.label;
+    menu.querySelectorAll('.mi').forEach(x=>x.classList.remove('on')); mi.classList.add('on');
+    menu.classList.add('hidden');
+  }
+  // G — import menu
+  const imp = e.target.closest('[data-import]');
+  if(imp){ imp.parentElement.querySelector('.menu').classList.toggle('hidden'); }
+  // E — FAB
+  const fab = e.target.closest('.fab');
+  if(fab){ fab.closest('[data-fab]').classList.toggle('open'); }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+node_modules/
+dist/
+release/
+package-lock.json
+*.log
+.DS_Store
+venv/
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+coverage/
+platforms/tauri/target/
+platforms/frameless-test/target/
+.claude/
+.superpowers/
+
+# Local dev/audit scratch harnesses (not product code) — added 2026-07-15
+/audit-*.mjs
+/cap-*.mjs
+/probe-*.mjs
+/audit-shots/
+/docs/plan.html
+/docs/plan-server.cjs
+/docs/.plan-meta/
+.license-keys/
+.env
+release-pro/
+
+# Compiled premium bytecode — build artifacts from tools/protect-premium.js
+*.jsc
+
+# PyInstaller engine build artifacts
+shared/engine/dist/
+shared/engine/build/
