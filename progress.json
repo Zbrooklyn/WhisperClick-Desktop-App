@@ -1,0 +1,302 @@
+{
+  "project": "WhisperClick Electron",
+  "updated": "2026-03-08",
+  "features": {
+    "electron_port": {
+      "status": "complete",
+      "description": "Full Electron port of V3 frontend with pywebview API compatibility shim"
+    },
+    "ipc_handlers": {
+      "status": "complete",
+      "description": "34 IPC handlers matching all preload API methods"
+    },
+    "python_sidecar": {
+      "status": "complete",
+      "description": "Python sidecar with auto-restart (max 3, backoff) and JSON-over-stdin/stdout protocol"
+    },
+    "recording_flow": {
+      "status": "complete",
+      "description": "Click-to-record, hotkey toggle, pill toggle, tray toggle with timer and cancel"
+    },
+    "audio_visualizer": {
+      "status": "complete",
+      "description": "8 visualizer styles, 3 motion presets, 4 density levels"
+    },
+    "transcription_api": {
+      "status": "complete",
+      "description": "OpenAI and Gemini API providers with multiple models"
+    },
+    "transcription_local": {
+      "status": "complete",
+      "description": "Local faster-whisper models with download, delete, and progress tracking"
+    },
+    "output_modes": {
+      "status": "complete",
+      "description": "Transcribe, Translate, and Both modes with source/target language selection"
+    },
+    "history": {
+      "status": "complete",
+      "description": "Searchable history with detail modal, editable titles, audio playback, export, 500-entry cap"
+    },
+    "settings": {
+      "status": "complete",
+      "description": "Full settings drawer with appearance, transcription, output, and system sections"
+    },
+    "settings_ux_reorg": {
+      "status": "complete",
+      "description": "Settings reorganized by user priority (v2.0.4)"
+    },
+    "global_hotkey": {
+      "status": "complete",
+      "description": "System-wide hotkey with capture mode, manual entry, conflict detection, and hotkey guide"
+    },
+    "pill_widget": {
+      "status": "complete",
+      "description": "Floating pill with dormant/recording/processing states, drag, context menu, monitor selection"
+    },
+    "pill_error_feedback": {
+      "status": "complete",
+      "description": "Pill tooltip shows API key, sidecar, timeout, and crash errors"
+    },
+    "pill_cancel": {
+      "status": "complete",
+      "description": "Pill X button immediately resets state and discards audio"
+    },
+    "pill_history_shortcut": {
+      "status": "complete",
+      "description": "Right-click pill context menu includes History shortcut"
+    },
+    "window_management": {
+      "status": "complete",
+      "description": "Title bar drag, minimize, maximize/restore, snap layouts, theme-matched controls"
+    },
+    "system_tray": {
+      "status": "complete",
+      "description": "Tray icon with state colors, rich context menu with recording toggle and settings"
+    },
+    "onboarding": {
+      "status": "complete",
+      "description": "Two-step onboarding: local model check then API key connection"
+    },
+    "app_lifecycle": {
+      "status": "complete",
+      "description": "Single instance lock, close-to-tray, auto-start, always-on-top"
+    },
+    "clipboard_auto_paste": {
+      "status": "complete",
+      "description": "Copy to clipboard and auto-paste via PowerShell SendKeys with 150ms delay"
+    },
+    "api_key_encryption": {
+      "status": "complete",
+      "description": "API keys encrypted at rest via Electron safeStorage with auto-migration from plaintext"
+    },
+    "crash_safe_storage": {
+      "status": "complete",
+      "description": "Atomic writes with .tmp + .bak pattern for settings and history"
+    },
+    "auto_updater": {
+      "status": "complete",
+      "description": "Auto-updater with beta/stable channels, silent install, release notes, auto-download toggle"
+    },
+    "update_ui": {
+      "status": "complete",
+      "description": "Instant spinner feedback, 'Checked just now' display, update-ready notification"
+    },
+    "ci_cd": {
+      "status": "complete",
+      "description": "GitHub Actions builds Windows/macOS (arm64+x64)/Linux, creates pre-release"
+    },
+    "macos_intel": {
+      "status": "complete",
+      "description": "macOS Intel (x64) support with two DMGs per release"
+    },
+    "silero_vad_bundle": {
+      "status": "complete",
+      "description": "Silero VAD model bundled in PyInstaller build (v2.0.2)"
+    },
+    "premium_directory": {
+      "status": "complete",
+      "description": "Premium directory structure with public sync exclusion (v2.0.5)"
+    },
+    "instant_version_display": {
+      "status": "complete",
+      "description": "Instant version display via preload DOM injection (v2.0.5)"
+    },
+    "test_suite": {
+      "status": "complete",
+      "description": "294 tests (281 Jest + 13 E2E) with coverage thresholds enforced"
+    },
+    "linux_ci_test_fixes": {
+      "status": "not_started",
+      "description": "Fix 3 cross-platform test failures on Linux CI (currently continue-on-error)\n\n_(raw status: `not-started`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-375"
+    },
+    "flaky_hotkey_test_fix": {
+      "status": "not_started",
+      "description": "Fix timing-dependent mainWindow destroyed fallback test\n\n_(raw status: `not-started`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-376"
+    },
+    "code_signing_windows": {
+      "status": "not_started",
+      "description": "EV code signing certificate for Windows to remove SmartScreen warnings\n\n_(raw status: `not-started`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-377"
+    },
+    "code_signing_macos": {
+      "status": "not_started",
+      "description": "Apple Developer certificate + notarization to remove Gatekeeper warnings\n\n_(raw status: `not-started`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-378"
+    },
+    "landing_page": {
+      "status": "not_started",
+      "description": "Website/landing page for free download (alternative to raw GitHub releases)\n\n_(raw status: `not-started`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-379"
+    },
+    "quick_actions_toast": {
+      "status": "not_started",
+      "description": "Post-transcription toast with Copy/Paste/Edit/Discard buttons\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-380"
+    },
+    "keyboard_only_mode": {
+      "status": "not_started",
+      "description": "Full keyboard navigation for power users\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-381"
+    },
+    "premium_licensing": {
+      "status": "not_started",
+      "description": "License key validation, premium module loader, activation UI (provider TBD)\n\n_(raw status: `not-started`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-382"
+    },
+    "custom_vocabulary": {
+      "status": "not_started",
+      "description": "User-defined proper nouns and jargon appended as prompt hints\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-383"
+    },
+    "language_auto_detect_badge": {
+      "status": "not_started",
+      "description": "Show detected language badge on history items (backend done, frontend only)\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-384"
+    },
+    "speaker_diarization_display": {
+      "status": "not_started",
+      "description": "Speaker labels with color coding using gpt-4o-transcribe-diarize\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-385"
+    },
+    "recording_sound_customization": {
+      "status": "not_started",
+      "description": "Pick start/stop sounds from built-in options or disable\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-386"
+    },
+    "snippet_templates": {
+      "status": "not_started",
+      "description": "Saved text snippets that wrap transcriptions (email headers, meeting notes, etc.)\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-387"
+    },
+    "custom_post_processing_prompts": {
+      "status": "not_started",
+      "description": "User-defined prompts to transform output (fix grammar, summarize, bullet points)\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-388"
+    },
+    "voice_commands": {
+      "status": "not_started",
+      "description": "Dictation control: new line, period, comma, delete that interpreted as actions\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-389"
+    },
+    "drag_drop_audio_transcription": {
+      "status": "not_started",
+      "description": "Drop audio files (.mp3/.wav/.m4a/.ogg) to transcribe without recording\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-390"
+    },
+    "smart_punctuation": {
+      "status": "not_started",
+      "description": "Auto punctuation and paragraph breaks based on speech pause length\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-391"
+    },
+    "clipboard_history_ring": {
+      "status": "not_started",
+      "description": "Hotkey opens picker showing last 5-10 transcriptions for quick paste\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-392"
+    },
+    "live_streaming_runtime": {
+      "status": "not_started",
+      "description": "Real-time partial transcription during recording\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-393"
+    },
+    "word_level_timestamps": {
+      "status": "not_started",
+      "description": "Click any word to jump to that moment in audio, karaoke-style highlighting\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-394"
+    },
+    "confidence_highlighting": {
+      "status": "not_started",
+      "description": "Low-confidence words highlighted for spot-checking\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-395"
+    },
+    "voice_corrections": {
+      "status": "not_started",
+      "description": "Edit transcript by voice: replace X with Y, capitalize, undo\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-396"
+    },
+    "continuous_listening_vad": {
+      "status": "not_started",
+      "description": "Always-on mode: auto-starts on speech, auto-stops on silence via Silero VAD\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-397"
+    },
+    "meeting_mode": {
+      "status": "not_started",
+      "description": "Long-form recording with speaker ID, timestamps, auto-summary and action items\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-398"
+    },
+    "app_integrations": {
+      "status": "not_started",
+      "description": "Direct send to Notion, Obsidian, Google Docs, Slack via API/OAuth\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-399"
+    },
+    "context_aware_transcription": {
+      "status": "not_started",
+      "description": "Active window detection, browser URL detection, UI automation for adaptive output\n\n_(raw status: `planned`)_\n\n_(raw status: `not_started`)_",
+      "paperclip_id": "EEG-400"
+    }
+  },
+  "known_issues": {
+    "linux_ci_failures": {
+      "description": "3 cross-platform test failures on Linux CI (continue-on-error workaround)",
+      "severity": "low"
+    },
+    "no_code_signing": {
+      "description": "No code signing for Windows/macOS — SmartScreen/Gatekeeper warnings on install",
+      "severity": "medium"
+    },
+    "live_testing_needed": {
+      "description": "Recording flow, audio playback, auto-paste, and visualizer need live testing with mic + API key",
+      "severity": "low"
+    }
+  },
+  "testing": {
+    "unit_tests": {
+      "count": 281,
+      "framework": "Jest",
+      "status": "passing"
+    },
+    "e2e_tests": {
+      "count": 13,
+      "framework": "Jest (mock sidecar)",
+      "status": "passing"
+    },
+    "coverage_thresholds": {
+      "global_statements": "85%",
+      "global_branches": "60%",
+      "store_js": "100%/100%",
+      "sidecar_js": "100%",
+      "preload_js": "100%"
+    }
+  },
+  "infrastructure": {
+    "runtime": "Electron (Node.js + Chromium)",
+    "sidecar": "Python 3.12 (engine.py, stdin/stdout JSON)",
+    "build": "electron-builder (Windows NSIS+portable, macOS DMG arm64+x64, Linux AppImage)",
+    "ci": "GitHub Actions on push to main",
+    "test_runner": "Jest with custom Electron mock",
+    "latest_release": "v2.0.0"
+  },
+  "last_sync": "2026-04-20"
+}

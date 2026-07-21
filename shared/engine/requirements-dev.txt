@@ -1,0 +1,2 @@
+# Dev/test dependencies for the WhisperClick engine (not shipped)
+pytest>=8.0

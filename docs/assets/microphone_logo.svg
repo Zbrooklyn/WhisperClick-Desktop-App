@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="WhisperClick microphone logo">
+  <g fill="none" stroke="#CF9673" stroke-linecap="round" stroke-linejoin="round" stroke-width="16">
+    <rect x="88" y="32" width="80" height="128" rx="40" ry="40"/>
+    <path d="M56 116v12a72 72 0 0 0 144 0v-12"/>
+    <line x1="128" y1="200" x2="128" y2="232"/>
+    <line x1="96" y1="232" x2="160" y2="232"/>
+  </g>
+</svg>
