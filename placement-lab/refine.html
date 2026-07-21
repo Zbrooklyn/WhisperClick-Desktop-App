@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WhisperClick · History header — refined</title>
+<style>
+  :root{
+    --bg:#161311; --bg2:#1c1917; --panel:#211d1b; --panel2:#26221f;
+    --line:#332e2a; --line2:#2a2523;
+    --t1:#f5f5f4; --t2:#a8a29e; --t3:#78716c;
+    --acc:#cf9673; --acc-deep:#c07a4e; --acc-soft:#e0b596;
+    --mono:'SFMono-Regular',ui-monospace,Consolas,'Roboto Mono',monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--t1);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+  body{padding:26px 16px 70px}
+  .wrap{max-width:820px;margin:0 auto}
+  header.page{text-align:center;margin-bottom:6px}
+  header.page .kick{font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+  header.page h1{font-size:24px;font-weight:700;margin:8px 0 10px;letter-spacing:-.01em}
+  header.page p{color:var(--t2);font-size:14px;line-height:1.55;margin:0 auto;max-width:560px}
+
+  .pair{display:flex;gap:24px;justify-content:center;flex-wrap:wrap;margin-top:30px}
+  .col{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .col .cap{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+  .col.now .cap{color:var(--t3)}
+  .col.new .cap{color:var(--acc-soft)}
+  .col .sub{font-size:12px;color:var(--t2);text-align:center;max-width:280px;line-height:1.5;min-height:34px}
+
+  .phone{width:290px;background:var(--bg2);border:1px solid var(--line);border-radius:22px;overflow:hidden;box-shadow:0 18px 40px rgba(0,0,0,.35)}
+  .col.new .phone{border-color:#4a3f36}
+  .scr{display:flex;flex-direction:column}
+
+  .appbar{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;border-bottom:1px solid var(--line2)}
+  .brand{display:flex;align-items:center;gap:6px;font-weight:700;font-size:13.5px}
+  .brand .dot{width:15px;height:15px;color:var(--acc)}
+  .brand b{color:var(--acc)}
+  .gear{width:16px;height:16px;color:var(--t3)}
+
+  .rec{display:flex;align-items:center;gap:11px;padding:14px 13px}
+  .mic{width:42px;height:42px;border-radius:50%;background:#2a2421;border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
+  .mic svg{width:19px;height:19px;color:var(--t2)}
+  .wave{flex:1;display:flex;align-items:center;gap:2px;height:22px;overflow:hidden}
+  .wave i{width:2.5px;border-radius:2px;background:var(--acc-deep);opacity:.7}
+  .rectime{font-family:var(--mono);font-size:15px;font-weight:700}
+  .rectime small{display:block;font-size:8px;letter-spacing:.18em;color:var(--t3);text-align:right;margin-top:1px;font-family:var(--sans);font-weight:700}
+
+  /* NOW — cramped header */
+  .histNow{display:flex;align-items:center;gap:8px;padding:6px 13px 12px}
+  .histNow .lbl{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--t3)}
+  .count{font-size:10.5px;font-weight:800;background:#2a2421;color:var(--t2);border-radius:999px;padding:2px 7px}
+  .iconbtns{display:flex;gap:3px;margin-left:2px}
+  .iconbtns .ib{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center}
+  .iconbtns .ib svg{width:14px;height:14px;color:var(--t2)}
+  .searchNow{margin-left:auto;display:flex;align-items:center;gap:5px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 9px;color:var(--t3);font-size:10.5px;max-width:96px}
+  .searchNow svg{width:11px;height:11px;flex:0 0 auto}
+  .searchNow span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* NEW — labeled action cells + roomy header */
+  .actrow{display:flex;gap:5px;padding:4px 11px 4px}
+  .act{display:flex;flex-direction:column;align-items:center;gap:5px;flex:1;min-width:0;cursor:pointer}
+  .act .ib{width:100%;height:38px;border-radius:11px;background:var(--panel);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;transition:.12s}
+  .act .ib svg{width:17px;height:17px;color:var(--acc-soft)}
+  .act .ib.prim{background:linear-gradient(180deg,#2c2521,#26201c);border-color:#4a3f36}
+  .act span{font-size:9px;color:var(--t2);letter-spacing:.01em}
+  .act:active .ib{transform:scale(.94)}
+  .histNew{display:flex;align-items:center;gap:8px;padding:12px 13px 10px}
+  .histNew .lbl{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--t3)}
+  .searchNew{margin-left:auto;display:flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:7px 13px;color:var(--t3);font-size:11.5px;flex:1;max-width:150px}
+  .searchNew svg{width:12px;height:12px;flex:0 0 auto}
+
+  .cards{padding:2px 13px 14px;display:flex;flex-direction:column;gap:9px}
+  .tcard{background:var(--panel);border:1px solid var(--line2);border-radius:12px;padding:11px 12px}
+  .tcard .meta{font-family:var(--mono);font-size:9.5px;color:var(--t3)}
+  .tcard .txt{font-size:12px;color:#d6d0ca;line-height:1.45;margin-top:6px}
+
+  .why{max-width:600px;margin:36px auto 0;background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:20px 22px}
+  .why h3{margin:0 0 14px;font-size:14px;letter-spacing:.02em}
+  .why .row{display:flex;gap:12px;padding:11px 0;border-top:1px solid var(--line2);align-items:flex-start}
+  .why .row:first-of-type{border-top:none}
+  .why .k{flex:0 0 92px;font-size:12px;font-weight:700;color:var(--acc-soft)}
+  .why .v{font-size:13px;color:var(--t2);line-height:1.5}
+  @media(max-width:660px){ .pair{gap:30px} }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="ic-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10a7 7 0 0 1-14 0"/><path d="M12 19v3"/></symbol>
+  <symbol id="ic-live" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M4.9 19.1a10 10 0 0 1 0-14.2"/><path d="M19.1 4.9a10 10 0 0 1 0 14.2"/><path d="M7.8 16.2a6 6 0 0 1 0-8.4"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4"/></symbol>
+  <symbol id="ic-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="ic-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></symbol>
+  <symbol id="ic-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 15a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M15 9a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></symbol>
+  <symbol id="ic-cast" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"/><path d="M2 12a9 9 0 0 1 8 8"/><path d="M2 16a5 5 0 0 1 4 4"/><path d="M2 20h.01"/></symbol>
+  <symbol id="ic-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="ic-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15H4.5a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 6 8.6l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 11 4.6V4.5a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1.82 1.17l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.09a2 2 0 0 1 0 4z"/></symbol>
+</defs></svg>
+
+<div class="wrap">
+  <header class="page">
+    <div class="kick">WhisperClick · History header</div>
+    <h1>Current vs. refined</h1>
+    <p>Same layout, same one-tap actions, no menus anywhere. Just the two things that were actually wrong: the buttons get <b>labels</b> (clear) and their <b>own row</b> off the search line (uncrowded).</p>
+  </header>
+
+  <div class="pair">
+    <div class="col now">
+      <div class="cap">Now</div>
+      <div class="sub">Five unlabeled icons crammed against the search box: cramped, and a guessing game.</div>
+      <div class="phone"><div class="scr" id="now"></div></div>
+    </div>
+    <div class="col new">
+      <div class="cap">Refined</div>
+      <div class="sub">Labeled action cells on their own row; search gets room. One tap each, still zero menus.</div>
+      <div class="phone"><div class="scr" id="new"></div></div>
+    </div>
+  </div>
+
+  <div class="why">
+    <h3>What changed, and what didn't</h3>
+    <div class="row"><div class="k">Unclear → clear</div><div class="v">Each action gets a one-word label under its icon. No more decoding five look-alike glyphs.</div></div>
+    <div class="row"><div class="k">Cramped → roomy</div><div class="v">The actions move to their own row, so the History line is just the title, count, and a search box with space to breathe.</div></div>
+    <div class="row"><div class="k">No menus</div><div class="v">Every action is still one direct tap. Files opens the file picker, URL opens a URL field, Live starts a meeting. Nothing opens a menu, so there's never a menu-in-a-menu.</div></div>
+    <div class="row"><div class="k">Scales</div><div class="v">A new paid capture source is just one more labeled cell in the row, and it never re-crowds the header or spawns a submenu.</div></div>
+  </div>
+</div>
+
+<script>
+const ic = n => `<svg><use href="#ic-${n}"/></svg>`;
+const WAVE = Array.from({length:24},(_,i)=>{const h=4+Math.abs(Math.sin(i*0.7))*15;return `<i style="height:${h.toFixed(1)}px"></i>`}).join('');
+const appbar = `<div class="appbar"><div class="brand"><svg class="dot"><use href="#ic-mic"/></svg>WhisperClick<b>Pro</b></div><svg class="gear"><use href="#ic-gear"/></svg></div>`;
+const recbar = `<div class="rec"><div class="mic">${ic('mic')}</div><div class="wave">${WAVE}</div><div class="rectime">00:00<small>RECORD</small></div></div>`;
+const cards = `<div class="cards">
+  <div class="tcard"><div class="meta">01:15 AM · 00:08 · 1.5s</div><div class="txt">The quarterly review is scheduled for Thursday at 3. Bring the updated roadmap.</div></div>
+  <div class="tcard"><div class="meta">12:18 AM · 00:04 · 1.3s</div><div class="txt">Quick rundown of where we landed on the build.</div></div>
+</div>`;
+const ACTS = [['live','Live'],['clock','Recents'],['file','Files'],['link','URL'],['cast','System']];
+
+document.getElementById('now').innerHTML = appbar + recbar +
+  `<div class="histNow"><span class="lbl">History</span><span class="count">12</span>
+    <div class="iconbtns">${ACTS.map(a=>`<div class="ib">${ic(a[0])}</div>`).join('')}</div>
+    <div class="searchNow">${ic('search')}<span>Search…</span></div>
+  </div>` + cards;
+
+document.getElementById('new').innerHTML = appbar + recbar +
+  `<div class="actrow">${ACTS.map((a,i)=>`<div class="act"><div class="ib ${i===0?'prim':''}">${ic(a[0])}</div><span>${a[1]}</span></div>`).join('')}</div>
+   <div class="histNew"><span class="lbl">History</span><span class="count">12</span>
+     <div class="searchNew">${ic('search')}<span>Search…</span></div>
+   </div>` + cards;
+</script>
+</body>
+</html>

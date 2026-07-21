@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "appId": "com.whisperclick.app",
+  "productName": "WhisperClick",
+  "directories": { "output": "release-free" },
+  "icon": "icons/icon.png",
+  "files": [
+    "platforms/electron/**",
+    "shared/frontend/**",
+    "shared/pill/**",
+    "icons/**",
+    "!platforms/electron/premium/**",
+    "!shared/frontend/premium/**"
+  ],
+  "extraResources": [
+    { "from": "shared/engine/dist/engine/", "to": "engine-bin/" }
+  ],
+  "win": {
+    "icon": "icons/icon.ico",
+    "target": [
+      { "target": "nsis", "arch": ["x64"] },
+      { "target": "portable", "arch": ["x64"] }
+    ]
+  },
+  "nsis": {
+    "artifactName": "WhisperClick-Free-Setup-${version}.${ext}",
+    "shortcutName": "WhisperClick",
+    "installerIcon": "icons/icon.ico",
+    "uninstallerIcon": "icons/icon.ico",
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true
+  },
+  "portable": {
+    "artifactName": "WhisperClick-Free-Portable-${version}.${ext}"
+  }
+}

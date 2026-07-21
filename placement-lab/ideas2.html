@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WhisperClick · Placement — Round 2</title>
+<style>
+  :root{
+    --bg:#161311; --bg2:#1c1917; --panel:#211d1b; --panel2:#26221f;
+    --line:#332e2a; --line2:#2a2523;
+    --t1:#f5f5f4; --t2:#a8a29e; --t3:#78716c;
+    --acc:#cf9673; --acc-deep:#c07a4e; --acc-soft:#e0b596;
+    --mono:'SFMono-Regular',ui-monospace,Consolas,'Roboto Mono',monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--t1);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+  body{padding:26px 16px 80px}
+  .wrap{max-width:1180px;margin:0 auto}
+  header.page{margin:0 auto 8px;max-width:760px;text-align:center}
+  header.page .kick{font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+  header.page h1{font-size:25px;font-weight:700;margin:8px 0 10px;letter-spacing:-.01em}
+  header.page p{color:var(--t2);font-size:14px;line-height:1.55;margin:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:22px;margin-top:26px}
+  .concept{background:var(--bg2);border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column}
+  .concept .head{padding:15px 16px 13px;border-bottom:1px solid var(--line2)}
+  .concept .head .row{display:flex;align-items:center;gap:10px}
+  .badge{width:26px;height:26px;border-radius:8px;background:var(--acc);color:#1a1613;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center}
+  .concept .head h2{font-size:15.5px;font-weight:700;margin:0}
+  .concept .head p{margin:9px 0 0;font-size:12.8px;line-height:1.5;color:var(--t2)}
+  .tag{display:inline-block;margin-top:10px;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--t3);border:1px solid var(--line);border-radius:999px;padding:3px 9px}
+  .stage{padding:16px;display:flex;justify-content:center;background:radial-gradient(120% 80% at 50% 0%, #201b18 0%, var(--bg2) 70%)}
+  .phone{width:288px;background:var(--bg2);border:1px solid var(--line);border-radius:22px;overflow:hidden;box-shadow:0 18px 40px rgba(0,0,0,.35)}
+  .scr{display:flex;flex-direction:column;min-height:412px}
+
+  .appbar{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;border-bottom:1px solid var(--line2)}
+  .brand{display:flex;align-items:center;gap:6px;font-weight:700;font-size:13.5px}
+  .brand .dot{width:15px;height:15px;color:var(--acc)}
+  .brand b{color:var(--acc)}
+  .gear{width:16px;height:16px;color:var(--t3)}
+  .rec{display:flex;align-items:center;gap:11px;padding:14px 13px}
+  .mic{width:42px;height:42px;border-radius:50%;background:#2a2421;border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
+  .mic svg{width:19px;height:19px;color:var(--t2)}
+  .wave{flex:1;display:flex;align-items:center;gap:2px;height:22px;overflow:hidden}
+  .wave i{width:2.5px;border-radius:2px;background:var(--acc-deep);opacity:.7}
+  .rectime{font-family:var(--mono);font-size:15px;font-weight:700}
+  .rectime small{display:block;font-size:8px;letter-spacing:.18em;color:var(--t3);text-align:right;margin-top:1px;font-family:var(--sans);font-weight:700}
+  .hist{display:flex;align-items:center;gap:8px;padding:11px 13px 10px}
+  .hist .lbl{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--t3)}
+  .count{font-size:10.5px;font-weight:800;background:#2a2421;color:var(--t2);border-radius:999px;padding:2px 7px}
+  .search{margin-left:auto;display:flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:7px 13px;color:var(--t3);font-size:11.5px;flex:1;max-width:150px}
+  .search svg{width:12px;height:12px;flex:0 0 auto}
+  .cards{padding:2px 13px 14px;display:flex;flex-direction:column;gap:9px}
+  .tcard{background:var(--panel);border:1px solid var(--line2);border-radius:12px;padding:11px 12px}
+  .tcard .meta{font-family:var(--mono);font-size:9.5px;color:var(--t3)}
+  .tcard .txt{font-size:12px;color:#d6d0ca;line-height:1.45;margin-top:6px}
+
+  /* H — segmented on record area */
+  .seg{display:flex;margin:0 13px 10px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+  .seg .s{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;border-radius:8px;cursor:pointer;color:var(--t2);font-size:9px}
+  .seg .s svg{width:14px;height:14px}
+  .seg .s.on{background:#2f2823;color:var(--t1)}
+  .seg .s.on svg{color:var(--acc-soft)}
+
+  /* I — quiet text links */
+  .links{padding:0 15px 12px;font-size:12px;color:var(--t3);line-height:1.7}
+  .links b{color:var(--t3);font-weight:600}
+  .links a{color:var(--acc-soft);text-decoration:none;font-weight:600;cursor:pointer}
+  .links .sepdot{color:var(--line);margin:0 5px}
+
+  /* J — unified segmented capture bar */
+  .capseg{display:flex;margin:2px 13px 4px;border:1px solid var(--line);border-radius:11px;overflow:hidden}
+  .capseg .c{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:9px 4px;font-size:11px;color:var(--t1);cursor:pointer;background:var(--panel)}
+  .capseg .c + .c{border-left:1px solid var(--line)}
+  .capseg .c svg{width:13px;height:13px;color:var(--acc-soft)}
+  .capseg .c:active{background:#2a2421}
+
+  /* K — idle strip */
+  .idlebar{margin:2px 13px 4px;display:flex;gap:6px;align-items:center}
+  .idlebar .lab{font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--t3);white-space:nowrap}
+  .idlebar .chips{display:flex;gap:5px;overflow-x:auto}
+  .chip{display:inline-flex;align-items:center;gap:5px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 10px;font-size:10.5px;white-space:nowrap;cursor:pointer}
+  .chip svg{width:12px;height:12px;color:var(--acc-soft)}
+  .note{font-size:9.5px;color:var(--t3);padding:0 13px 8px;font-style:italic}
+
+  /* L — unified capture card */
+  .capcard{margin:13px 13px 6px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:linear-gradient(180deg,#201b18,#1d1a17)}
+  .capcard .top{display:flex;align-items:center;gap:11px;padding:13px 13px}
+  .capcard .divx{height:1px;background:var(--line2);margin:0 13px}
+  .capcard .srcs{display:flex;padding:9px 8px 10px}
+  .capcard .src{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--t2);font-size:9px;cursor:pointer}
+  .capcard .src svg{width:15px;height:15px;color:var(--acc-soft)}
+  @media(max-width:520px){ body{padding:20px 12px 70px} .grid{grid-template-columns:1fr;gap:18px} }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="ic-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10a7 7 0 0 1-14 0"/><path d="M12 19v3"/></symbol>
+  <symbol id="ic-live" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M4.9 19.1a10 10 0 0 1 0-14.2"/><path d="M19.1 4.9a10 10 0 0 1 0 14.2"/><path d="M7.8 16.2a6 6 0 0 1 0-8.4"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4"/></symbol>
+  <symbol id="ic-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="ic-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></symbol>
+  <symbol id="ic-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 15a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M15 9a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></symbol>
+  <symbol id="ic-cast" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"/><path d="M2 12a9 9 0 0 1 8 8"/><path d="M2 16a5 5 0 0 1 4 4"/><path d="M2 20h.01"/></symbol>
+  <symbol id="ic-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="ic-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15H4.5a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 6 8.6l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 11 4.6V4.5a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1.82 1.17l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.09a2 2 0 0 1 0 4z"/></symbol>
+</defs></svg>
+
+<div class="wrap">
+  <header class="page">
+    <div class="kick">WhisperClick · Design Lab · Round 2</div>
+    <h1>Five fresh directions</h1>
+    <p>All explicit, all one tap, zero menus. This round pushes on lighter visual weight and tighter integration, not another button cluster.</p>
+  </header>
+  <div class="grid" id="grid"></div>
+</div>
+
+<script>
+const ic = n => `<svg><use href="#ic-${n}"/></svg>`;
+const WAVE = Array.from({length:22},(_,i)=>{const h=4+Math.abs(Math.sin(i*0.7))*15;return `<i style="height:${h.toFixed(1)}px"></i>`}).join('');
+const appbar = `<div class="appbar"><div class="brand"><svg class="dot"><use href="#ic-mic"/></svg>WhisperClick<b>Pro</b></div><svg class="gear"><use href="#ic-gear"/></svg></div>`;
+const recbar = `<div class="rec"><div class="mic">${ic('mic')}</div><div class="wave">${WAVE}</div><div class="rectime">00:00<small>RECORD</small></div></div>`;
+const histBar = `<div class="hist"><span class="lbl">History</span><span class="count">12</span><div class="search">${ic('search')}<span>Search…</span></div></div>`;
+const cards = `<div class="cards">
+  <div class="tcard"><div class="meta">01:15 AM · 00:08 · 1.5s</div><div class="txt">The quarterly review is scheduled for Thursday at 3. Bring the updated roadmap.</div></div>
+  <div class="tcard"><div class="meta">12:18 AM · 00:04 · 1.3s</div><div class="txt">Quick rundown of where we landed on the build.</div></div>
+</div>`;
+const SRC = [['live','Live'],['file','Files'],['link','URL'],['cast','System']];
+
+const CONCEPTS = [
+  { id:'H', name:'Source built into the record bar', tag:'Integrated',
+    desc:'A slim segmented control right under the mic sets WHAT you are capturing — Mic, Live, File, Link, System. Tap a segment, then the big Record button captures that source. No cluster, no menu; the source is just a mode of the one primary action.',
+    build:()=> appbar+recbar+
+      `<div class="seg" data-seg>
+        ${[['mic','Mic'],['live','Live'],['file','File'],['link','Link'],['cast','System']].map((s,i)=>`<div class="s ${i===0?'on':''}">${ic(s[0])}<span>${s[1]}</span></div>`).join('')}
+      </div>`+histBar+cards },
+
+  { id:'I', name:'Quiet text links under Record', tag:'Lightest weight',
+    desc:'Record stays the hero. The other sources are understated text links right under it — words, not buttons. Fully explicit and one-tap, but almost no visual weight. Reads like a sentence, not a toolbar.',
+    build:()=> appbar+recbar+
+      `<div class="links"><b>or bring in </b><a>a file</a><span class="sepdot">·</span><a>a link</a><span class="sepdot">·</span><a>system audio</a><span class="sepdot">·</span><a>recents</a></div>`+
+      histBar+cards },
+
+  { id:'J', name:'One segmented capture bar', tag:'Unified',
+    desc:'Instead of separate pills, a single connected segmented control where the icons were. Each segment is one direct tap. It reads as ONE clean object, not five scattered buttons, and search moves to its own roomy line.',
+    build:()=> appbar+recbar+
+      `<div class="capseg">${SRC.map(s=>`<div class="c">${ic(s[0])}${s[1]}</div>`).join('')}</div>`+
+      `<div class="hist" style="padding-top:8px"><span class="lbl">History</span><span class="count">12</span><div class="search">${ic('search')}<span>Search…</span></div></div>`+
+      cards },
+
+  { id:'K', name:'Sources only while idle', tag:'Self-clearing',
+    desc:'When you are NOT recording, a slim labeled strip of sources sits under the record bar. The moment you start recording it slides away, so it never competes during capture. Always available when you would actually reach for it, invisible when you would not.',
+    build:()=> appbar+recbar+
+      `<div class="idlebar"><span class="lab">Or</span><div class="chips">${[['live','Live'],['file','Files'],['link','URL'],['cast','System']].map(s=>`<div class="chip">${ic(s[0])}${s[1]}</div>`).join('')}</div></div>
+       <div class="note">Slides away while recording.</div>`+
+      histBar+cards },
+
+  { id:'L', name:'One “capture” module', tag:'Grouped',
+    desc:'Record and the alternate sources live in ONE bordered card, split by a hairline: the big Record on top, the source cells beneath. Everything about starting a transcription is one object; the history + search sit cleanly below it.',
+    build:()=> appbar+
+      `<div class="capcard">
+        <div class="top"><div class="mic">${ic('mic')}</div><div class="wave">${WAVE}</div><div class="rectime">00:00<small>RECORD</small></div></div>
+        <div class="divx"></div>
+        <div class="srcs">${[['live','Live'],['file','Files'],['link','URL'],['cast','System']].map(s=>`<div class="src">${ic(s[0])}<span>${s[1]}</span></div>`).join('')}</div>
+      </div>`+
+      histBar+cards },
+];
+
+const grid = document.getElementById('grid');
+CONCEPTS.forEach(c=>{
+  const el = document.createElement('div');
+  el.className='concept';
+  el.innerHTML = `<div class="head"><div class="row"><div class="badge">${c.id}</div><h2>${c.name}</h2></div><p>${c.desc}</p><span class="tag">${c.tag}</span></div>
+    <div class="stage"><div class="phone"><div class="scr">${c.build()}</div></div></div>`;
+  grid.appendChild(el);
+});
+
+// segmented select (H)
+document.addEventListener('click', e=>{
+  const s = e.target.closest('[data-seg] .s');
+  if(s){ s.parentElement.querySelectorAll('.s').forEach(x=>x.classList.remove('on')); s.classList.add('on'); }
+});
+</script>
+</body>
+</html>

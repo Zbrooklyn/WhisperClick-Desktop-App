@@ -1,0 +1,12 @@
+{
+  "pricingVersion": "2026-07-20.1",
+  "source": "OpenAI public API pricing page (manually transcribed)",
+  "asOfDate": "2026-07-20",
+  "currency": "USD",
+  "unit": "per 1M tokens",
+  "note": "Cost is REPORTING ONLY. It never overrides a correctness gate and never participates in pass/fail. Tier selection considers cost only to break a tie between candidates that have already passed every strong-section gate.",
+  "models": {
+    "gpt-4o-mini": { "inPerM": 0.15, "outPerM": 0.60 },
+    "gpt-4o": { "inPerM": 2.50, "outPerM": 10.00 }
+  }
+}
