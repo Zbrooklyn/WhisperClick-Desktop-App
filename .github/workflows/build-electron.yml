@@ -1,0 +1,474 @@
+name: Build Electron
+
+# Triggers on platform-prefixed tags: electron-v2.3.0, electron-v2.3.1-beta, etc.
+on:
+  push:
+    tags:
+      - 'electron-v*'
+
+concurrency:
+  group: build-electron-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Run Electron tests
+        continue-on-error: true
+        run: npm test
+
+  build-windows:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Python engine → bundled binary
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python dependencies
+        run: |
+          pip install pyinstaller
+          pip install -r shared/engine/requirements.txt
+      - name: Build engine binary
+        run: pyinstaller shared/engine/engine.spec --noconfirm
+      - name: Stage engine binary
+        run: |
+          mkdir engine-dist
+          move dist\engine engine-dist\engine
+        shell: cmd
+
+      # Electron build
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Patch package.json for bundled engine
+        run: |
+          node -e "
+            const pkg = require('./package.json');
+            const fs = require('fs');
+            pkg.build.extraResources = [
+              { from: 'engine-dist/engine/', to: 'engine-bin/' }
+            ];
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+      - name: Build Windows installer + portable
+        run: npx electron-builder --win --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: electron-windows
+          path: |
+            release/*.exe
+            release/beta.yml
+            release/latest.yml
+          if-no-files-found: error
+
+  # ── Private-only protected variants (Dev + Pro) ──────────────────────────
+  # Free (above) is the public installer users auto-update to. Dev and Pro are
+  # built ONLY on the private repo and uploaded ONLY to its release — the public
+  # mirror runs this same workflow but has premium source stripped, so these
+  # jobs are guarded to never run there. This is the fix for Dev/Pro going stale
+  # (2.4.0) while Free advanced: now every release builds all three, and premium
+  # never has a path to the public repo.
+  build-windows-dev:
+    needs: test
+    if: github.repository == 'Zbrooklyn/whisperclick-dev'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python dependencies
+        run: |
+          pip install pyinstaller
+          pip install -r shared/engine/requirements.txt
+      - name: Build engine binary (→ shared/engine/dist/engine)
+        working-directory: shared/engine
+        run: pyinstaller engine.spec --noconfirm
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Build Dev installer (fully readable — internal debugging only)
+        run: npx electron-builder --win --config electron-builder.dev.json --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: electron-windows-dev
+          path: release-dev/*.exe
+          if-no-files-found: error
+
+  build-windows-pro:
+    needs: test
+    if: github.repository == 'Zbrooklyn/whisperclick-dev'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python dependencies
+        run: |
+          pip install pyinstaller
+          pip install -r shared/engine/requirements.txt
+      - name: Build engine binary (→ shared/engine/dist/engine)
+        working-directory: shared/engine
+        run: pyinstaller engine.spec --noconfirm
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      # Compile premium main-process JS + shared/analysis to V8 bytecode (.jsc).
+      # The pro config ships ONLY the .jsc (excludes the .js), so the installer
+      # contains no readable premium source.
+      - name: Compile premium to bytecode
+        run: node tools/protect-premium.js
+      - name: Build Pro installer (bytecode-protected premium + compiled engine)
+        run: npx electron-builder --win --config electron-builder.pro.json --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: electron-windows-pro
+          path: release-pro/*.exe
+          if-no-files-found: error
+
+  build-macos-arm64:
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: brew install portaudio libsndfile
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          pip install pyinstaller
+          pip install -r shared/engine/requirements.txt
+      - run: pyinstaller shared/engine/engine.spec --noconfirm
+      - run: mkdir -p engine-dist && mv dist/engine engine-dist/engine
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Patch package.json
+        run: |
+          node -e "
+            const pkg = require('./package.json');
+            const fs = require('fs');
+            pkg.build.extraResources = [{ from: 'engine-dist/engine/', to: 'engine-bin/' }];
+            pkg.build.mac.target = [{ target: 'dmg', arch: ['arm64'] }];
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+      - run: npx electron-builder --mac --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: electron-macos-arm64
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/beta-mac.yml
+            release/latest-mac.yml
+          if-no-files-found: error
+
+
+  build-macos-x64:
+    needs: test
+    runs-on: macos-13
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: brew install portaudio libsndfile
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          pip install pyinstaller
+          pip install -r shared/engine/requirements.txt
+      - run: pyinstaller shared/engine/engine.spec --noconfirm
+      - run: mkdir -p engine-dist && mv dist/engine engine-dist/engine
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Patch package.json
+        run: |
+          node -e "
+            const pkg = require('./package.json');
+            const fs = require('fs');
+            pkg.build.extraResources = [{ from: 'engine-dist/engine/', to: 'engine-bin/' }];
+            pkg.build.mac.target = [{ target: 'dmg', arch: ['x64'] }];
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+      - run: npx electron-builder --mac --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: electron-macos-x64
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/beta-mac.yml
+            release/latest-mac.yml
+          if-no-files-found: error
+
+
+
+  build-linux:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y libportaudio2 libsndfile1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          pip install pyinstaller
+          pip install -r shared/engine/requirements.txt
+      - run: pyinstaller shared/engine/engine.spec --noconfirm
+      - run: mkdir -p engine-dist && mv dist/engine engine-dist/engine
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Patch package.json
+        run: |
+          node -e "
+            const pkg = require('./package.json');
+            const fs = require('fs');
+            pkg.build.extraResources = [{ from: 'engine-dist/engine/', to: 'engine-bin/' }];
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+      - run: npx electron-builder --linux --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: electron-linux
+          path: |
+            release/*.AppImage
+            release/beta-linux.yml
+            release/latest-linux.yml
+          if-no-files-found: error
+
+  smoke-test:
+    # Validates that every installer referenced by latest*.yml exists and has
+    # the right sha512 before we publish. This is the gate we didn't have
+    # when 2.2.1-beta through 2.2.4-beta shipped with broken update paths.
+    # Failure here blocks the release job from running.
+    needs: [build-windows, build-macos-arm64, build-linux]
+    if: always() && needs.build-windows.result == 'success' && needs.build-macos-arm64.result == 'success' && needs.build-linux.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Validate update manifests against built installers
+        # tools/ is stripped from the public repo, so the validator isn't present
+        # there. Skip gracefully in that case — the private build already ran this
+        # exact validation against the same installers before they were mirrored.
+        run: |
+          if [ -f tools/smoke-test-release.js ]; then
+            node tools/smoke-test-release.js artifacts
+          else
+            echo "tools/smoke-test-release.js absent (public repo strips tools/) — skipping; private build already validated these installers."
+          fi
+
+  release:
+    # build-macos-x64 (Intel, macos-13) is best-effort (continue-on-error) and
+    # must NOT gate the release: macos-13 runners are scarce/deprecated and a
+    # job stuck *queued* (no runner) blocks `always()` indefinitely. It is kept
+    # as a job but dropped from needs; the `if` below already never required it.
+    # Dev/Pro are in `needs` so the release waits for them, but are deliberately
+    # NOT in the success gate below: a Pro/Dev build issue must never block the
+    # Free/user release, and on the public mirror they're skipped entirely.
+    needs: [smoke-test, build-windows, build-windows-dev, build-windows-pro, build-macos-arm64, build-linux]
+    if: always() && !cancelled() && needs.smoke-test.result == 'success' && needs.build-windows.result == 'success' && needs.build-macos-arm64.result == 'success' && needs.build-linux.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Get version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if echo "$VERSION" | grep -q beta; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: WhisperClick Electron ${{ github.ref_name }}
+          prerelease: ${{ steps.version.outputs.prerelease }}
+          generate_release_notes: true
+          files: |
+            artifacts/electron-windows/*
+            artifacts/electron-windows-dev/*
+            artifacts/electron-windows-pro/*
+            artifacts/electron-macos-arm64/*
+            artifacts/electron-macos-x64/*
+            artifacts/electron-linux/*
+
+  publish-update-feed:
+    # Mirrors the update manifest files to docs/updates/<channel>/ on main,
+    # which is what whisperclick.com serves via GitHub Pages. Installed apps
+    # from 2.3.0-beta onward read latest.yml from whisperclick.com rather than
+    # from this repo's releases.atom — decoupling Electron's updater from
+    # any other tags (Tauri, ad-hoc, legacy) that may live alongside in the
+    # same repo. The installer binaries themselves stay on GitHub releases;
+    # only the tiny yml discovery files are mirrored here.
+    needs: [release]
+    if: always() && needs.release.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Determine channel
+        id: channel
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == *"-beta"* ]]; then
+            echo "channel=beta" >> "$GITHUB_OUTPUT"
+          else
+            echo "channel=stable" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Copy yml files into docs/updates/<channel>/
+        run: |
+          CHANNEL="${{ steps.channel.outputs.channel }}"
+          DEST="docs/updates/$CHANNEL"
+          mkdir -p "$DEST"
+          # Each platform's yml lives in its own artifact directory. Missing
+          # platforms (e.g., Intel Mac when its runner is cancelled) are not
+          # fatal — we publish whatever was built.
+          for SRC in \
+              artifacts/electron-windows/latest.yml \
+              artifacts/electron-macos-arm64/latest-mac.yml \
+              artifacts/electron-macos-x64/latest-mac.yml \
+              artifacts/electron-linux/latest-linux.yml; do
+            if [ -f "$SRC" ]; then
+              cp -v "$SRC" "$DEST/"
+            fi
+          done
+          ls -la "$DEST"
+      - name: Rewrite relative URLs to absolute GitHub release URLs
+        env:
+          RELEASE_BASE: "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}"
+        run: |
+          # electron-builder writes installer filenames as relative entries in
+          # latest*.yml. With a generic provider, electron-updater resolves
+          # those against publish.url (whisperclick.com/updates/beta/), which
+          # is where the yml lives but NOT where the 170 MB installers live.
+          # Rewrite each `url:` / `path:` line so it points at the GitHub
+          # release directly. Downloads stay on GitHub; only discovery moves.
+          CHANNEL="${{ steps.channel.outputs.channel }}"
+          DEST="docs/updates/$CHANNEL"
+          python3 - <<'PY' "$DEST"/*.yml
+          import os, re, sys
+          base = os.environ['RELEASE_BASE']
+          def rewrite_line(m):
+              prefix, value = m.group(1), m.group(2).strip()
+              if '://' in value:  # already absolute, leave it
+                  return m.group(0)
+              return f"{prefix}{base}/{value}"
+          for path in sys.argv[1:]:
+              with open(path) as f:
+                  text = f.read()
+              text = re.sub(r'^(  - url: )(.+)$', rewrite_line, text, flags=re.MULTILINE)
+              text = re.sub(r'^(path: )(.+)$', rewrite_line, text, flags=re.MULTILINE)
+              with open(path, 'w') as f:
+                  f.write(text)
+              print(f"Rewrote URLs in {path}:")
+              with open(path) as f:
+                  print(f.read())
+          PY
+      - name: Commit and push to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/updates/
+          if git diff --cached --quiet; then
+            echo "No changes to update feed — skipping commit."
+          else
+            git commit -m "publish(updater): ${{ github.ref_name }} → docs/updates/${{ steps.channel.outputs.channel }}/"
+            git push
+          fi
+
+  propagate-to-public:
+    # After a successful PRIVATE release, propagate the SAME tag to the public
+    # repo so it builds its OWN installers and publishes a feed whose sha512
+    # matches what users actually download. The public repo has its own copy of
+    # this workflow (build-electron.yml is NOT stripped), so the pushed tag
+    # triggers a public build → public release → public update feed. This is
+    # what makes releasing hands-free: no manual public tag step.
+    #
+    # We tag the public repo's CURRENT main HEAD — the stripped equivalent of
+    # this release's code, already mirrored by the "Sync public" workflow that
+    # ran on the preceding main push — because the private commit SHAs do not
+    # exist on the public repo.
+    #
+    # Auth: the SSH deploy key (write deploy key on the public repo, secret
+    # PUBLIC_REPO_DEPLOY_KEY). Guarded to the private repo: this job is mirrored
+    # to the public repo but must NOT run there (it has no secret and would try
+    # to re-tag itself).
+    needs: [release]
+    if: always() && needs.release.result == 'success' && github.repository == 'Zbrooklyn/whisperclick-dev'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up deploy key
+        id: setup
+        env:
+          KEY: ${{ secrets.PUBLIC_REPO_DEPLOY_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "PUBLIC_REPO_DEPLOY_KEY not set — cannot propagate tag to public. Skipping."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+      - name: Tag public main to trigger its build + release
+        if: steps.setup.outputs.configured == 'true'
+        env:
+          GIT_SSH_COMMAND: "ssh -i /home/runner/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+          TAG: ${{ github.ref_name }}
+        run: |
+          git init -q public-mirror && cd public-mirror
+          git config user.name "whisperclick-sync[bot]"
+          git config user.email "sync@users.noreply.github.com"
+          git remote add origin git@github.com:Zbrooklyn/WhisperClick-Desktop-App.git
+          if git ls-remote --tags origin "refs/tags/${TAG}" | grep -q "${TAG}"; then
+            echo "Tag ${TAG} already exists on public repo — nothing to do."
+            exit 0
+          fi
+          git fetch -q origin main
+          git tag "${TAG}" FETCH_HEAD
+          git push origin "${TAG}"
+          echo "Pushed ${TAG} to public repo → its build-electron will release + publish the public feed."

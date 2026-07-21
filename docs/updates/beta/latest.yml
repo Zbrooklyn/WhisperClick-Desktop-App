@@ -1,0 +1,8 @@
+version: 2.4.2-beta
+files:
+  - url: https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/download/electron-v2.4.2-beta/WhisperClick-Setup-2.4.2-beta.exe
+    sha512: 5sF8SP3qZgRLh4ExsYmPY9n8D5idea+7/2IbkNPai7IdfI5NfL0rdyt/XPAbHfphOpsKkTETSzBL2Ujx2JDSkQ==
+    size: 167461554
+path: https://github.com/Zbrooklyn/WhisperClick-Desktop-App/releases/download/electron-v2.4.2-beta/WhisperClick-Setup-2.4.2-beta.exe
+sha512: 5sF8SP3qZgRLh4ExsYmPY9n8D5idea+7/2IbkNPai7IdfI5NfL0rdyt/XPAbHfphOpsKkTETSzBL2Ujx2JDSkQ==
+releaseDate: '2026-07-21T03:45:37.296Z'

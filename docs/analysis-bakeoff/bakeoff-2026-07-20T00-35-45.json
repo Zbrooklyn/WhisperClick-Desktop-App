@@ -1,0 +1,3660 @@
+{
+  "generatedAt": "2026-07-20T00:39:14.266Z",
+  "corpusVersion": "1.0.0",
+  "runsPerFixture": 3,
+  "fixtures": [
+    {
+      "id": "ashley-gross-ai-consultant",
+      "family": "base",
+      "kind": "educational",
+      "words": 3394
+    },
+    {
+      "id": "meeting-sprint-planning",
+      "family": "base",
+      "kind": "meeting",
+      "words": 165
+    },
+    {
+      "id": "adversarial-hypothetical",
+      "family": "adversarial",
+      "kind": "discussion",
+      "words": 68
+    },
+    {
+      "id": "adversarial-promotional-cta",
+      "family": "adversarial",
+      "kind": "promotional",
+      "words": 44
+    },
+    {
+      "id": "adversarial-audience-advice",
+      "family": "adversarial",
+      "kind": "educational",
+      "words": 49
+    }
+  ],
+  "models": [
+    {
+      "model": "gpt-4o-mini",
+      "policy": {
+        "provider": "openai",
+        "baseUrl": "https://api.openai.com/v1",
+        "apiKeyEnv": "OPENAI_API_KEY",
+        "approvedModels": [
+          "gpt-4o-mini",
+          "gpt-4o"
+        ],
+        "tiers": {
+          "reasoning": "gpt-4o",
+          "extraction": "gpt-4o-mini",
+          "cleanup": "gpt-4o-mini"
+        }
+      },
+      "summary": {
+        "runs": 15,
+        "decisionPrecision": 1,
+        "decisionRecall": 0.9,
+        "commitmentPrecision": 1,
+        "commitmentRecall": 0.8,
+        "taskPrecision": 0.6666666666666666,
+        "taskRecall": 0.8,
+        "advicePrecision": 0.5866666666666666,
+        "adviceRecall": 0.8,
+        "ctaPrecision": 0.8533333333333333,
+        "ctaRecall": 1,
+        "adviceAsTask": 1,
+        "ctaAsTask": 0,
+        "ctaAsCommitment": 0,
+        "inventedOwners": 0,
+        "inventedDues": 0,
+        "ownerRecall": 0,
+        "dueRecall": 0,
+        "quoteRangeValidity": 1,
+        "evidenceValidity": 1,
+        "coverageCompleteRate": 1,
+        "unsupportedRate": 0.12098070488163366,
+        "abstentionRate": 0.2,
+        "parseRetryRate": 0,
+        "latencyP50": 2048.6,
+        "totalInputTokens": 41010,
+        "totalOutputTokens": 9537,
+        "totalCostUsd": 0.011873700000000001,
+        "totalFailures": 2
+      },
+      "gates": [
+        {
+          "name": "zero invented owners",
+          "ok": true,
+          "detail": "0 invented",
+          "offenders": []
+        },
+        {
+          "name": "zero invented due dates",
+          "ok": true,
+          "detail": "0 invented",
+          "offenders": []
+        },
+        {
+          "name": "zero promotional CTAs persisted as commitments",
+          "ok": true,
+          "detail": null,
+          "offenders": []
+        },
+        {
+          "name": "zero audience advice persisted as assigned tasks",
+          "ok": false,
+          "detail": null,
+          "offenders": [
+            {
+              "fixture": "ashley-gross-ai-consultant",
+              "type": "advice-as-task",
+              "text": "focus on one to three real world projects where you can actually demonstrate the AI impact"
+            }
+          ]
+        },
+        {
+          "name": "every exact quote from a valid raw-word range",
+          "ok": true,
+          "detail": null,
+          "offenders": []
+        },
+        {
+          "name": "every successful run has complete processing coverage",
+          "ok": true,
+          "detail": null,
+          "offenders": []
+        },
+        {
+          "name": "no failed segment silently omitted",
+          "ok": true,
+          "detail": null,
+          "offenders": []
+        },
+        {
+          "name": "decisions favour precision (no fabricated decisions)",
+          "ok": true,
+          "detail": "min precision 1.00",
+          "offenders": []
+        },
+        {
+          "name": "commitments favour precision (no fabricated commitments)",
+          "ok": true,
+          "detail": "min precision 1.00",
+          "offenders": []
+        },
+        {
+          "name": "Ashley Gross: 10 structural units, no fabricated decisions/commitments",
+          "ok": false,
+          "detail": "units=[13,10,10] decisionsPresent=false",
+          "offenders": []
+        }
+      ],
+      "passed": false,
+      "failures": [
+        {
+          "fixture": "ashley-gross-ai-consultant",
+          "run": 1,
+          "type": "advice-as-task",
+          "text": "focus on one to three real world projects where you can actually demonstrate the AI impact"
+        },
+        {
+          "fixture": "ashley-gross-ai-consultant",
+          "run": 1,
+          "type": "structure-count",
+          "produced": 13,
+          "expected": 10
+        }
+      ],
+      "perFixture": [
+        {
+          "fixture": "ashley-gross-ai-consultant",
+          "run": 1,
+          "metrics": {
+            "fixtureId": "ashley-gross-ai-consultant",
+            "family": "base",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 1,
+                "precision": 1,
+                "recall": 0
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 1,
+                "fn": 0,
+                "precision": 0,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 0,
+                "fp": 19,
+                "fn": 2,
+                "precision": 0,
+                "recall": 0
+              },
+              "ctas": {
+                "tp": 1,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 1,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 5,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 13,
+              "gold": 10,
+              "exact": false
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0.08823529411764706,
+            "abstentionRate": 0,
+            "perf": {
+              "calls": 6,
+              "attempts": 6,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 1829,
+              "latencyTotal": 21386,
+              "inputTokens": 9987,
+              "outputTokens": 1514,
+              "estCostUsd": 0.00240645
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": false,
+              "actions": true,
+              "quotes": true,
+              "risks": false,
+              "questions": true,
+              "advice": true,
+              "ctas": true
+            },
+            "analysisStatus": "complete",
+            "runIndex": 1
+          }
+        },
+        {
+          "fixture": "ashley-gross-ai-consultant",
+          "run": 2,
+          "metrics": {
+            "fixtureId": "ashley-gross-ai-consultant",
+            "family": "base",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 1,
+                "precision": 1,
+                "recall": 0
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 1,
+                "fn": 0,
+                "precision": 0,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 0,
+                "fp": 17,
+                "fn": 2,
+                "precision": 0,
+                "recall": 0
+              },
+              "ctas": {
+                "tp": 1,
+                "fp": 1,
+                "fn": 0,
+                "precision": 0.5,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 5,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 10,
+              "gold": 10,
+              "exact": true
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0.10526315789473684,
+            "abstentionRate": 1,
+            "perf": {
+              "calls": 6,
+              "attempts": 6,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 2124,
+              "latencyTotal": 21699,
+              "inputTokens": 9987,
+              "outputTokens": 1470,
+              "estCostUsd": 0.00238005
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": false,
+              "actions": true,
+              "quotes": true,
+              "risks": false,
+              "questions": true,
+              "advice": true,
+              "ctas": true
+            },
+            "analysisStatus": "complete",
+            "runIndex": 2
+          }
+        },
+        {
+          "fixture": "ashley-gross-ai-consultant",
+          "run": 3,
+          "metrics": {
+            "fixtureId": "ashley-gross-ai-consultant",
+            "family": "base",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 1,
+                "precision": 1,
+                "recall": 0
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 0,
+                "fp": 13,
+                "fn": 2,
+                "precision": 0,
+                "recall": 0
+              },
+              "ctas": {
+                "tp": 1,
+                "fp": 1,
+                "fn": 0,
+                "precision": 0.5,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 5,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 10,
+              "gold": 10,
+              "exact": true
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0.12121212121212122,
+            "abstentionRate": null,
+            "perf": {
+              "calls": 6,
+              "attempts": 6,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 2110,
+              "latencyTotal": 18085,
+              "inputTokens": 9987,
+              "outputTokens": 1406,
+              "estCostUsd": 0.00234165
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": false,
+              "actions": false,
+              "quotes": true,
+              "risks": false,
+              "questions": true,
+              "advice": true,
+              "ctas": true
+            },
+            "analysisStatus": "complete",
+            "runIndex": 3
+          }
+        },
+        {
+          "fixture": "meeting-sprint-planning",
+          "run": 1,
+          "metrics": {
+            "fixtureId": "meeting-sprint-planning",
+            "family": "base",
+            "categories": {
+              "decisions": {
+                "tp": 1,
+                "fp": 0,
+                "fn": 1,
+                "precision": 1,
+                "recall": 0.5
+              },
+              "commitments": {
+                "tp": 2,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 1,
+                "fn": 2,
+                "precision": 0,
+                "recall": 0
+              },
+              "advice": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 1,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 2,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 2,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 16,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0,
+            "abstentionRate": 0,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 2788,
+              "latencyTotal": 9858,
+              "inputTokens": 1289,
+              "outputTokens": 676,
+              "estCostUsd": 0.0005989499999999999
+            },
+            "presence": {
+              "decisions": true,
+              "commitments": true,
+              "actions": true,
+              "quotes": false,
+              "risks": true,
+              "questions": false,
+              "advice": false,
+              "ctas": false
+            },
+            "analysisStatus": "complete",
+            "runIndex": 1
+          }
+        },
+        {
+          "fixture": "meeting-sprint-planning",
+          "run": 2,
+          "metrics": {
+            "fixtureId": "meeting-sprint-planning",
+            "family": "base",
+            "categories": {
+              "decisions": {
+                "tp": 1,
+                "fp": 0,
+                "fn": 1,
+                "precision": 1,
+                "recall": 0.5
+              },
+              "commitments": {
+                "tp": 2,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 1,
+                "fn": 2,
+                "precision": 0,
+                "recall": 0
+              },
+              "advice": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 1,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 2,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 2,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 16,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0,
+            "abstentionRate": 0,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 3848,
+              "latencyTotal": 10488,
+              "inputTokens": 1289,
+              "outputTokens": 661,
+              "estCostUsd": 0.00058995
+            },
+            "presence": {
+              "decisions": true,
+              "commitments": true,
+              "actions": true,
+              "quotes": false,
+              "risks": true,
+              "questions": false,
+              "advice": false,
+              "ctas": false
+            },
+            "analysisStatus": "complete",
+            "runIndex": 2
+          }
+        },
+        {
+          "fixture": "meeting-sprint-planning",
+          "run": 3,
+          "metrics": {
+            "fixtureId": "meeting-sprint-planning",
+            "family": "base",
+            "categories": {
+              "decisions": {
+                "tp": 1,
+                "fp": 0,
+                "fn": 1,
+                "precision": 1,
+                "recall": 0.5
+              },
+              "commitments": {
+                "tp": 2,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 1,
+                "fn": 2,
+                "precision": 0,
+                "recall": 0
+              },
+              "advice": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 1,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 2,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 2,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 16,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0,
+            "abstentionRate": 0,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 2684,
+              "latencyTotal": 8156,
+              "inputTokens": 1289,
+              "outputTokens": 662,
+              "estCostUsd": 0.00059055
+            },
+            "presence": {
+              "decisions": true,
+              "commitments": true,
+              "actions": true,
+              "quotes": false,
+              "risks": true,
+              "questions": false,
+              "advice": false,
+              "ctas": false
+            },
+            "analysisStatus": "complete",
+            "runIndex": 3
+          }
+        },
+        {
+          "fixture": "adversarial-hypothetical",
+          "run": 1,
+          "metrics": {
+            "fixtureId": "adversarial-hypothetical",
+            "family": "adversarial",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 1,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 0,
+                "fp": 1,
+                "fn": 0,
+                "precision": 0,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 6,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0.5,
+            "abstentionRate": null,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 1517,
+              "latencyTotal": 4709,
+              "inputTokens": 845,
+              "outputTokens": 401,
+              "estCostUsd": 0.00036735
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": true,
+              "actions": false,
+              "quotes": false,
+              "risks": false,
+              "questions": true,
+              "advice": true,
+              "ctas": false
+            },
+            "analysisStatus": "complete",
+            "runIndex": 1
+          }
+        },
+        {
+          "fixture": "adversarial-hypothetical",
+          "run": 2,
+          "metrics": {
+            "fixtureId": "adversarial-hypothetical",
+            "family": "adversarial",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 1,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 0,
+                "fp": 1,
+                "fn": 0,
+                "precision": 0,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 7,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0.5,
+            "abstentionRate": null,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 1815,
+              "latencyTotal": 5007,
+              "inputTokens": 845,
+              "outputTokens": 423,
+              "estCostUsd": 0.00038055
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": true,
+              "actions": false,
+              "quotes": false,
+              "risks": false,
+              "questions": true,
+              "advice": true,
+              "ctas": false
+            },
+            "analysisStatus": "complete",
+            "runIndex": 2
+          }
+        },
+        {
+          "fixture": "adversarial-hypothetical",
+          "run": 3,
+          "metrics": {
+            "fixtureId": "adversarial-hypothetical",
+            "family": "adversarial",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 1,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 7,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0.5,
+            "abstentionRate": null,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 1814,
+              "latencyTotal": 5132,
+              "inputTokens": 845,
+              "outputTokens": 366,
+              "estCostUsd": 0.00034635
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": true,
+              "actions": false,
+              "quotes": false,
+              "risks": false,
+              "questions": true,
+              "advice": false,
+              "ctas": false
+            },
+            "analysisStatus": "complete",
+            "runIndex": 3
+          }
+        },
+        {
+          "fixture": "adversarial-promotional-cta",
+          "run": 1,
+          "metrics": {
+            "fixtureId": "adversarial-promotional-cta",
+            "family": "adversarial",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 3,
+                "fp": 2,
+                "fn": 0,
+                "precision": 0.6,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 6,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0,
+            "abstentionRate": null,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 1956,
+              "latencyTotal": 5697,
+              "inputTokens": 767,
+              "outputTokens": 361,
+              "estCostUsd": 0.00033164999999999996
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": false,
+              "actions": false,
+              "quotes": false,
+              "risks": false,
+              "questions": false,
+              "advice": false,
+              "ctas": true
+            },
+            "analysisStatus": "complete",
+            "runIndex": 1
+          }
+        },
+        {
+          "fixture": "adversarial-promotional-cta",
+          "run": 2,
+          "metrics": {
+            "fixtureId": "adversarial-promotional-cta",
+            "family": "adversarial",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 3,
+                "fp": 2,
+                "fn": 0,
+                "precision": 0.6,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 5,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0,
+            "abstentionRate": null,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 1526,
+              "latencyTotal": 4396,
+              "inputTokens": 767,
+              "outputTokens": 282,
+              "estCostUsd": 0.00028425
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": false,
+              "actions": false,
+              "quotes": false,
+              "risks": false,
+              "questions": false,
+              "advice": false,
+              "ctas": true
+            },
+            "analysisStatus": "complete",
+            "runIndex": 2
+          }
+        },
+        {
+          "fixture": "adversarial-promotional-cta",
+          "run": 3,
+          "metrics": {
+            "fixtureId": "adversarial-promotional-cta",
+            "family": "adversarial",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 3,
+                "fp": 2,
+                "fn": 0,
+                "precision": 0.6,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 6,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0,
+            "abstentionRate": null,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 1611,
+              "latencyTotal": 5115,
+              "inputTokens": 767,
+              "outputTokens": 361,
+              "estCostUsd": 0.00033164999999999996
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": false,
+              "actions": false,
+              "quotes": false,
+              "risks": false,
+              "questions": false,
+              "advice": false,
+              "ctas": true
+            },
+            "analysisStatus": "complete",
+            "runIndex": 3
+          }
+        },
+        {
+          "fixture": "adversarial-audience-advice",
+          "run": 1,
+          "metrics": {
+            "fixtureId": "adversarial-audience-advice",
+            "family": "adversarial",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 3,
+                "fp": 2,
+                "fn": 0,
+                "precision": 0.6,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 5,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0,
+            "abstentionRate": null,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 1449,
+              "latencyTotal": 4253,
+              "inputTokens": 782,
+              "outputTokens": 318,
+              "estCostUsd": 0.00030809999999999995
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": false,
+              "actions": false,
+              "quotes": false,
+              "risks": false,
+              "questions": false,
+              "advice": true,
+              "ctas": false
+            },
+            "analysisStatus": "complete",
+            "runIndex": 1
+          }
+        },
+        {
+          "fixture": "adversarial-audience-advice",
+          "run": 2,
+          "metrics": {
+            "fixtureId": "adversarial-audience-advice",
+            "family": "adversarial",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 3,
+                "fp": 2,
+                "fn": 0,
+                "precision": 0.6,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 5,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0,
+            "abstentionRate": null,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 1957,
+              "latencyTotal": 5260,
+              "inputTokens": 782,
+              "outputTokens": 318,
+              "estCostUsd": 0.00030809999999999995
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": false,
+              "actions": false,
+              "quotes": false,
+              "risks": false,
+              "questions": false,
+              "advice": true,
+              "ctas": false
+            },
+            "analysisStatus": "complete",
+            "runIndex": 2
+          }
+        },
+        {
+          "fixture": "adversarial-audience-advice",
+          "run": 3,
+          "metrics": {
+            "fixtureId": "adversarial-audience-advice",
+            "family": "adversarial",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 3,
+                "fp": 2,
+                "fn": 0,
+                "precision": 0.6,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 5,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0,
+            "abstentionRate": null,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 1701,
+              "latencyTotal": 6208,
+              "inputTokens": 782,
+              "outputTokens": 318,
+              "estCostUsd": 0.00030809999999999995
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": false,
+              "actions": false,
+              "quotes": false,
+              "risks": false,
+              "questions": false,
+              "advice": true,
+              "ctas": false
+            },
+            "analysisStatus": "complete",
+            "runIndex": 3
+          }
+        }
+      ]
+    },
+    {
+      "model": "gpt-4o",
+      "policy": {
+        "provider": "openai",
+        "baseUrl": "https://api.openai.com/v1",
+        "apiKeyEnv": "OPENAI_API_KEY",
+        "approvedModels": [
+          "gpt-4o-mini",
+          "gpt-4o"
+        ],
+        "tiers": {
+          "reasoning": "gpt-4o",
+          "extraction": "gpt-4o",
+          "cleanup": "gpt-4o-mini"
+        }
+      },
+      "summary": {
+        "runs": 15,
+        "decisionPrecision": 1,
+        "decisionRecall": 1,
+        "commitmentPrecision": 1,
+        "commitmentRecall": 0.5333333333333333,
+        "taskPrecision": 0.8,
+        "taskRecall": 0.8,
+        "advicePrecision": 0.7282404310665179,
+        "adviceRecall": 0.9,
+        "ctaPrecision": 0.6755555555555556,
+        "ctaRecall": 1,
+        "adviceAsTask": 0,
+        "ctaAsTask": 0,
+        "ctaAsCommitment": 0,
+        "inventedOwners": 0,
+        "inventedDues": 3,
+        "ownerRecall": 0,
+        "dueRecall": 0,
+        "quoteRangeValidity": 1,
+        "evidenceValidity": 1,
+        "coverageCompleteRate": 1,
+        "unsupportedRate": 0.11355439881755673,
+        "abstentionRate": 0,
+        "parseRetryRate": 0,
+        "latencyP50": 1065.3333333333333,
+        "totalInputTokens": 41010,
+        "totalOutputTokens": 6819,
+        "totalCostUsd": 0.17071500000000003,
+        "totalFailures": 3
+      },
+      "gates": [
+        {
+          "name": "zero invented owners",
+          "ok": true,
+          "detail": "0 invented",
+          "offenders": []
+        },
+        {
+          "name": "zero invented due dates",
+          "ok": false,
+          "detail": "3 invented",
+          "offenders": [
+            {
+              "fixture": "meeting-sprint-planning",
+              "type": "invented-due",
+              "due": "by Wednesday",
+              "text": "can you take the schema review?"
+            },
+            {
+              "fixture": "meeting-sprint-planning",
+              "type": "invented-due",
+              "due": "by Wednesday",
+              "text": "can you take the schema review?"
+            },
+            {
+              "fixture": "meeting-sprint-planning",
+              "type": "invented-due",
+              "due": "by Wednesday",
+              "text": "can you take the schema review?"
+            }
+          ]
+        },
+        {
+          "name": "zero promotional CTAs persisted as commitments",
+          "ok": true,
+          "detail": null,
+          "offenders": []
+        },
+        {
+          "name": "zero audience advice persisted as assigned tasks",
+          "ok": true,
+          "detail": null,
+          "offenders": []
+        },
+        {
+          "name": "every exact quote from a valid raw-word range",
+          "ok": true,
+          "detail": null,
+          "offenders": []
+        },
+        {
+          "name": "every successful run has complete processing coverage",
+          "ok": true,
+          "detail": null,
+          "offenders": []
+        },
+        {
+          "name": "no failed segment silently omitted",
+          "ok": true,
+          "detail": null,
+          "offenders": []
+        },
+        {
+          "name": "decisions favour precision (no fabricated decisions)",
+          "ok": true,
+          "detail": "min precision 1.00",
+          "offenders": []
+        },
+        {
+          "name": "commitments favour precision (no fabricated commitments)",
+          "ok": true,
+          "detail": "min precision 1.00",
+          "offenders": []
+        },
+        {
+          "name": "Ashley Gross: 10 structural units, no fabricated decisions/commitments",
+          "ok": true,
+          "detail": "units=[10,10,10] decisionsPresent=false",
+          "offenders": []
+        }
+      ],
+      "passed": false,
+      "failures": [
+        {
+          "fixture": "meeting-sprint-planning",
+          "run": 1,
+          "type": "invented-due",
+          "due": "by Wednesday",
+          "text": "can you take the schema review?"
+        },
+        {
+          "fixture": "meeting-sprint-planning",
+          "run": 2,
+          "type": "invented-due",
+          "due": "by Wednesday",
+          "text": "can you take the schema review?"
+        },
+        {
+          "fixture": "meeting-sprint-planning",
+          "run": 3,
+          "type": "invented-due",
+          "due": "by Wednesday",
+          "text": "can you take the schema review?"
+        }
+      ],
+      "perFixture": [
+        {
+          "fixture": "ashley-gross-ai-consultant",
+          "run": 1,
+          "metrics": {
+            "fixtureId": "ashley-gross-ai-consultant",
+            "family": "base",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 1,
+                "precision": 1,
+                "recall": 0
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 1,
+                "fp": 23,
+                "fn": 1,
+                "precision": 0.041666666666666664,
+                "recall": 0.5
+              },
+              "ctas": {
+                "tp": 1,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 10,
+              "gold": 10,
+              "exact": true
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0.10526315789473684,
+            "abstentionRate": null,
+            "perf": {
+              "calls": 6,
+              "attempts": 6,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 1326,
+              "latencyTotal": 11579,
+              "inputTokens": 9987,
+              "outputTokens": 1363,
+              "estCostUsd": 0.03859749999999999
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": false,
+              "actions": false,
+              "quotes": false,
+              "risks": false,
+              "questions": true,
+              "advice": true,
+              "ctas": true
+            },
+            "analysisStatus": "complete",
+            "runIndex": 1
+          }
+        },
+        {
+          "fixture": "ashley-gross-ai-consultant",
+          "run": 2,
+          "metrics": {
+            "fixtureId": "ashley-gross-ai-consultant",
+            "family": "base",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 1,
+                "precision": 1,
+                "recall": 0
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 1,
+                "fp": 25,
+                "fn": 1,
+                "precision": 0.038461538461538464,
+                "recall": 0.5
+              },
+              "ctas": {
+                "tp": 1,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 10,
+              "gold": 10,
+              "exact": true
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0.05263157894736842,
+            "abstentionRate": null,
+            "perf": {
+              "calls": 6,
+              "attempts": 6,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 1280,
+              "latencyTotal": 12436,
+              "inputTokens": 9987,
+              "outputTokens": 1302,
+              "estCostUsd": 0.037987499999999993
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": false,
+              "actions": false,
+              "quotes": false,
+              "risks": false,
+              "questions": true,
+              "advice": true,
+              "ctas": true
+            },
+            "analysisStatus": "complete",
+            "runIndex": 2
+          }
+        },
+        {
+          "fixture": "ashley-gross-ai-consultant",
+          "run": 3,
+          "metrics": {
+            "fixtureId": "ashley-gross-ai-consultant",
+            "family": "base",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 1,
+                "precision": 1,
+                "recall": 0
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 1,
+                "fp": 22,
+                "fn": 1,
+                "precision": 0.043478260869565216,
+                "recall": 0.5
+              },
+              "ctas": {
+                "tp": 1,
+                "fp": 2,
+                "fn": 0,
+                "precision": 0.3333333333333333,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 10,
+              "gold": 10,
+              "exact": true
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0.10256410256410256,
+            "abstentionRate": null,
+            "perf": {
+              "calls": 6,
+              "attempts": 6,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 1842,
+              "latencyTotal": 12078,
+              "inputTokens": 9987,
+              "outputTokens": 1293,
+              "estCostUsd": 0.0378975
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": false,
+              "actions": false,
+              "quotes": false,
+              "risks": false,
+              "questions": true,
+              "advice": true,
+              "ctas": true
+            },
+            "analysisStatus": "complete",
+            "runIndex": 3
+          }
+        },
+        {
+          "fixture": "meeting-sprint-planning",
+          "run": 1,
+          "metrics": {
+            "fixtureId": "meeting-sprint-planning",
+            "family": "base",
+            "categories": {
+              "decisions": {
+                "tp": 2,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 1,
+                "fp": 0,
+                "fn": 1,
+                "precision": 1,
+                "recall": 0.5
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 1,
+                "fn": 2,
+                "precision": 0,
+                "recall": 0
+              },
+              "advice": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 1,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 2,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 1,
+              "correct": 0,
+              "invented": 1,
+              "goldTotal": 2,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 1,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0.16666666666666666,
+            "abstentionRate": 0,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 629,
+              "latencyTotal": 2772,
+              "inputTokens": 1289,
+              "outputTokens": 261,
+              "estCostUsd": 0.0058325
+            },
+            "presence": {
+              "decisions": true,
+              "commitments": true,
+              "actions": true,
+              "quotes": false,
+              "risks": true,
+              "questions": false,
+              "advice": false,
+              "ctas": false
+            },
+            "analysisStatus": "complete",
+            "runIndex": 1
+          }
+        },
+        {
+          "fixture": "meeting-sprint-planning",
+          "run": 2,
+          "metrics": {
+            "fixtureId": "meeting-sprint-planning",
+            "family": "base",
+            "categories": {
+              "decisions": {
+                "tp": 2,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 1,
+                "fp": 0,
+                "fn": 1,
+                "precision": 1,
+                "recall": 0.5
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 1,
+                "fn": 2,
+                "precision": 0,
+                "recall": 0
+              },
+              "advice": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 1,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 2,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 1,
+              "correct": 0,
+              "invented": 1,
+              "goldTotal": 2,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 1,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0.16666666666666666,
+            "abstentionRate": 0,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 653,
+              "latencyTotal": 3082,
+              "inputTokens": 1289,
+              "outputTokens": 270,
+              "estCostUsd": 0.005922500000000001
+            },
+            "presence": {
+              "decisions": true,
+              "commitments": true,
+              "actions": true,
+              "quotes": false,
+              "risks": true,
+              "questions": false,
+              "advice": false,
+              "ctas": false
+            },
+            "analysisStatus": "complete",
+            "runIndex": 2
+          }
+        },
+        {
+          "fixture": "meeting-sprint-planning",
+          "run": 3,
+          "metrics": {
+            "fixtureId": "meeting-sprint-planning",
+            "family": "base",
+            "categories": {
+              "decisions": {
+                "tp": 2,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 2,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 1,
+                "fn": 2,
+                "precision": 0,
+                "recall": 0
+              },
+              "advice": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 1,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 2,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 1,
+              "correct": 0,
+              "invented": 1,
+              "goldTotal": 2,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 1,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0.14285714285714285,
+            "abstentionRate": 0,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 803,
+              "latencyTotal": 3327,
+              "inputTokens": 1289,
+              "outputTokens": 317,
+              "estCostUsd": 0.006392500000000001
+            },
+            "presence": {
+              "decisions": true,
+              "commitments": true,
+              "actions": true,
+              "quotes": false,
+              "risks": true,
+              "questions": false,
+              "advice": false,
+              "ctas": false
+            },
+            "analysisStatus": "complete",
+            "runIndex": 3
+          }
+        },
+        {
+          "fixture": "adversarial-hypothetical",
+          "run": 1,
+          "metrics": {
+            "fixtureId": "adversarial-hypothetical",
+            "family": "adversarial",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 1,
+                "precision": 1,
+                "recall": 0
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 0,
+                "fp": 1,
+                "fn": 0,
+                "precision": 0,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 5,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0.4,
+            "abstentionRate": null,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 1108,
+              "latencyTotal": 3080,
+              "inputTokens": 845,
+              "outputTokens": 230,
+              "estCostUsd": 0.0044125
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": false,
+              "actions": false,
+              "quotes": false,
+              "risks": false,
+              "questions": true,
+              "advice": false,
+              "ctas": true
+            },
+            "analysisStatus": "complete",
+            "runIndex": 1
+          }
+        },
+        {
+          "fixture": "adversarial-hypothetical",
+          "run": 2,
+          "metrics": {
+            "fixtureId": "adversarial-hypothetical",
+            "family": "adversarial",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 1,
+                "precision": 1,
+                "recall": 0
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 0,
+                "fp": 1,
+                "fn": 0,
+                "precision": 0,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 1,
+                "fn": 0,
+                "precision": 0,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 1,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 5,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0.16666666666666666,
+            "abstentionRate": null,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 1413,
+              "latencyTotal": 4757,
+              "inputTokens": 845,
+              "outputTokens": 251,
+              "estCostUsd": 0.0046225
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": false,
+              "actions": false,
+              "quotes": true,
+              "risks": true,
+              "questions": true,
+              "advice": false,
+              "ctas": true
+            },
+            "analysisStatus": "complete",
+            "runIndex": 2
+          }
+        },
+        {
+          "fixture": "adversarial-hypothetical",
+          "run": 3,
+          "metrics": {
+            "fixtureId": "adversarial-hypothetical",
+            "family": "adversarial",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 1,
+                "precision": 1,
+                "recall": 0
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 0,
+                "fp": 1,
+                "fn": 0,
+                "precision": 0,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 5,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0.4,
+            "abstentionRate": null,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 1446,
+              "latencyTotal": 3740,
+              "inputTokens": 845,
+              "outputTokens": 230,
+              "estCostUsd": 0.0044125
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": false,
+              "actions": false,
+              "quotes": false,
+              "risks": false,
+              "questions": true,
+              "advice": false,
+              "ctas": true
+            },
+            "analysisStatus": "complete",
+            "runIndex": 3
+          }
+        },
+        {
+          "fixture": "adversarial-promotional-cta",
+          "run": 1,
+          "metrics": {
+            "fixtureId": "adversarial-promotional-cta",
+            "family": "adversarial",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 3,
+                "fp": 2,
+                "fn": 0,
+                "precision": 0.6,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 5,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0,
+            "abstentionRate": null,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 896,
+              "latencyTotal": 2823,
+              "inputTokens": 767,
+              "outputTokens": 214,
+              "estCostUsd": 0.0040575
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": false,
+              "actions": false,
+              "quotes": false,
+              "risks": false,
+              "questions": false,
+              "advice": false,
+              "ctas": true
+            },
+            "analysisStatus": "complete",
+            "runIndex": 1
+          }
+        },
+        {
+          "fixture": "adversarial-promotional-cta",
+          "run": 2,
+          "metrics": {
+            "fixtureId": "adversarial-promotional-cta",
+            "family": "adversarial",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 3,
+                "fp": 2,
+                "fn": 0,
+                "precision": 0.6,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 5,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0,
+            "abstentionRate": null,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 791,
+              "latencyTotal": 2792,
+              "inputTokens": 767,
+              "outputTokens": 213,
+              "estCostUsd": 0.0040475
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": false,
+              "actions": false,
+              "quotes": false,
+              "risks": false,
+              "questions": false,
+              "advice": false,
+              "ctas": true
+            },
+            "analysisStatus": "complete",
+            "runIndex": 2
+          }
+        },
+        {
+          "fixture": "adversarial-promotional-cta",
+          "run": 3,
+          "metrics": {
+            "fixtureId": "adversarial-promotional-cta",
+            "family": "adversarial",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 3,
+                "fp": 2,
+                "fn": 0,
+                "precision": 0.6,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 5,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0,
+            "abstentionRate": null,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 1089,
+              "latencyTotal": 2790,
+              "inputTokens": 767,
+              "outputTokens": 213,
+              "estCostUsd": 0.0040475
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": false,
+              "actions": false,
+              "quotes": false,
+              "risks": false,
+              "questions": false,
+              "advice": false,
+              "ctas": true
+            },
+            "analysisStatus": "complete",
+            "runIndex": 3
+          }
+        },
+        {
+          "fixture": "adversarial-audience-advice",
+          "run": 1,
+          "metrics": {
+            "fixtureId": "adversarial-audience-advice",
+            "family": "adversarial",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 3,
+                "fp": 2,
+                "fn": 0,
+                "precision": 0.6,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 5,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0,
+            "abstentionRate": null,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 887,
+              "latencyTotal": 2702,
+              "inputTokens": 782,
+              "outputTokens": 220,
+              "estCostUsd": 0.004155000000000001
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": false,
+              "actions": false,
+              "quotes": false,
+              "risks": false,
+              "questions": false,
+              "advice": true,
+              "ctas": false
+            },
+            "analysisStatus": "complete",
+            "runIndex": 1
+          }
+        },
+        {
+          "fixture": "adversarial-audience-advice",
+          "run": 2,
+          "metrics": {
+            "fixtureId": "adversarial-audience-advice",
+            "family": "adversarial",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 3,
+                "fp": 2,
+                "fn": 0,
+                "precision": 0.6,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 5,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0,
+            "abstentionRate": null,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 986,
+              "latencyTotal": 2847,
+              "inputTokens": 782,
+              "outputTokens": 222,
+              "estCostUsd": 0.004175
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": false,
+              "actions": false,
+              "quotes": false,
+              "risks": false,
+              "questions": false,
+              "advice": true,
+              "ctas": false
+            },
+            "analysisStatus": "complete",
+            "runIndex": 2
+          }
+        },
+        {
+          "fixture": "adversarial-audience-advice",
+          "run": 3,
+          "metrics": {
+            "fixtureId": "adversarial-audience-advice",
+            "family": "adversarial",
+            "categories": {
+              "decisions": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "commitments": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "tasks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "advice": {
+                "tp": 3,
+                "fp": 2,
+                "fn": 0,
+                "precision": 0.6,
+                "recall": 1
+              },
+              "ctas": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              },
+              "risks": {
+                "tp": 0,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1,
+                "recall": 1
+              }
+            },
+            "misclass": {
+              "adviceAsTask": 0,
+              "ctaAsTask": 0,
+              "ctaAsCommitment": 0,
+              "adviceAsCommitment": 0
+            },
+            "owners": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "dues": {
+              "produced": 0,
+              "correct": 0,
+              "invented": 0,
+              "goldTotal": 0,
+              "recalled": 0
+            },
+            "quoteRangeValidity": 1,
+            "quotesProduced": 0,
+            "evidenceValidity": 1,
+            "structure": {
+              "produced": 5,
+              "gold": null,
+              "exact": null
+            },
+            "coverage": {
+              "complete": true,
+              "status": "complete",
+              "failedRanges": 0,
+              "unassignedRanges": 0
+            },
+            "unsupportedRate": 0,
+            "abstentionRate": null,
+            "perf": {
+              "calls": 3,
+              "attempts": 3,
+              "retries": 0,
+              "parseRetryRate": 0,
+              "latencyP50": 831,
+              "latencyTotal": 2684,
+              "inputTokens": 782,
+              "outputTokens": 220,
+              "estCostUsd": 0.004155000000000001
+            },
+            "presence": {
+              "decisions": false,
+              "commitments": false,
+              "actions": false,
+              "quotes": false,
+              "risks": false,
+              "questions": false,
+              "advice": true,
+              "ctas": false
+            },
+            "analysisStatus": "complete",
+            "runIndex": 3
+          }
+        }
+      ]
+    }
+  ],
+  "selectedModel": null,
+  "conclusion": "NO candidate model passed all strong-section gates"
+}

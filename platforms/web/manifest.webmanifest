@@ -1,0 +1,16 @@
+{
+  "name": "WhisperClick",
+  "short_name": "WhisperClick",
+  "description": "Fast, private voice-to-text. Record or upload audio and get an accurate transcript.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0c0a09",
+  "theme_color": "#1c1917",
+  "icons": [
+    { "src": "/docs/assets/favicon-192.png", "sizes": "256x256", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

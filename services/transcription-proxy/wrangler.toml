@@ -1,0 +1,31 @@
+# WhisperClick — Transcription Proxy (Complete tier)
+# Cloudflare Worker config. Deploy from this directory with `wrangler deploy`.
+#
+# Secrets are NOT stored here. Set them with `wrangler secret put <NAME>`
+# (see README.md for the full checklist). Only non-secret vars live in [vars].
+
+name = "whisperclick-transcription-proxy"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# --- KV: usage metering + rate limiting -------------------------------------
+# TODO(edward): create the namespace, then paste its id below:
+#   wrangler kv namespace create USAGE_KV
+# Wrangler prints an id like id = "abc123...". Put it here.
+[[kv_namespaces]]
+binding = "USAGE_KV"
+id = "TODO_EDWARD_KV_NAMESPACE_ID"          # TODO(edward): real KV namespace id
+# preview_id = "TODO_EDWARD_KV_PREVIEW_ID"  # optional: for `wrangler dev`
+
+# --- Non-secret configuration ------------------------------------------------
+[vars]
+MONTHLY_MINUTES = "900"   # monthly transcription allowance per license (minutes)
+RATE_LIMIT = "30"         # max requests per license per 60-second window
+
+# ---------------------------------------------------------------------------
+# SECRETS — set via `wrangler secret put <NAME>` (never commit real values):
+#   OPENAI_API_KEY               TODO(edward): our OpenAI account key
+#   GEMINI_API_KEY               TODO(edward): our Google Gemini key (optional 2nd provider)
+#   LICENSE_PUBLIC_KEY           TODO(edward): base64 Ed25519 public key that verifies license tokens
+#   LEMON_SQUEEZY_WEBHOOK_SECRET TODO(edward): Lemon Squeezy webhook signing secret (for the active-subscription check)
+# ---------------------------------------------------------------------------

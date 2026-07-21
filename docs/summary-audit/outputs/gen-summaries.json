@@ -1,0 +1,145 @@
+{
+  "brief__auto": {
+    "style": "brief",
+    "note_type": "auto",
+    "summary": "The most important point is that to become a successful AI consultant, one must develop a strong understanding of business analysis, data strategy, and ethical considerations while also proving the ROI of AI implementations.",
+    "action_items": [
+      "Develop skills in business analysis and data strategy.",
+      "Gain knowledge of industry-specific verticals and problems to solve.",
+      "Learn about data privacy laws and ethical AI implementation.",
+      "Build a portfolio with real-world projects demonstrating AI impact.",
+      "Utilize LinkedIn and networking events to find clients.",
+      "Stay updated on relevant legal and ethical considerations in AI.",
+      "Differentiate yourself by specializing in a specific industry or business problem."
+    ],
+    "error": null
+  },
+  "brief__meeting": {
+    "style": "brief",
+    "note_type": "meeting",
+    "summary": "The most important point from the meeting is that aspiring AI consultants should focus on developing skills in business analysis and data strategy, while also understanding the ethical and legal considerations of AI implementation to differentiate themselves in a competitive market.",
+    "action_items": [
+      "Ashley to provide more resources on how to determine consulting rates.",
+      "Ashley to release weekly AI leadership newsletters covering these topics.",
+      "Participants to consider subscribing to the AI leadership newsletter for ongoing insights."
+    ],
+    "error": null
+  },
+  "brief__idea": {
+    "style": "brief",
+    "note_type": "idea",
+    "summary": "The core idea is that aspiring AI consultants should focus on developing specific skills in business analysis and data strategy, while also understanding ethical considerations and proving ROI to differentiate themselves in a competitive market.",
+    "action_items": [
+      "Create a list of essential skills needed to become an AI consultant, focusing on business analysis and data strategy.",
+      "Research and compile resources for certifications in ethics, data security, and AI tools.",
+      "Develop a portfolio showcasing 1-3 real-world AI projects that demonstrate measurable business impact.",
+      "Utilize LinkedIn and networking events to find potential clients and establish connections.",
+      "Draft a guide on setting consulting rates based on project complexity and expected outcomes.",
+      "Subscribe to relevant newsletters and resources to stay informed about AI trends that impact data security and workflow."
+    ],
+    "error": null
+  },
+  "brief__call": {
+    "style": "brief",
+    "note_type": "call",
+    "summary": "The most important point discussed is that aspiring AI consultants should focus on developing skills in business analysis and data strategy, while also understanding the ethical and legal implications of AI to effectively solve industry-specific problems.",
+    "action_items": [
+      "Ashley to provide more resources and communication regarding how to set consulting rates.",
+      "Ashley to continue sharing insights through the AI leadership newsletter.",
+      "Participants to consider subscribing to the newsletter for ongoing updates and information."
+    ],
+    "error": null
+  },
+  "bullets__auto": {
+    "style": "bullets",
+    "note_type": "auto",
+    "summary": "- Ashley Gross, founder of AI Workforce Alliance, shares insights on becoming an AI consultant based on her extensive experience with generative AI.\n- Key skills for AI consultants include business analysis, data strategy, and understanding industry-specific challenges.\n- A degree is not strictly necessary; practical experience and certifications can be equally valuable.\n- High-demand industries for AI consulting include healthcare, finance, and marketing, with an emphasis on proving ROI for AI implementations.\n- Building a portfolio should focus on demonstrating real-world projects and their business impact.\n- Networking, particularly through LinkedIn and speaking events, is crucial for finding clients and establishing credibility.",
+    "action_items": [
+      "Subscribe to the AI leadership newsletter for ongoing insights.",
+      "Consider pursuing relevant certifications in data security and ethics.",
+      "Start building a portfolio with one to three real-world AI projects demonstrating measurable business value."
+    ],
+    "error": null
+  },
+  "bullets__meeting": {
+    "style": "bullets",
+    "note_type": "meeting",
+    "summary": "- Ashley Gross, founder of AI Workforce Alliance, shared insights on becoming an AI consultant, emphasizing the importance of business analysis and data strategy.\n- Key skills for AI consultants include understanding industry verticals, data compliance (GDPR, CCPA), and proving ROI for AI implementations.\n- A degree is not strictly necessary; practical experience and certifications, such as ISC-2, can be more beneficial.\n- High-demand sectors for AI consulting identified as healthcare, finance, and marketing, with a focus on demonstrating AI's business value.\n- Networking through LinkedIn and speaking events is recommended for finding clients, along with showcasing real-world project impacts in portfolios.\n- Differentiation in the competitive AI consulting market can be achieved through specialization and maintaining high ethical standards.",
+    "action_items": [
+      "Ashley to provide more resources on setting consulting rates in future communications.",
+      "Ashley to continue sharing insights through the AI leadership newsletter weekly."
+    ],
+    "error": null
+  },
+  "bullets__idea": {
+    "style": "bullets",
+    "note_type": "idea",
+    "summary": "- Ashley Gross, founder of AI Workforce Alliance, emphasizes the importance of asking questions in the AI consulting field, as many share similar uncertainties.\n- Key skills for becoming an AI consultant include business analysis, data strategy, understanding industry verticals, and technical expertise in ethics and data security.\n- A degree in AI is not strictly necessary; practical experience, certifications, and a strong understanding of data privacy laws can be equally valuable.\n- High-demand sectors for AI consulting are healthcare, finance, and marketing, but many implementations are still in pilot phases and not fully optimized.\n- Building a portfolio should focus on demonstrating real-world projects that showcase AI's impact on business metrics and outcomes.\n- Networking, particularly through LinkedIn and speaking events, is crucial for finding clients and establishing credibility in the AI consulting space.",
+    "action_items": [
+      "Develop a list of essential skills and certifications needed for AI consulting.",
+      "Create a portfolio template that highlights real-world projects and their business impact.",
+      "Research high-demand sectors for AI consulting and identify potential clients within those industries.",
+      "Plan a strategy for networking, including speaking engagements and LinkedIn outreach.",
+      "Subscribe to relevant newsletters and resources to stay informed about AI trends and ethical considerations."
+    ],
+    "error": null
+  },
+  "bullets__call": {
+    "style": "bullets",
+    "note_type": "call",
+    "summary": "- Ashley Gross, founder of AI Workforce Alliance, shared insights on becoming an AI consultant based on her experience with generative AI since 2020.\n- Key skills for AI consultants include business analysis, data strategy, understanding industry verticals, and technical expertise in ethics and data security.\n- A degree in AI is not mandatory; practical experience and certifications can be equally valuable for aspiring consultants.\n- High-demand sectors for AI consulting are healthcare, finance, and marketing, with a focus on demonstrating ROI and business impact.\n- Building a portfolio should include real-world projects that showcase AI's impact on business metrics, while networking and leveraging platforms like LinkedIn are effective for finding clients.\n- Differentiation in the competitive AI consulting market comes from having a unique value proposition, specializing in specific industries, and maintaining high ethical standards.",
+    "action_items": [
+      "Ashley to provide more resources on determining consulting rates in future communications.",
+      "Subscribe to the AI leadership with Ashley Newsletter for ongoing insights and updates."
+    ],
+    "error": null
+  },
+  "detailed__auto": {
+    "style": "detailed",
+    "note_type": "auto",
+    "summary": "In this meeting, Ashley Gross, the founder of AI Workforce Alliance, addressed ten frequently asked questions regarding becoming an AI consultant. She emphasized the importance of having a solid foundation in business analysis and data strategy, as well as understanding the industry and vertical one is working in. Ashley shared her personal journey, highlighting that a degree is not strictly necessary to succeed in AI consulting, as hands-on experience and certifications can be equally valuable. She also discussed the significance of ethics, data security, and the ability to demonstrate return on investment (ROI) when implementing AI solutions.\n\nAshley identified high-demand sectors for AI consulting, including healthcare, finance, and marketing, and provided guidance on building a portfolio by focusing on real-world projects that showcase AI's impact. She suggested leveraging platforms like LinkedIn for client acquisition and emphasized the importance of networking and speaking engagements. Additionally, Ashley touched on legal and ethical considerations, such as GDPR and CCPA compliance, and the need for consultants to differentiate themselves through unique value propositions and high ethical standards. She concluded by encouraging ongoing learning and engagement with the AI community.",
+    "action_items": [
+      "Subscribe to the AI Leadership with Ashley Newsletter for weekly insights.",
+      "Consider taking the ISC-2 certification course for data security and privacy knowledge.",
+      "Utilize LinkedIn and networking events to find potential clients.",
+      "Focus on building a portfolio with 1-3 real-world AI projects demonstrating business value.",
+      "Stay informed about data security and privacy regulations relevant to AI consulting."
+    ],
+    "error": null
+  },
+  "detailed__meeting": {
+    "style": "detailed",
+    "note_type": "meeting",
+    "summary": "In this meeting, Ashley Gross, founder of AI Workforce Alliance, addressed ten frequently asked questions regarding becoming an AI consultant. She emphasized the importance of foundational skills such as business analysis and data strategy, as well as the necessity of understanding industry-specific knowledge. Ashley shared her personal journey, highlighting that a degree is not strictly necessary, and recommended alternative learning paths, including certifications and hands-on experience. She also discussed the importance of ethics, data security, and the ability to demonstrate ROI when implementing AI solutions.\n\nThe conversation also covered practical advice for aspiring consultants, including how to build a portfolio, find clients, and set competitive rates. Ashley pointed out that high-demand sectors for AI consulting include healthcare, finance, and marketing. She concluded by stressing the significance of having a unique value proposition and maintaining high ethical standards in the competitive AI consulting market. Ashley encouraged participants to subscribe to her newsletter for ongoing insights and updates.",
+    "action_items": [
+      "Ashley to provide more resources on how to determine consulting rates.",
+      "Participants to explore certification courses in data security and ethics.",
+      "Subscribe to the AI leadership newsletter for weekly updates and insights."
+    ],
+    "error": null
+  },
+  "detailed__idea": {
+    "style": "detailed",
+    "note_type": "idea",
+    "summary": "Ashley Gross, founder of AI Workforce Alliance, shared her insights on becoming an AI consultant, addressing ten frequently asked questions. She emphasized the importance of foundational skills such as business analysis and data strategy, along with the necessity of understanding industry-specific challenges. Ashley encouraged aspiring consultants to build a portfolio that demonstrates real-world AI impact and to focus on sectors like healthcare, finance, and marketing, which are currently in high demand for AI consulting services. She also highlighted the significance of ethical considerations, data security, and the ability to prove ROI when implementing AI solutions.\n\nIn addition to discussing the skills and knowledge required, Ashley provided practical advice on finding clients, setting consulting rates, and differentiating oneself in a competitive market. She underscored the value of networking, utilizing platforms like LinkedIn, and maintaining a unique value proposition based on industry expertise. To stay relevant, she advised focusing on meaningful impacts rather than getting lost in trends. Ashley concluded by inviting further questions and promoting her upcoming newsletter for ongoing insights into AI leadership.",
+    "action_items": [
+      "Develop a comprehensive guide on essential skills for AI consultants.",
+      "Create a template for building a portfolio that highlights AI impact and business value.",
+      "Research and compile a list of high-demand industries for AI consulting.",
+      "Plan a webinar or workshop to address common questions and concerns for aspiring AI consultants.",
+      "Launch the AI leadership newsletter and promote it through various channels."
+    ],
+    "error": null
+  },
+  "detailed__call": {
+    "style": "detailed",
+    "note_type": "call",
+    "summary": "In this call, Ashley Gross, the founder of AI Workforce Alliance, addressed ten frequently asked questions regarding becoming an AI consultant. She emphasized the importance of foundational skills such as business analysis and data strategy, along with the necessity of understanding industry-specific knowledge and data privacy regulations like GDPR and CCPA. Ashley shared her personal journey, highlighting that while a degree can be beneficial, hands-on experience and certifications can also pave the way to success in AI consulting. She encouraged aspiring consultants to build a portfolio with real-world projects that demonstrate the impact of AI on business metrics and to leverage platforms like LinkedIn for client acquisition.\n\nAshley also discussed the significance of staying updated on relevant trends that directly affect data security and workflow, rather than getting lost in the noise of the rapidly evolving AI landscape. She concluded by stressing the importance of having a unique value proposition, specializing in specific industries, and maintaining high ethical standards to differentiate oneself in the competitive AI consulting market. The call wrapped up with an invitation to subscribe to her newsletter for ongoing insights and updates.",
+    "action_items": [
+      "Ashley to provide more resources on pricing strategies for AI consulting services.",
+      "Participants to consider building their portfolios with real-world AI projects.",
+      "Interested individuals to subscribe to the AI leadership newsletter for further insights."
+    ],
+    "error": null
+  }
+}
