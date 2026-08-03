@@ -1,0 +1,166 @@
+name: CI — Tests
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    # dev included so the design gate runs before work reaches an integration
+    # branch, not only at the release door.
+    branches: [main, dev]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Deliberately no continue-on-error anywhere in this job. Both checks are green
+  # on the commit that introduced them — the CSS check byte-compares a rebuild, and
+  # the design audit ratchets against tools/design-baseline.json rather than an
+  # aspirational zero. A gate that arrives red gets muted; these arrive green, so
+  # the first red is real. That is the whole reason this job exists: the frozen
+  # Tailwind bundle went unnoticed for months because nothing ever asked.
+  design:
+    name: Design System Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+
+      - name: Committed CSS bundle matches a fresh build
+        run: npm run verify:css
+
+      - name: Design drift has not got worse
+        run: npm run audit:design
+
+      - name: Upload findings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: design-audit
+          path: artifacts/design-audit.json
+          if-no-files-found: warn
+
+  # These suites are written against node:test, not Jest. Two of them
+  # (platforms/electron/premium, platforms/web/tests) were running NOWHERE before
+  # this job existed — analysis.yml globs only shared/analysis/test, so they were
+  # red under Jest, unexecuted in CI, and effectively invisible. No
+  # continue-on-error: all 92 pass on the commit that added this.
+  test-node:
+    name: node:test Suites
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # 24 to match analysis.yml — node:sqlite is stable there, and the
+          # speakers suite builds a real .db.
+          node-version: 24
+      - run: npm install
+      - run: npm run test:node
+
+  # Windows, because this is a Windows desktop app and the suite exercises
+  # main.js's real window lifecycle. The mute that used to live here blamed
+  # "platform-specific failures on Linux" — that was wrong. The single failure
+  # reproduced on Windows too: tests/unit/main-ipc.test.js fired the real
+  # close-to-tray handler and never fired the 'show' event real Electron emits
+  # on return, so main.js's module-level pillPromoted flag stayed set for the
+  # rest of the file. Test bug, not a platform bug. Fixed, and 652/652 pass.
+  test-electron:
+    name: Electron Tests (Jest)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Run Electron tests
+        run: npm test
+
+  test-tauri:
+    name: Tauri Tests (Rust)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            platforms/tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('platforms/tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install Tauri system dependencies
+        run: |
+          # WebView2 is pre-installed on Windows runners
+          echo "Windows runner — no extra deps needed"
+
+      - name: Run Tauri tests
+        working-directory: platforms/tauri
+        run: cargo test --release 2>&1
+
+  # The free build is a product, not a byproduct, and until now nothing in CI
+  # ever looked at it. tools/verify_public_clean.sh rehearses the exact strip
+  # sync_public.sh performs — same path list, same premium marker-region awk —
+  # then asserts three things about the result: the premium dirs were really
+  # there to remove, no private FILE survives, and no premium reference survives
+  # in any shipped .html/.js/.css/.py. Red here means the next public sync would
+  # publish paid code. Deliberately no continue-on-error: it is green at 0.
+  free-build:
+    name: Free Build Ships Zero Premium
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The script runs `git archive HEAD`, so it needs real history, not
+          # the synthetic merge commit a shallow PR checkout hands back.
+          fetch-depth: 0
+      - name: Assert the stripped free tree is clean
+        run: bash tools/verify_public_clean.sh
+
+  # Windows to match test-tauri, and to match the machine these gates were
+  # actually proven green on. Half of system.rs is behind
+  # #[cfg(target_os = "windows")], so a Linux linter never even compiles it —
+  # un-muting against a runner that skips the code would be a gate in name only.
+  lint:
+    name: Lint & Format Check
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            platforms/tauri/target
+          key: ${{ runner.os }}-cargo-lint-${{ hashFiles('platforms/tauri/Cargo.lock') }}
+
+      # Both mutes removed. They were added when these arrived red; they are
+      # green now, verified on this exact toolchain, so the next red is real.
+      - name: Check Rust formatting
+        working-directory: platforms/tauri
+        run: cargo fmt -- --check
+
+      # --all-targets, not the bare default: the default lints the library and
+      # walks straight past the test modules, which is where five of the twelve
+      # original warnings were hiding.
+      - name: Run Clippy
+        working-directory: platforms/tauri
+        run: cargo clippy --all-targets -- -D warnings

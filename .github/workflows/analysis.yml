@@ -1,0 +1,52 @@
+name: CI — Summary Analysis v2 (deterministic gate)
+
+# Deterministic proof for the flagged summary-system-v2 foundation.
+# Runs with NO external API credentials and NO network access to a model
+# provider: the corpus uses recorded/fixture adapters, so this gate is fully
+# reproducible. It FAILS CLOSED — any failing test or gate check fails the job.
+#
+# The real-model bake-off (shared/analysis/corpus/bakeoff.js) requires live
+# credentials and is deliberately NOT part of this workflow; its results are
+# published as a reviewed report under docs/analysis-bakeoff/.
+
+on:
+  push:
+    branches: [mobile-app-v2, dev, main]
+    paths:
+      - 'shared/analysis/**'
+      - '.github/workflows/analysis.yml'
+  pull_request:
+    branches: [mobile-app-v2, dev, main]
+    paths:
+      - 'shared/analysis/**'
+      - '.github/workflows/analysis.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: analysis-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analysis-gate:
+    name: node:test + acceptance gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Node 24: node:sqlite and node:test are stable (no flags, no deps).
+          node-version: 24
+
+      - name: Assert no provider credentials are present
+        run: |
+          if [ -n "${OPENAI_API_KEY:-}" ] || [ -n "${GEMINI_API_KEY:-}" ]; then
+            echo "This gate must run without provider credentials."; exit 1
+          fi
+          echo "No provider credentials in the environment - deterministic run confirmed."
+
+      - name: Unit + contract tests
+        run: node --test shared/analysis/test/*.test.js
+
+      - name: Corpus acceptance gate
+        run: node shared/analysis/corpus/gate.js

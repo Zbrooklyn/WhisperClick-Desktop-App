@@ -1,0 +1,25 @@
+/*
+ * Source for css/tailwind.css — build with `npm run build:css`.
+ *
+ * `@tailwind base` is REQUIRED, and an earlier revision of this file dropped it
+ * on the false premise that the shipped bundle had never carried Preflight. It
+ * had: the pre-rebuild bundle contains both the Preflight resets and, more
+ * importantly, the `*,::before,::after{--tw-translate-x:0;--tw-rotate:0;...}`
+ * defaults rule that base emits.
+ *
+ * Those custom properties are not cosmetic. Every transform/filter/ring/shadow
+ * utility compiles to a declaration that READS them —
+ * `transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate))...`
+ * — and a var() that resolves to nothing makes the whole declaration invalid at
+ * computed-value time, so it silently becomes `transform:none`. Building without
+ * base therefore kills every transform utility in the app at once while the class
+ * still appears in the markup and the `.translate-x-full` rule still appears in
+ * the bundle. The visible symptom was the parked settings drawer un-parking and
+ * covering the entire Pro UI at z-50.
+ *
+ * If Preflight is ever to be dropped, the --tw-* defaults rule has to be kept by
+ * hand, and it is a visual change to make on purpose with screenshots.
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

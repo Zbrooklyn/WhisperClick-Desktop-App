@@ -1,0 +1,13 @@
+# Core dependencies for WhisperClick sidecar engine
+numpy
+sounddevice
+soundfile
+openai
+
+# Local model support (optional but recommended)
+faster-whisper
+huggingface_hub
+onnxruntime
+
+# URL import: pull audio from YouTube & 1000+ streaming sites (needs ffmpeg on PATH)
+yt-dlp

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "appId": "com.whisperclick.dev",
+  "productName": "WhisperClick Dev",
+  "directories": { "output": "release-dev" },
+  "icon": "icons/icon.png",
+  "files": [
+    "platforms/electron/**",
+    "shared/frontend/**",
+    "shared/pill/**",
+    "shared/media/**",
+    "icons/**"
+  ],
+  "extraResources": [
+    { "from": "shared/engine/dist/engine/", "to": "engine-bin/" }
+  ],
+  "win": {
+    "icon": "icons/icon.ico",
+    "target": [
+      { "target": "nsis", "arch": ["x64"] },
+      { "target": "portable", "arch": ["x64"] }
+    ]
+  },
+  "nsis": {
+    "artifactName": "WhisperClick-Dev-Setup-${version}.${ext}",
+    "shortcutName": "WhisperClick Dev",
+    "installerIcon": "icons/icon.ico",
+    "uninstallerIcon": "icons/icon.ico",
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true
+  },
+  "portable": {
+    "artifactName": "WhisperClick-Dev-Portable-${version}.${ext}"
+  }
+}

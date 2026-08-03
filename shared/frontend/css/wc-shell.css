@@ -1,0 +1,584 @@
+/* ============================================================================
+   WhisperClick Premium — design system + primitives
+   Self-contained. Real CSS only (the app's Tailwind is purged/prebuilt).
+   Free version is untouched; this layer mounts above it.
+   ============================================================================ */
+
+.wc-pro, .wc-pro *, .wc-pro *::before, .wc-pro *::after { box-sizing: border-box; }
+/* safety net: any premium icon defaults to 20px so a bare <svg> can never balloon.
+   :where() keeps this at ZERO specificity so ANY class-based sizing wins — our own
+   component rules (.wc-tile svg, .wc-run svg, …) AND adopted app icons (Tailwind w-5/w-4,
+   lucide) — while still catching a truly-unstyled bare <svg>. */
+:where(.wc-pro) svg { width:20px; height:20px; flex:0 0 auto; }
+
+/* Global accent token — single source of truth for BOTH design layers.
+   Defines the previously-undefined --accent phantom variable the main app
+   referenced via var(--accent,#c07a4e), so one orange now drives everything. */
+:root{ --accent:#C07A4E; --accent-hover:#B06B40; --accent-soft:#CF9673; }
+
+/* Tokens are declared at :root, not on .wc-pro, and that scope is the whole point.
+   A custom property only exists inside the subtree that declares it, so while
+   these lived on .wc-pro every surface outside it — the onboarding overlay, the
+   hotkey guide sheet, #url-modal, the visualizer style popup — resolved
+   var(--wc-t3) to nothing and had to keep a hardcoded hex. That is not a
+   stylistic preference; it is what forced two whole surfaces to stay frozen
+   across the theme and made the F4 sweep stop short of them.
+
+   MEASURED, not assumed: of the 42 elements carrying the new token-backed
+   utilities, 27 followed the token and 15 fell through to the var() fallback —
+   precisely the onboarding overlay and the hotkey guide sheet. Those 15 are the
+   reason this change exists, and they are the check that proves it landed.
+
+   Only the CUSTOM PROPERTIES move. .wc-pro keeps font-family and font-smoothing
+   below, because those are inherited *styling* — pushing them to :root would
+   restyle the entire app, which is a different change nobody asked for. The
+   component rules further down stay scoped to .wc-pro exactly as they were. */
+:root {
+  /* dark-first (WhisperClick DNA) — default */
+  --wc-base:#1C1917; --wc-surface:#1C1917; --wc-panel:#292524; --wc-panel-2:#211D1B;
+  /* --wc-input was #191512 (wells sunk below the base) and --wc-border-soft was
+     #3C362E. Edward judged the result too dark against the pre-token build:
+     fields read as holes and soft dividers all but vanished. Both restored to
+     what the month-old release actually painted — #292524 is what every field
+     computed to then, #44403C what every visible line drew with. That leaves
+     border and border-soft equal for now; they stay separate tokens because
+     they are separate roles, and a future tuning pass can split them again
+     without touching call sites. t3 (#938B85) was solved against #292524 (see
+     below), so text on the lightened wells keeps AA. */
+  --wc-input:#292524; --wc-border:#44403C; --wc-border-soft:#44403C;
+  /* Fill for small raised controls — the record-icon circle, the hotkey <kbd>
+     chip, the history count badge. The old build filled all three with #44403C
+     and they read as touchable; the redesign moved them onto panel-2/input and
+     they sank into the ground. Edward picked the old fill off a zoomed
+     side-by-side. Same hex as --wc-border by coincidence of the old palette,
+     kept separate because a chip fill and a line are different roles. */
+  --wc-raised:#44403C;
+  /* One step lighter than --wc-raised: the fill for the element that sits ON a
+     raised surface — the sliding pill inside the Local/API switch (the old
+     build drew it dark:bg-stone-600). Also what the old toggle-off track used,
+     so the two switch families read as one. */
+  --wc-raised-hi:#57534E;
+  /* t3 was #78716C, which is 3.16:1 on --wc-panel — below AA for the timestamps,
+     tab labels and section headers that use it in 52 places. #938B85 is the
+     smallest step that clears 4.5:1 while staying a distinct third tier under
+     t2 (6.01:1). Cost: white on the ONE place t3 is a fill — #meeting-end-btn in
+     its not-recording state (index.html:559) — drops 4.80 -> 3.35. That control
+     is deliberately inert, and WCAG 1.4.3 exempts disabled controls. */
+  --wc-t1:#F5F5F4; --wc-t2:#A8A29E; --wc-t3:#938B85;
+  /* Channel-only twin of --wc-t3, for the rgba() tints that need the hue at a
+     custom alpha. rgba() cannot take a hex var, so without this the tint has to
+     hardcode the channels — which is how it drifted off t3 and froze per theme. */
+  --wc-t3-rgb:147,139,133;
+  --wc-acc:#C07A4E; --wc-acc-hover:#B06B40; --wc-acc-soft:#CF9673;
+  /* Channel twin of --wc-acc-soft, same reason as --wc-t3-rgb above: rgba()
+     cannot take a hex var, and the live visualiser builds its whole palette at
+     runtime as rgba() strings. Without this the accent's channels were written
+     out longhand in ten places in index.html, so changing the accent silently
+     missed the visualiser, the level dots and the update-card flash. */
+  --wc-acc-soft-rgb:207,150,115;
+  /* --wc-err stays #EF4444 in dark on purpose. It is 4.03:1 as text (short of AA)
+     but also the FILL under white text on #meeting-end-btn,
+     where white/#EF4444 is 3.76:1. Lightening it fixes the text case and worsens
+     the fill case; one value cannot serve both. The fix is splitting it into
+     --wc-err and --wc-err-fill, which is its own change, not a sweep. */
+  --wc-ok:#22C55E; --wc-err:#EF4444; --wc-warn:#F59E0B;
+  --wc-scrim:rgba(0,0,0,.55);
+  --wc-r-sm:8px; --wc-r-md:12px; --wc-r-lg:16px; --wc-r-xl:22px;
+  --wc-sheet-shadow:0 -8px 40px rgba(0,0,0,.5);
+  --wc-pop-shadow:0 12px 36px rgba(0,0,0,.5);
+  --wc-sans:"Segoe UI",-apple-system,system-ui,Roboto,Helvetica,Arial,sans-serif;
+  --wc-serif:Georgia,"Times New Roman",serif;
+  --wc-mono:"Cascadia Code",Consolas,ui-monospace,monospace;
+}
+/* The premium layer's own typography. Stays on .wc-pro deliberately — see above. */
+.wc-pro {
+  font-family:var(--wc-sans);
+  -webkit-font-smoothing:antialiased;
+}
+/* In the month-old build .text-accent resolved to #CF9673 everywhere; the
+   redesign deepened the utility to #C07A4E and dark mode lost its glow —
+   Edward: "we're being a little stingy with the light accents." Orange TEXT in
+   dark goes back to the bright peach; orange FILLS (bg-accent buttons under
+   white text) keep the deeper value on purpose — brightening those would cost
+   legibility, not add it. Light mode keeps the deep accent: peach on white is
+   the one place it genuinely fails. (.dark .text-accent out-specifies the
+   utility 0,2,0 over 0,1,0, so load order is irrelevant.) */
+.dark .text-accent{ color:var(--wc-acc-soft); }
+/* light theme when the app is NOT in .dark (app toggles .dark on <html>).
+   html:not(.dark) is (0,1,1) against :root's (0,1,0), so light wins on
+   specificity as well as source order — the same relationship the two blocks
+   had before they were lifted out of .wc-pro. */
+html:not(.dark) {
+  --wc-base:#FFFFFF; --wc-surface:#FFFFFF; --wc-panel:#FAF7F3; --wc-panel-2:#F3EEE8;
+  --wc-input:#F5F1EC; --wc-border:#E3DBD1; --wc-border-soft:#EBE4DB;
+  /* Same value as --wc-panel-2: the dark-mode raised-fill regression never
+     happened in light mode, so this token changes nothing here — it exists so
+     the three consumers resolve in both themes. */
+  --wc-raised:#F3EEE8;
+  /* The old build's light pill was plain white on the stone-200 track. */
+  --wc-raised-hi:#FFFFFF;
+  /* t3 has now been solved twice, and the second time is the instructive one.
+     #8A8076 was 3.62:1 and obviously wrong. #786F66 replaced it and cleared 4.5
+     on --wc-panel (4.61) — which is how it passed, because --wc-panel is the
+     ground it was CHECKED against. Measured against every ground it actually
+     lands on it fails three of them: --wc-panel-2 4.27, --wc-input 4.38,
+     --wc-border-soft 3.91. Solving a text colour against one background is the
+     same mistake as eyeballing it; the panel just happened to be the lightest.
+     #6A625A is solved against the DARKEST ground (--wc-border-soft) and clears
+     everywhere: panel 5.61, stone-100 5.49, panel-2 5.19, input 5.32,
+     border-soft 4.75. Still a distinct third tier under t2 (7.14 on panel). */
+  --wc-t1:#231F1B; --wc-t2:#57534E; --wc-t3:#6A625A;
+  --wc-t3-rgb:106,98,90;
+  --wc-acc:#C07A4E; --wc-acc-hover:#B06B40; --wc-acc-soft:#CF9673;
+  /* Same value as dark on purpose — --wc-acc-soft does not change per theme, so
+     neither does its channel twin. Declared anyway so the light block stays a
+     complete palette and a future accent change has one place to edit per theme
+     rather than one place plus a silent inheritance. */
+  --wc-acc-soft-rgb:207,150,115;
+  /* --wc-ok/--wc-err/--wc-warn were never declared here, so light theme silently
+     inherited the DARK values and every semantic colour failed AA on a light
+     ground: err 3.52:1, ok 2.13:1, warn 2.01:1. These are the dark hues taken
+     down to >=4.5:1 on --wc-panel. Both the text case and the white-on-fill case
+     improve — white on #meeting-end-btn goes 3.76:1 -> 5.16:1 — no trade here,
+     unlike dark --wc-err above. */
+  --wc-ok:#17833E; --wc-err:#C63A3A; --wc-warn:#9D6507;
+  --wc-scrim:rgba(30,24,20,.42);
+  --wc-sheet-shadow:0 -8px 40px rgba(60,40,25,.22);
+  --wc-pop-shadow:0 12px 36px rgba(60,40,25,.22);
+}
+
+/* ---- overlay host + backdrop ---- */
+#wc-pro-root { position:absolute; inset:0; z-index:900; pointer-events:none; }
+.wc-backdrop{
+  position:absolute; inset:0; background:var(--wc-scrim);
+  opacity:0; transition:opacity .24s ease; pointer-events:auto;
+  -webkit-backdrop-filter:blur(1.5px); backdrop-filter:blur(1.5px);
+}
+.wc-backdrop.wc-in{ opacity:1; }
+
+/* ============================ SLIDE-UP SHEET ============================ */
+.wc-sheet{
+  position:absolute; left:0; right:0; bottom:0;
+  /* darker base bg so the row-cards (--wc-panel) read as lighter buttons — matches the North Star settings */
+  background:var(--wc-base); color:var(--wc-t1);
+  border-top-left-radius:var(--wc-r-xl); border-top-right-radius:var(--wc-r-xl);
+  border-top:1px solid var(--wc-border); box-shadow:var(--wc-sheet-shadow);
+  display:flex; flex-direction:column;
+  max-height:94%; pointer-events:auto;
+  transform:translateY(101%); transition:transform .3s cubic-bezier(.2,.8,.2,1);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+.wc-sheet.wc-in{ transform:translateY(0); }
+.wc-sheet--half{ height:auto; max-height:52%; }
+.wc-sheet--three{ height:78%; }
+.wc-sheet--full{ height:calc(100% - 40px); }
+.wc-sheet__grab{ flex:0 0 auto; display:flex; justify-content:center; padding:9px 0 3px; cursor:grab; touch-action:none; }
+.wc-sheet__grab i{ width:38px; height:4px; border-radius:2px; background:var(--wc-border); display:block; }
+/* Pinned action bar. The list above it scrolls; the button that commits the
+   whole sheet does not go with it. */
+.wc-sheet__foot{ flex:0 0 auto; padding:12px 16px; border-top:1px solid var(--wc-border); }
+.wc-sheet__foot .wc-btnrow{ margin-top:0; }
+
+/* A row of a pick-many list — the note choosers in the batch sheets. Sits on
+   .wc-opt for the checkbox itself; adds the divider, top alignment and the
+   truncation a long transcript title needs. Named off its list, not .wc-pick —
+   that one is the single-select picker row further down and outranks this.
+   Scoped to .wc-pro because .wc-opt is declared later in this file and would
+   otherwise win align-items, gap and the input offset on equal specificity. */
+.wc-pro .wc-picklist__row{ align-items:flex-start; gap:11px; padding:10px 0; border-bottom:1px solid var(--wc-border-soft); }
+.wc-pro .wc-picklist__row input{ margin-top:2px; }
+.wc-pro .wc-picklist__row span{ flex:1 1 auto; min-width:0; font-size:13px; line-height:1.4; color:var(--wc-t1);
+  overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.wc-pro .wc-picklist__row:last-child{ border-bottom:0; }
+
+/* A row of a running batch: what it is, and where it got to. The state is a
+   class so the three outcomes stay on the tokens and survive light mode. */
+.wc-prog{ display:flex; justify-content:space-between; align-items:baseline; gap:10px;
+  padding:9px 0; border-bottom:1px solid var(--wc-border-soft); font-size:13px; }
+.wc-prog:last-child{ border-bottom:0; }
+.wc-prog__name{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--wc-t1); }
+.wc-prog__st{ flex:0 0 auto; color:var(--wc-t2); font-size:12.5px; font-weight:600; }
+.wc-prog__st.is-run{ color:var(--wc-acc); }
+.wc-prog__st.is-ok{ color:var(--wc-ok); }
+.wc-prog__st.is-bad{ color:var(--wc-err); }
+
+/* The pick-many list, and the results list it turns into once the batch runs —
+   same container, so the answers land where the choices were. */
+.wc-picklist{ margin-top:2px; }
+.wc-resultlist{ margin-top:2px; }
+.wc-resitem{ padding:11px 0; border-bottom:1px solid var(--wc-border-soft); }
+.wc-resitem:last-child{ border-bottom:0; }
+.wc-resitem__t{ font-size:11px; font-weight:700; letter-spacing:.04em; color:var(--wc-acc); margin-bottom:5px; }
+.wc-resitem__b{ font-size:12.5px; line-height:1.5; color:var(--wc-t2); white-space:pre-wrap; }
+.wc-resitem__b.is-bad{ color:var(--wc-err); }
+
+/* A <select> needs the native arrow suppressed or it paints a light-grey OS
+   control on top of the token background. */
+select.wc-input{ -webkit-appearance:none; appearance:none; cursor:pointer;
+  padding-right:34px;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A8A29E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+  background-repeat:no-repeat; background-position:right 11px center; background-size:16px; }
+/* The stroke has to be a literal inside the data URI — a var() cannot reach in —
+   so the light theme needs its own copy or the chevron sits at ~2:1 on #F5F1EC. */
+html:not(.dark) select.wc-input{
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2357534E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>"); }
+
+/* ============================ CENTRED DIALOG ============================ */
+/* Confirmations and short prompts. Not a sheet: a sheet is a place you go,
+   a dialog is a question you answer before anything else can happen. */
+.wc-dialog{
+  position:absolute; left:50%; top:50%;
+  width:min(90%,340px); max-height:82%;
+  transform:translate(-50%,-50%) scale(.94);
+  /* --wc-surface, not --wc-panel: the ghost Cancel button IS --wc-panel, and on a
+     panel-coloured card it would read as an outline with no button inside it. */
+  background:var(--wc-surface); color:var(--wc-t1);
+  border:1px solid var(--wc-border); border-radius:var(--wc-r-lg);
+  box-shadow:var(--wc-pop-shadow);
+  display:flex; flex-direction:column; overflow:hidden;
+  opacity:0; pointer-events:auto;
+  transition:opacity .2s ease, transform .2s cubic-bezier(.2,.8,.2,1);
+}
+.wc-dialog.wc-in{ opacity:1; transform:translate(-50%,-50%) scale(1); }
+.wc-dialog--wide{ width:min(92%,420px); }
+.wc-dialog__body{ flex:1 1 auto; min-height:0; padding:18px 18px 0; overflow-y:auto; }
+.wc-dialog__title{ font-size:15.5px; font-weight:650; letter-spacing:-.01em; color:var(--wc-t1); }
+.wc-dialog__msg{ margin-top:8px; font-size:12.5px; line-height:1.55; color:var(--wc-t2); }
+.wc-dialog__extra{ margin-top:14px; }
+/* An option the question itself carries — "also delete downloaded models".
+   Drawn rather than native: a browser checkbox is a white block, which on a
+   near-black card is the loudest thing in the dialog. */
+.wc-opt{ display:flex; align-items:center; gap:9px; cursor:pointer; font-size:12.5px; color:var(--wc-t2); }
+.wc-opt input{
+  flex:0 0 auto; width:16px; height:16px; margin:0; cursor:pointer;
+  -webkit-appearance:none; appearance:none;
+  background:var(--wc-input); border:1.5px solid var(--wc-border); border-radius:5px;
+  transition:background-color .15s ease, border-color .15s ease;
+}
+.wc-opt input:checked{
+  background-color:var(--wc-acc); border-color:var(--wc-acc);
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'><path d='M20 6 9 17l-5-5'/></svg>");
+  background-size:11px; background-position:center; background-repeat:no-repeat;
+}
+.wc-opt--danger input:checked{ background-color:var(--wc-err); border-color:var(--wc-err); }
+.wc-opt input:focus-visible,
+.wc-dialog .wc-btn:focus-visible{ outline:2px solid var(--wc-acc); outline-offset:2px; }
+.wc-dialog .wc-btnrow{ padding:0 18px 18px; margin-top:18px; justify-content:flex-end; }
+.wc-dialog .wc-btnrow .wc-btn{ flex:0 0 auto; }
+
+/* A solid .wc-btn--destroy used to live here as the heavy partner to the quiet
+   outline .wc-btn--danger. Nothing ever applied it — the one button that wants
+   that weight, #meeting-end-btn, hand-rolls a small pill (rounded-full, 12px
+   text) that .wc-btn's 49px geometry would wreck. Rather than keep a primitive
+   alive for a consumer it does not fit, it is gone. If a destructive dialog
+   ever needs a solid confirm, add it back with a consumer in the same commit. */
+
+/* ============================ FULL-SCREEN PAGE ============================ */
+.wc-page{
+  position:absolute; inset:0; background:var(--wc-base); color:var(--wc-t1);
+  display:flex; flex-direction:column; pointer-events:auto;
+  transform:translateX(100%); transition:transform .3s cubic-bezier(.2,.8,.2,1);
+  padding-top:env(safe-area-inset-top,0px);
+}
+.wc-page.wc-in{ transform:translateX(0); }
+.wc-page.wc-under{ transform:translateX(-22%); filter:brightness(.7); }
+
+/* ---- shared header (sheet + page) ---- */
+.wc-head{
+  flex:0 0 auto; display:flex; align-items:center; gap:10px;
+  padding:8px 12px 12px; min-height:52px;
+}
+/* Full-screen pages get a header separator line under the title — matches the
+   original settings drawer's bordered header. Sheets stay borderless (cards). */
+.wc-page .wc-head{ border-bottom:1px solid var(--wc-border); }
+.wc-sheet .wc-head{ padding-top:2px; }
+.wc-head__title{ font-size:19px; font-weight:650; letter-spacing:-.01em; color:var(--wc-t1); flex:1 1 auto; min-width:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.wc-head__sub{ font-size:12px; color:var(--wc-t3); font-weight:400; }
+.wc-iconbtn{
+  flex:0 0 auto; width:38px; height:38px; border-radius:10px; border:0; background:transparent;
+  display:flex; align-items:center; justify-content:center; color:var(--wc-t2); cursor:pointer;
+  transition:background .15s, color .15s;
+}
+.wc-iconbtn:hover{ background:var(--wc-panel-2); color:var(--wc-t1); }
+.wc-iconbtn svg{ width:20px; height:20px; }
+.wc-badge{ flex:0 0 auto; font-size:10.5px; font-weight:700; letter-spacing:.06em; color:var(--wc-acc);
+  border:1px solid color-mix(in srgb, var(--wc-acc) 55%, transparent); border-radius:6px; padding:3px 8px; }
+
+/* ---- scroll body ---- */
+.wc-body{ flex:1 1 auto; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:4px 16px 22px; }
+.wc-body--pad{ padding:16px; }
+
+/* ---- section label ---- */
+.wc-sec{ display:flex; align-items:center; gap:9px; margin:20px 2px 10px; }
+.wc-sec:first-child{ margin-top:6px; }
+.wc-sec__l{ font-size:11px; font-weight:700; letter-spacing:.09em; color:var(--wc-t3); text-transform:uppercase; }
+.wc-sec__count{ font-size:11px; font-weight:700; color:var(--wc-t3); background:var(--wc-panel-2); border-radius:6px; padding:1px 7px; }
+.wc-sec__spacer{ flex:1 1 auto; }
+
+/* ---- row (the core list item) ---- */
+.wc-row{
+  display:flex; align-items:center; gap:12px; width:100%; text-align:left;
+  padding:11px 10px 11px 12px; background:var(--wc-panel); border:1px solid var(--wc-border-soft);
+  border-radius:var(--wc-r-md); cursor:pointer; color:inherit; font-family:inherit;
+  transition:background .14s, border-color .14s;
+}
+.wc-row + .wc-row{ margin-top:8px; }
+.wc-row:hover{ background:var(--wc-panel-2); }
+.wc-row:active{ transform:translateY(.5px); }
+.wc-tile{ flex:0 0 auto; width:30px; height:30px; border-radius:var(--wc-r-sm); background:var(--wc-panel-2);
+  display:flex; align-items:center; justify-content:center; color:var(--wc-acc); }
+.wc-tile svg{ width:17px; height:17px; }
+.wc-tile--soft{ color:var(--wc-acc-soft); }
+.wc-row__main{ flex:1 1 auto; min-width:0; }
+.wc-row__title{ font-size:14px; font-weight:600; color:var(--wc-t1); }
+.wc-row__sub{ font-size:12.5px; color:var(--wc-t2); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wc-row__trail{ flex:0 0 auto; display:flex; align-items:center; gap:2px; color:var(--wc-t3); }
+.wc-run{ width:32px; height:32px; border-radius:var(--wc-r-sm); background:color-mix(in srgb,var(--wc-acc) 15%,transparent);
+  display:flex; align-items:center; justify-content:center; color:var(--wc-acc); border:0; cursor:pointer; }
+.wc-run svg{ width:14px; height:14px; }
+.wc-chev{ color:var(--wc-t3); display:flex; }
+.wc-chev svg{ width:18px; height:18px; }
+.wc-grip{ color:var(--wc-t3); display:flex; touch-action:none; cursor:grab; }
+.wc-grip svg{ width:18px; height:18px; }
+/* pro menu rows use the same border shade as the settings menu cards (--wc-border) */
+#wc-pro-root .wc-row{ border-color:var(--wc-border); }
+
+/* ---- buttons ---- */
+.wc-btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  padding:13px 18px; border-radius:var(--wc-r-md); font-size:14.5px; font-weight:650; font-family:inherit;
+  border:0; cursor:pointer; transition:background .15s, opacity .15s; }
+.wc-btn svg{ width:17px; height:17px; }
+.wc-btn--primary{ background:var(--wc-acc); color:#fff; }
+.wc-btn--primary:hover{ background:var(--wc-acc-hover); }
+.wc-btn--ghost{ background:var(--wc-panel); color:var(--wc-t2); border:1px solid var(--wc-border); }
+.wc-btn--ghost:hover{ background:var(--wc-panel-2); color:var(--wc-t1); }
+.wc-btn--danger{ background:transparent; color:var(--wc-err); border:1px solid color-mix(in srgb,var(--wc-err) 45%,transparent); }
+.wc-btn--danger:hover{ background:color-mix(in srgb,var(--wc-err) 10%,transparent); }
+.wc-btn--block{ width:100%; }
+.wc-btn:disabled{ opacity:.45; cursor:not-allowed; }
+.wc-btnrow{ display:flex; gap:10px; margin-top:16px; }
+.wc-btnrow .wc-btn{ flex:1 1 0; }
+
+/* ---- dashed add / empty ---- */
+.wc-dashed{ display:flex; align-items:center; justify-content:center; gap:8px; width:100%;
+  padding:13px; border-radius:var(--wc-r-md); border:1px dashed color-mix(in srgb,var(--wc-acc) 60%,transparent);
+  background:transparent; color:var(--wc-acc); font-size:14px; font-weight:600; font-family:inherit; cursor:pointer; }
+.wc-dashed svg{ width:16px; height:16px; }
+.wc-empty{ text-align:center; padding:34px 20px; }
+.wc-empty__tile{ width:52px; height:52px; border-radius:14px; background:var(--wc-panel-2); color:var(--wc-acc);
+  display:flex; align-items:center; justify-content:center; margin:0 auto 14px; }
+.wc-empty__tile svg{ width:26px; height:26px; }
+.wc-empty__h{ font-size:16px; font-weight:650; color:var(--wc-t1); }
+.wc-empty__p{ font-size:13px; color:var(--wc-t2); margin-top:6px; max-width:280px; margin-inline:auto; line-height:1.5; }
+
+/* ---- inputs ---- */
+.wc-field{ margin-bottom:18px; }
+.wc-label{ display:block; font-size:12px; font-weight:700; letter-spacing:.03em; color:var(--wc-t2); margin-bottom:7px; text-transform:uppercase; }
+.wc-input, .wc-textarea{ width:100%; background:var(--wc-input); border:1px solid var(--wc-border); border-radius:var(--wc-r-md);
+  color:var(--wc-t1); font-family:inherit; font-size:14.5px; padding:12px 13px; outline:none; transition:border-color .15s, box-shadow .15s; }
+.wc-input::placeholder, .wc-textarea::placeholder{ color:var(--wc-t3); }
+.wc-input:focus, .wc-textarea:focus{ border-color:var(--wc-acc); box-shadow:0 0 0 3px color-mix(in srgb,var(--wc-acc) 18%,transparent); }
+.wc-textarea{ min-height:96px; resize:vertical; line-height:1.5; }
+/* .wc-textarea--err was co-declared here and never applied — only inputs carry
+   the error state today. Dropped rather than kept warm for a hypothetical. */
+.wc-input--err{ border-color:var(--wc-err); }
+.wc-err-msg{ display:flex; align-items:center; gap:6px; margin-top:7px; font-size:12.5px; color:var(--wc-err); }
+.wc-err-msg svg{ width:14px; height:14px; }
+/* display:flex outranks the UA [hidden] rule, so without this an error message
+   set hidden stays on screen. */
+.wc-err-msg[hidden]{ display:none; }
+
+/* mm:ss span picker — two short fields reading as one control. */
+.wc-timerange{ display:flex; align-items:center; gap:9px; margin-top:14px; }
+.wc-timerange .wc-hint{ margin-top:0; flex:0 0 auto; }
+.wc-input--time{ width:82px; flex:0 0 auto; text-align:center; }
+.wc-hint{ margin-top:7px; font-size:12px; color:var(--wc-t3); }
+
+/* ---- segmented control ---- */
+.wc-seg{ display:flex; gap:7px; flex-wrap:wrap; }
+.wc-seg__opt{ padding:9px 15px; border-radius:10px; background:var(--wc-panel-2); border:1px solid transparent;
+  color:var(--wc-t2); font-size:13px; font-weight:600; font-family:inherit; cursor:pointer; transition:.14s; }
+.wc-seg__opt[aria-pressed="true"]{ background:color-mix(in srgb,var(--wc-acc) 15%,transparent);
+  border-color:color-mix(in srgb,var(--wc-acc) 55%,transparent); color:var(--wc-acc); }
+
+/* ---- serif reading block (transcripts / results) ---- */
+.wc-read{ font-family:var(--wc-serif); font-size:15.5px; line-height:1.62; color:var(--wc-t1); white-space:pre-wrap; }
+.wc-result{ background:var(--wc-panel-2); border-radius:var(--wc-r-md); padding:13px 14px; }
+
+/* ---- inline chips / pills ---- */
+.wc-chip{ display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:8px; background:var(--wc-panel-2);
+  color:var(--wc-t2); font-size:12.5px; font-weight:600; border:0; cursor:pointer; font-family:inherit; }
+.wc-chip svg{ width:15px; height:15px; }
+
+/* ---- pro entry: wordmark tier suffix (subscriber) + compact upgrade button (free) ---- */
+/* seamless: appended INSIDE the wordmark, no gap — colour + bold separate "Pro".
+   WhisperClick text is left byte-for-byte unchanged; only this suffix is added. */
+#wc-pro-suffix{ color:var(--wc-acc,#C07A4E); font-weight:700; }
+#wc-pro-upgrade{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px;
+  padding:0; margin-right:6px; border-radius:8px; background:transparent; border:0;
+  /* Softer accent + slightly muted at rest — a quiet upgrade cue, not a hard sell.
+     Brightens toward the accent on hover. */
+  color:var(--wc-acc-soft,#CF9673); opacity:.85; cursor:pointer; transition:opacity .15s, background .15s, color .15s; }
+#wc-pro-upgrade:hover{ opacity:1; color:var(--wc-acc,#C07A4E); background:color-mix(in srgb,var(--wc-acc-soft,#CF9673) 12%, transparent); }
+#wc-pro-upgrade svg{ width:17px; height:17px; }
+.wc-wordmark-tap{ cursor:pointer; }
+
+/* ---- premium controls when NOT Pro: hidden entirely ----
+   Premium controls (Review/Ask tabs, Send-to integrations, Diarize) are
+   HIDDEN in the PAID build before a license is entered. No grayed "pay to
+   upgrade" zombie buttons. A license flips isPro()→true, removes
+   .wc-tier-free, and the controls appear and work. Driven by
+   #detail-card.wc-tier-free.
+
+   This rule is premium and ships only in the paid build. It used to claim it
+   covered the free build too — it never could: in the free build the markup
+   it selects does not exist, and neither does the code that puts
+   .wc-tier-free on the card. A rule that hides what was never built is not a
+   safety net, it is a comment that reads like one. */
+
+/* ---- settings groups (iOS-style grouped list) ---- */
+.wc-group{ background:var(--wc-panel); border:1px solid var(--wc-border-soft); border-radius:var(--wc-r-md); overflow:hidden; }
+.wc-group .wc-srow + .wc-srow{ border-top:1px solid var(--wc-border-soft); }
+.wc-srow{ display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:13px 14px;
+  background:transparent; border:0; cursor:pointer; color:inherit; font-family:inherit; }
+.wc-srow:hover{ background:var(--wc-panel-2); }
+.wc-srow__main{ flex:1 1 auto; min-width:0; }
+.wc-srow__title{ font-size:14px; font-weight:550; color:var(--wc-t1); }
+.wc-srow__sub{ font-size:12px; color:var(--wc-t2); margin-top:2px; }
+.wc-srow__val{ flex:0 0 auto; font-size:13px; color:var(--wc-t3); }
+
+/* ---- meeting mode ----
+   .wc-live / .wc-live__dot / .wc-timer / .wc-recbtn were removed: the meeting UI
+   is built in index.html and never applied any of them. Only .wc-wave survives,
+   and only partially — see the note on its rule below. */
+.wc-wave{ display:flex; align-items:flex-end; justify-content:center; gap:3px; height:36px; }
+/* NOTE: the live markup (index.html) fills .wc-wave with <span> children, so this
+   `i` selector matches nothing today and the bars are animated by the #url-modal
+   rules instead. Left in place rather than silently deleted — which element the
+   wave should use is a design decision, not dead weight to sweep. */
+.wc-wave i{ width:3px; border-radius:2px; background:var(--wc-acc); animation:wc-bar 1s ease-in-out infinite; }
+@keyframes wc-bar{ 0%,100%{ transform:scaleY(.35); } 50%{ transform:scaleY(1); } }
+
+/* The shell's bottom-pill toast used to live here. It was the losing half of two
+   competing notification designs; WCShell.toast() is now the docked top banner
+   (built in wc-shell.js), so these rules styled nothing. Removed rather than
+   left behind — dead CSS is indistinguishable from CSS whose element stopped
+   rendering, and only one of those is safe to ignore. */
+
+/* ---- adopted native settings: iOS-style GROUPED lists (shown in a subpage) ----
+   Related rows share ONE rounded container with hairline dividers — not a box
+   per row. A grouping pass (groupifyNative) wraps runs of rows in .wc-grp;
+   block cards (API-key card, model manager) stay standalone. Scoped to .wc-native
+   so the live free drawer is untouched. */
+.wc-pro .wc-native .wc-set-head{ display:none; }               /* redundant with the page title */
+/* the adopted node stacks its groups / blocks / helper text with even spacing */
+.wc-pro .wc-native > *{ display:flex; flex-direction:column; gap:16px; }
+.wc-pro .wc-native > * > *{ margin-top:0 !important; margin-bottom:0 !important; }  /* kill Tailwind space-y */
+
+/* grouped container: one rounded card, rows divided by hairlines */
+.wc-pro .wc-native .wc-grp{
+  background:var(--wc-panel); border:1px solid var(--wc-border-soft);
+  border-radius:var(--wc-r-md); overflow:hidden;
+}
+.wc-pro .wc-native .wc-grp > *{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:13px 14px; margin:0 !important; background:none; border:0; border-radius:0;
+}
+.wc-pro .wc-native .wc-grp > .hidden{ display:none; }
+.wc-pro .wc-native .wc-grp > * + *:not(.hidden){ border-top:1px solid var(--wc-border-soft); }
+
+/* row text */
+.wc-pro .wc-native .wc-set-txt{ min-width:0; }
+.wc-pro .wc-native .wc-set-label,
+.wc-pro .wc-native .wc-grp > * > span:first-child{ font-size:14px; font-weight:600; color:var(--wc-t1); }
+.wc-pro .wc-native .wc-set-desc{ font-size:12.5px; color:var(--wc-t2); margin-top:2px; line-height:1.45; }
+
+/* inline controls inside a grouped row keep their natural width */
+.wc-pro .wc-native .wc-grp select,
+.wc-pro .wc-native .wc-grp input,
+.wc-pro .wc-native .wc-grp .flex input{ width:auto; margin:0; }
+
+/* block inputs / textareas / selects (API-key card etc.) → full-width dark premium look */
+.wc-pro .wc-native input:not([type="checkbox"]):not([type="radio"]),
+.wc-pro .wc-native textarea,
+.wc-pro .wc-native select{
+  box-sizing:border-box; background:var(--wc-input); border:1px solid var(--wc-border);
+  border-radius:var(--wc-r-md); color:var(--wc-t1); font-family:inherit; font-size:14px; padding:11px 12px;
+}
+.wc-pro .wc-native input:not(.wc-grp input):not([type="checkbox"]):not([type="radio"]),
+.wc-pro .wc-native textarea,
+.wc-pro .wc-native select:not(.wc-grp select){ width:100%; margin:6px 0 2px; }
+.wc-pro .wc-native input::placeholder, .wc-pro .wc-native textarea::placeholder{ color:var(--wc-t3); }
+.wc-pro .wc-native input:focus, .wc-pro .wc-native textarea:focus, .wc-pro .wc-native select:focus{
+  outline:none; border-color:var(--wc-acc); box-shadow:0 0 0 3px color-mix(in srgb,var(--wc-acc) 18%,transparent);
+}
+/* helper paragraphs that sit between groups read as muted captions */
+.wc-pro .wc-native .section-body > p{ font-size:12px; color:var(--wc-t2); line-height:1.5; padding:0 2px; }
+
+/* ---- labeled sub-sections (iOS grouped list with headers) ---- */
+.wc-pro .wc-native .wc-gsection{ display:flex; flex-direction:column; gap:8px; }
+.wc-pro .wc-native .wc-glabel{
+  font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--wc-t3); padding:0 4px;
+}
+
+/* ---- choice control rendered as a "menu row" (value + chevron, opens a picker) ---- */
+.wc-pro .wc-native select.wc-hidden-sel{ display:none !important; }
+.wc-pro .wc-native .wc-menuval{
+  display:inline-flex; align-items:center; gap:6px; max-width:62%;
+  background:none; border:0; padding:0; color:var(--wc-t1); font:inherit; font-size:14px; cursor:pointer;
+}
+.wc-pro .wc-native .wc-menuval__t{ color:var(--wc-t2); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.wc-pro .wc-native .wc-menuval::after{ content:'\203A'; color:var(--wc-t3); font-size:18px; line-height:1; margin-top:-1px; }
+.wc-pro .wc-native .wc-menuval:active{ opacity:.6; }
+
+/* ---- picker sheet rows ---- */
+.wc-pro .wc-pick{
+  display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%;
+  background:none; border:0; color:var(--wc-t1); font:inherit; font-size:15px;
+  padding:15px 4px; text-align:left; cursor:pointer;
+}
+.wc-pro .wc-pick + .wc-pick{ border-top:1px solid var(--wc-border-soft); }
+.wc-pro .wc-pick--on{ color:var(--wc-acc); font-weight:600; }
+.wc-pro .wc-pick--on::after{ content:'\2713'; color:var(--wc-acc); font-size:15px; }
+.wc-pro .wc-pick[disabled]{ color:var(--wc-t3); cursor:default; }
+
+/* ---------------------------------------------------------------------------
+   Token-backed text utilities
+   ---------------------------------------------------------------------------
+   These exist to replace Tailwind colour classes that have no dark: pair.
+   `text-stone-500` is #78716c on BOTH grounds — the same frozen-across-the-theme
+   defect as a hardcoded hex, written in a notation the colour scanner cannot
+   see, because a class name contains no hex. Swapping the class is a pure
+   string substitution that works identically in an HTML attribute and in a JS
+   `className = '...'` string, which the inline-style fix does not.
+
+   The fallback in each var() is the exact colour the Tailwind class painted.
+   Not every element carrying one of these sits inside .wc-pro, and outside that
+   scope the token resolves to nothing; the fallback means those sites keep
+   painting precisely what they paint today. The swap is therefore
+   better-or-equal everywhere and needs no per-site scope audit.
+
+   Deliberately NOT here: the semantic FILLS — a red/amber/green status dot.
+   A filled shape is the same colour on both grounds by intent. This is a
+   legibility fix, and a 6px dot has no legibility to fix. */
+/* t1 has no Tailwind ancestor to fall back to, because the sites that need it
+   were not painting a colour at all — they inherited, which resolves to black.
+   That reads as "unstyled" in light and is a 1.28:1 legibility failure in dark
+   (the active half of the Local/API switch, black on --wc-panel). The fallback
+   is the dark t1 rather than a Tailwind shade for the same reason. */
+.wc-t1{ color:var(--wc-t1,#f5f5f4); }
+.wc-t2{ color:var(--wc-t2,#a8a29e); }
+.wc-t3{ color:var(--wc-t3,#78716c); }
+.wc-err-text{ color:var(--wc-err,#ef4444); }
+/* :hover and ::placeholder cannot be expressed as an inline style at all, which
+   is the other reason this is a class and not a style attribute. */
+.wc-ph::placeholder{ color:var(--wc-t3,#a8a29e); }
+.wc-hover-err:hover{ color:var(--wc-err,#ef4444); }
+
+/* ---- animation off ---- */
+@media (prefers-reduced-motion: reduce){
+  .wc-backdrop,.wc-sheet,.wc-page{ transition:none !important; }
+  .wc-wave i{ animation:none !important; }
+}

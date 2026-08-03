@@ -1,0 +1,20 @@
+# Guard files: changes here directly affect whether premium code can leak.
+# Requiring owner review means a safety can never be silently weakened or
+# reverted (e.g. flipping the orphan publish back to full-history, or dropping
+# a strip rule). Enforced once branch protection has "require review from
+# Code Owners" enabled on main.
+
+# The publisher and its fail-closed gates
+/tools/sync_public.sh        @Zbrooklyn
+/tools/verify_public_clean.sh @Zbrooklyn
+/tools/protect-premium.js    @Zbrooklyn
+
+# The CI that builds/publishes and the watchdog that guards it
+/.github/workflows/sync-public.yml     @Zbrooklyn
+/.github/workflows/security-scan.yml   @Zbrooklyn
+/.github/workflows/build-electron.yml  @Zbrooklyn
+
+# Build configs that decide what ships in each variant
+/electron-builder.pro.json   @Zbrooklyn
+/electron-builder.free.json  @Zbrooklyn
+/electron-builder.dev.json   @Zbrooklyn

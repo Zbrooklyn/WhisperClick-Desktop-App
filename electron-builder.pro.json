@@ -1,0 +1,63 @@
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "appId": "com.whisperclick.pro",
+  "productName": "WhisperClick Pro",
+  "directories": { "output": "release-pro" },
+  "extraMetadata": { "productName": "WhisperClick Pro" },
+  "icon": "icons/icon.png",
+  "files": [
+    "platforms/electron/**",
+    "shared/frontend/**",
+    "shared/pill/**",
+    "shared/media/**",
+    "shared/engine/**",
+    "icons/**",
+    "!platforms/electron/premium/**/*.js",
+    "!shared/analysis/**/*.js",
+    "!shared/analysis/test/**",
+    "!shared/analysis/corpus/**",
+    "platforms/electron/premium/**/*.jsc",
+    "shared/analysis/**/*.jsc",
+    "!shared/engine/**"
+  ],
+  "extraResources": [
+    { "from": "shared/engine/dist/engine/", "to": "engine-bin/" }
+  ],
+  "win": {
+    "icon": "icons/icon.ico",
+    "target": [
+      { "target": "nsis", "arch": ["x64"] },
+      { "target": "portable", "arch": ["x64"] }
+    ]
+  },
+  "nsis": {
+    "artifactName": "WhisperClick-Pro-Setup-${version}.${ext}",
+    "shortcutName": "WhisperClick Pro",
+    "installerIcon": "icons/icon.ico",
+    "uninstallerIcon": "icons/icon.ico",
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true
+  },
+  "portable": {
+    "artifactName": "WhisperClick-Pro-Portable-${version}.${ext}"
+  },
+  "mac": {
+    "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
+    "icon": "icons/icon.png",
+    "category": "public.app-category.productivity"
+  },
+  "linux": {
+    "icon": "icons/icon.png",
+    "target": ["AppImage"],
+    "category": "Utility"
+  },
+  "generateUpdatesFilesForAllChannels": true,
+  "publish": {
+    "provider": "generic",
+    "url": "https://whisperclick.com/updates/pro/",
+    "channel": "latest"
+  }
+}
